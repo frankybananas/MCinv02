@@ -1,0 +1,119 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Upload } from "lucide-react"
+import type { Car } from "../types"
+
+interface ReserveModalProps {
+  car: Car
+  onConfirm: (reservedBy: string) => void
+  onClose: () => void
+}
+
+export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
+  const [formData, setFormData] = useState({
+    customerName: "",
+    reason: "",
+    notes: "",
+    proofFile: null as File | null,
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (formData.customerName.trim()) {
+      onConfirm(formData.customerName)
+    }
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setFormData((prev) => ({ ...prev, proofFile: file }))
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reserve Vehicle</DialogTitle>
+          <DialogDescription>
+            Reserve {car.year} {car.make} {car.model}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Customer Name</label>
+            <Input
+              value={formData.customerName}
+              onChange={(e) => setFormData((prev) => ({ ...prev, customerName: e.target.value }))}
+              placeholder="Enter customer name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Reservation Reason</label>
+            <Select
+              value={formData.reason}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, reason: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select reason" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="test-drive">Test Drive Scheduled</SelectItem>
+                <SelectItem value="inspection">Pending Inspection</SelectItem>
+                <SelectItem value="financing">Financing Review</SelectItem>
+                <SelectItem value="deposit">Deposit Received</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Additional Notes</label>
+            <Textarea
+              value={formData.notes}
+              onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+              placeholder="Any additional information..."
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Upload Proof</label>
+            <div className="mt-2">
+              <label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors">
+                <div className="text-center">
+                  <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {formData.proofFile ? formData.proofFile.name : "Upload document or image"}
+                  </span>
+                </div>
+                <input type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" onChange={handleFileUpload} />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1">
+              Confirm Reservation
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
