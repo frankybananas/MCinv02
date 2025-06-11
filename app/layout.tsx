@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Car Inventory",
   },
-    generator: 'v0.dev'
+
 }
 
 export const viewport: Viewport = {
