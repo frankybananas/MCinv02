@@ -6,15 +6,17 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, CarIcon } from "lucide-react"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus } from "../types"
 
 interface DashboardProps {
   cars: Car[]
   onCarSelect: (car: Car) => void
   onAddCar: () => void
+  onStatusChange: (carId: string, status: CarStatus) => void
 }
 
-export function Dashboard({ cars, onCarSelect, onAddCar }: DashboardProps) {
+export function Dashboard({ cars, onCarSelect, onAddCar, onStatusChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<CarStatus>("all")
 
   const tabs: { id: CarStatus; label: string }[] = [
@@ -43,9 +45,9 @@ export function Dashboard({ cars, onCarSelect, onAddCar }: DashboardProps) {
   }
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-ZA", {
       style: "currency",
-      currency: "USD",
+      currency: "ZAR",
       minimumFractionDigits: 0,
     }).format(price)
   }
@@ -106,15 +108,44 @@ export function Dashboard({ cars, onCarSelect, onAddCar }: DashboardProps) {
                         </h3>
                         <p className="text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
                       </div>
-                      <Badge className={getStatusColor(car.status)}>
-                        {car.status === "in-stock"
-                          ? "In Stock"
-                          : car.status === "coming"
-                            ? "Coming"
-                            : car.status === "reserved"
-                              ? "Reserved"
-                              : "Sold"}
-                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Badge
+                            className={getStatusColor(car.status)}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {car.status === "in-stock"
+                              ? "In Stock"
+                              : car.status === "coming"
+                                ? "Coming"
+                                : car.status === "reserved"
+                                  ? "Reserved"
+                                  : "Sold"}
+                          </Badge>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {(["in-stock", "coming", "reserved", "sold"] as CarStatus[]).map((statusOption) => (
+                            <DropdownMenuItem
+                              key={statusOption}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (statusOption !== car.status) {
+                                  onStatusChange(car.id, statusOption)
+                                }
+                              }}
+                            >
+                              {statusOption === "in-stock"
+                                ? "In Stock"
+                                : statusOption === "coming"
+                                  ? "Coming"
+                                  : statusOption === "reserved"
+                                    ? "Reserved"
+                                    : "Sold"}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                          
                     </div>
                     <div className="flex gap-4 text-sm text-muted-foreground mt-2">
                       <span>{car.kilometers.toLocaleString()} km</span>

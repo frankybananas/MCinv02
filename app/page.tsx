@@ -145,6 +145,7 @@ export default function CarInventoryApp() {
           cars={appState.cars}
           onCarSelect={(car) => navigateTo("car-detail", { car })}
           onAddCar={() => navigateTo("add-car")}
+          onStatusChange={(carId, status) => updateCarStatus(carId, status)}
         />
       )}
 

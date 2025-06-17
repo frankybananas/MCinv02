@@ -133,7 +133,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Price ($)</label>
+                  <label className="text-sm font-medium">Price (R)</label>
                   <Input
                     type="number"
                     value={formData.price}

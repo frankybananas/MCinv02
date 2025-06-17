@@ -21,9 +21,9 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-ZA", {
       style: "currency",
-      currency: "USD",
+      currency: "ZAR",
       minimumFractionDigits: 0,
     }).format(price)
   }
