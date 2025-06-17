@@ -9,18 +9,20 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Upload } from "lucide-react"
-import type { Car } from "../types"
+import type { Car, Client } from "../types"
 
 interface ReserveModalProps {
   car: Car
+  clients: Client[]
   onConfirm: (name: string, phone: string) => void
   onClose: () => void
 }
 
-export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
+export function ReserveModal({ car, clients, onConfirm, onClose }: ReserveModalProps) {
   const [formData, setFormData] = useState({
     customerName: "",
     phoneNumber: "",
+    selectedClientId: "new", // "new" means create new
     reason: "",
     notes: "",
     proofFile: null as File | null,
@@ -28,7 +30,12 @@ export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.customerName.trim() && formData.phoneNumber.trim()) {
+    if (formData.selectedClientId !== "new") {
+      const client = clients.find((c) => c.id === formData.selectedClientId)
+      if (client) {
+        onConfirm(client.name, client.phone)
+      }
+    } else if (formData.customerName.trim() && formData.phoneNumber.trim()) {
       onConfirm(formData.customerName, formData.phoneNumber)
     }
   }
@@ -52,7 +59,27 @@ export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Customer Name</label>
+            <label className="text-sm font-medium">Select Client</label>
+            <Select
+              value={formData.selectedClientId}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, selectedClientId: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose client" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">+ New Client</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name} – {c.phone}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.selectedClientId === "new" && (
+            <>
+              <div>
+                <label className="text-sm font-medium">Customer Name</label>
             <Input
               value={formData.customerName}
               onChange={(e) => setFormData((prev) => ({ ...prev, customerName: e.target.value }))}
@@ -110,10 +137,17 @@ export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
                     {formData.proofFile ? formData.proofFile.name : "Upload document or image"}
                   </span>
                 </div>
-                <input type="file" className="hidden" accept="image/*,.pdf,.doc,.docx" onChange={handleFileUpload} />
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx"
+                  onChange={handleFileUpload}
+                />
               </label>
             </div>
           </div>
+          </>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
