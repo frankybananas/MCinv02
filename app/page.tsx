@@ -152,7 +152,7 @@ export default function CarInventoryApp() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-background min-h-screen">
+    <div className="w-full max-w-screen-xl mx-auto bg-background min-h-screen px-4">
       {appState.currentScreen === "login" && <LoginScreen onLogin={login} />}
 
       {appState.currentScreen === "otp" && (

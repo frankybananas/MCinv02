@@ -29,7 +29,7 @@ export function Dashboard({ cars, clients, onCarSelect, onAddCar, onStatusChange
     { id: "coming", label: "Coming" },
     { id: "reserved", label: "Reserved" },
     { id: "sold", label: "Sold" },
-    { id: "clients", label: "MyClients" },
+    { id: "clients", label: "Clients" },
   ]
 
   const filteredCars = activeTab === "all" ? cars : cars.filter((car) => car.status === activeTab)
