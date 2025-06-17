@@ -9,25 +9,31 @@ import { Plus, CarIcon } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus } from "../types"
 
+import type { Client } from "../types"
+
 interface DashboardProps {
   cars: Car[]
+  clients: Client[]
   onCarSelect: (car: Car) => void
   onAddCar: () => void
   onStatusChange: (carId: string, status: CarStatus) => void
 }
 
-export function Dashboard({ cars, onCarSelect, onAddCar, onStatusChange }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<CarStatus>("all")
+export function Dashboard({ cars, clients, onCarSelect, onAddCar, onStatusChange }: DashboardProps) {
+  type TabId = CarStatus | "clients"
+  const [activeTab, setActiveTab] = useState<TabId>("all")
 
-  const tabs: { id: CarStatus; label: string }[] = [
+  const tabs: { id: TabId; label: string }[] = [
     { id: "all", label: "All" },
     { id: "in-stock", label: "In-Stock" },
     { id: "coming", label: "Coming" },
     { id: "reserved", label: "Reserved" },
     { id: "sold", label: "Sold" },
+    { id: "clients", label: "MyClients" },
   ]
 
   const filteredCars = activeTab === "all" ? cars : cars.filter((car) => car.status === activeTab)
+  const showClients = activeTab === "clients"
 
   const getStatusColor = (status: CarStatus) => {
     switch (status) {
@@ -84,7 +90,24 @@ export function Dashboard({ cars, onCarSelect, onAddCar, onStatusChange }: Dashb
         </ScrollArea>
       </div>
 
-      {/* Car List */}
+      {/* Clients list */}
+      {showClients && (
+        <div className="p-4 space-y-4">
+          {clients.length === 0 && <p className="text-sm text-muted-foreground">No clients yet.</p>}
+          {clients.map((client: Client) => (
+            <Card key={client.id} className="cursor-default">
+              <CardContent className="p-4 flex justify-between items-center">
+                <div>
+                  <p className="font-medium">{client.name}</p>
+                  <p className="text-sm text-muted-foreground">{client.phone}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Car list */}
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
           {filteredCars.map((car) => (

@@ -13,13 +13,14 @@ import type { Car } from "../types"
 
 interface ReserveModalProps {
   car: Car
-  onConfirm: (reservedBy: string) => void
+  onConfirm: (name: string, phone: string) => void
   onClose: () => void
 }
 
 export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
   const [formData, setFormData] = useState({
     customerName: "",
+    phoneNumber: "",
     reason: "",
     notes: "",
     proofFile: null as File | null,
@@ -27,8 +28,8 @@ export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.customerName.trim()) {
-      onConfirm(formData.customerName)
+    if (formData.customerName.trim() && formData.phoneNumber.trim()) {
+      onConfirm(formData.customerName, formData.phoneNumber)
     }
   }
 
@@ -56,6 +57,16 @@ export function ReserveModal({ car, onConfirm, onClose }: ReserveModalProps) {
               value={formData.customerName}
               onChange={(e) => setFormData((prev) => ({ ...prev, customerName: e.target.value }))}
               placeholder="Enter customer name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Customer Phone</label>
+            <Input
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+              placeholder="Enter phone number"
               required
             />
           </div>

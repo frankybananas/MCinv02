@@ -19,6 +19,7 @@ export default function CarInventoryApp() {
     cars: mockCars,
     showReserveModal: false,
     editingCar: null,
+    clients: [],
   })
 
   const navigateTo = (screen: AppState["currentScreen"], data?: any) => {
@@ -53,8 +54,8 @@ export default function CarInventoryApp() {
 
   const addCar = (carData: Partial<Car>) => {
     const newCar: Car = {
-      id: Date.now().toString(),
       ...(carData as Car),
+      id: Date.now().toString(),
       status: "in-stock",
       createdAt: new Date().toISOString(),
       auditLog: [
@@ -99,7 +100,7 @@ export default function CarInventoryApp() {
     }))
   }
 
-  const updateCarStatus = (carId: string, status: CarStatus, reservedBy?: string) => {
+  const updateCarStatus = (carId: string, status: CarStatus, reservedBy?: string, phone?: string) => {
     setAppState((prev) => {
       const updatedCars = prev.cars.map((car) =>
         car.id === carId
@@ -125,11 +126,19 @@ export default function CarInventoryApp() {
         ? updatedCars.find((c) => c.id === carId) || prev.selectedCar
         : prev.selectedCar
 
+      // Add client if provided
+      const updatedClients = phone && reservedBy
+        ? prev.clients.some((c) => c.phone === phone)
+          ? prev.clients
+          : [...prev.clients, { id: Date.now().toString(), name: reservedBy, phone }]
+        : prev.clients
+
       return {
         ...prev,
         cars: updatedCars,
         selectedCar: updatedSelected,
         showReserveModal: false,
+        clients: updatedClients,
       }
     })
   }
@@ -153,6 +162,7 @@ export default function CarInventoryApp() {
       {appState.currentScreen === "dashboard" && (
         <Dashboard
           cars={appState.cars}
+          clients={appState.clients}
           onCarSelect={(car) => navigateTo("car-detail", { car })}
           onAddCar={() => navigateTo("add-car")}
           onStatusChange={(carId, status) => updateCarStatus(carId, status)}
@@ -182,7 +192,7 @@ export default function CarInventoryApp() {
       {appState.showReserveModal && appState.selectedCar && (
         <ReserveModal
           car={appState.selectedCar}
-          onConfirm={(reservedBy) => updateCarStatus(appState.selectedCar!.id, "reserved", reservedBy)}
+          onConfirm={(name, phone) => updateCarStatus(appState.selectedCar!.id, "reserved", name, phone)}
           onClose={hideReserveModal}
         />
       )}

@@ -18,6 +18,12 @@ export interface Car {
   auditLog: AuditLogEntry[]
 }
 
+export interface Client {
+  id: string
+  name: string
+  phone: string
+}
+
 export interface AuditLogEntry {
   action: string
   user: string
@@ -33,4 +39,5 @@ export interface AppState {
   cars: Car[]
   showReserveModal: boolean
   editingCar: Car | null
+  clients: Client[]
 }
