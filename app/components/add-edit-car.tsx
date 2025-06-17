@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,13 +36,27 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleImageUpload = () => {
-    // Mock image upload - in real app, this would open camera/gallery
-    const newImage = "/placeholder.svg?height=300&width=400"
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, newImage],
-    }))
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    const newUrls: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const url = URL.createObjectURL(file)
+      newUrls.push(url)
+    }
+    if (newUrls.length) {
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...newUrls],
+      }))
+    }
+  }
+
+  const openFileDialog = () => {
+    fileInputRef.current?.click()
   }
 
   const removeImage = (index: number) => {
@@ -104,12 +118,20 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                     </Button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" className="h-32 border-dashed" onClick={handleImageUpload}>
+                <Button type="button" variant="outline" className="h-32 border-dashed" onClick={openFileDialog}>
                   <div className="text-center">
                     <Upload className="w-6 h-6 mx-auto mb-2" />
                     <span className="text-sm">Add Image</span>
                   </div>
                 </Button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  ref={fileInputRef}
+                  onChange={handleFilesSelected}
+                />
               </div>
             </CardContent>
           </Card>

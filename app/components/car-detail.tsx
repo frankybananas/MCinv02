@@ -122,15 +122,44 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
               )}
             </div>
-            <Badge className={getStatusColor(car.status)} style={{ fontSize: "14px", padding: "6px 12px" }}>
-              {car.status === "in-stock"
-                ? "In Stock"
-                : car.status === "coming"
-                  ? "Coming"
-                  : car.status === "reserved"
-                    ? "Reserved"
-                    : "Sold"}
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Badge
+                  className={getStatusColor(car.status)}
+                  style={{ fontSize: "14px", padding: "6px 12px" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {car.status === "in-stock"
+                    ? "In Stock"
+                    : car.status === "coming"
+                      ? "Coming"
+                      : car.status === "reserved"
+                        ? "Reserved"
+                        : "Sold"}
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {(["in-stock", "coming", "reserved", "sold"] as CarStatus[]).map((statusOption) => (
+                  <DropdownMenuItem
+                    key={statusOption}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (statusOption !== car.status) {
+                        onStatusChange(statusOption)
+                      }
+                    }}
+                  >
+                    {statusOption === "in-stock"
+                      ? "In Stock"
+                      : statusOption === "coming"
+                        ? "Coming"
+                        : statusOption === "reserved"
+                          ? "Reserved"
+                          : "Sold"}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Car Details */}

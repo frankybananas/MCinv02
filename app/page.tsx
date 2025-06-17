@@ -100,9 +100,8 @@ export default function CarInventoryApp() {
   }
 
   const updateCarStatus = (carId: string, status: CarStatus, reservedBy?: string) => {
-    setAppState((prev) => ({
-      ...prev,
-      cars: prev.cars.map((car) =>
+    setAppState((prev) => {
+      const updatedCars = prev.cars.map((car) =>
         car.id === carId
           ? {
               ...car,
@@ -119,9 +118,20 @@ export default function CarInventoryApp() {
               ],
             }
           : car,
-      ),
-      showReserveModal: false,
-    }))
+      )
+
+      // If the currently selected car is the one updated, refresh it too
+      const updatedSelected = prev.selectedCar && prev.selectedCar.id === carId
+        ? updatedCars.find((c) => c.id === carId) || prev.selectedCar
+        : prev.selectedCar
+
+      return {
+        ...prev,
+        cars: updatedCars,
+        selectedCar: updatedSelected,
+        showReserveModal: false,
+      }
+    })
   }
 
   const showReserveModal = () => {
