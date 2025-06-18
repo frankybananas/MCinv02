@@ -75,33 +75,120 @@ export default function CarInventoryApp() {
     }))
   }
 
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const formatStatus = (status: CarStatus) => {
+    switch (status) {
+      case "in-stock": return "In Stock";
+      case "coming": return "Coming Soon";
+      case "reserved": return "Reserved";
+      case "sold": return "Sold";
+      default: return status;
+    }
+  };
+
   const updateCar = (carId: string, carData: Partial<Car>) => {
-    setAppState((prev) => ({
-      ...prev,
-      cars: prev.cars.map((car) =>
-        car.id === carId
-          ? {
-              ...car,
-              ...carData,
-              auditLog: [
-                ...car.auditLog,
-                {
-                  action: "Updated",
-                  user: "Current User",
-                  timestamp: new Date().toISOString(),
-                  details: "Car information updated",
-                },
-              ],
-            }
-          : car,
-      ),
-      currentScreen: "dashboard",
-      editingCar: null,
-    }))
+    setAppState((prev) => {
+      const oldCar = prev.cars.find(car => car.id === carId);
+      if (!oldCar) return prev;
+
+      // Track changes for audit log
+      const changes: string[] = [];
+      
+      // Check for specific field changes
+      if (carData.make && oldCar.make !== carData.make) {
+        changes.push(`make from "${oldCar.make}" to "${carData.make}"`);
+      }
+      if (carData.model && oldCar.model !== carData.model) {
+        changes.push(`model from "${oldCar.model}" to "${carData.model}"`);
+      }
+      if (carData.year && oldCar.year !== carData.year) {
+        changes.push(`year from ${oldCar.year} to ${carData.year}`);
+      }
+      if (carData.price && oldCar.price !== carData.price) {
+        changes.push(`price from ${formatPrice(oldCar.price)} to ${formatPrice(carData.price)}`);
+      }
+      if (carData.color && oldCar.color !== carData.color) {
+        changes.push(`color from "${oldCar.color}" to "${carData.color}"`);
+      }
+      if (carData.transmission && oldCar.transmission !== carData.transmission) {
+        changes.push(`transmission from ${oldCar.transmission} to ${carData.transmission}`);
+      }
+      if (carData.kilometers && oldCar.kilometers !== carData.kilometers) {
+        changes.push(`mileage from ${oldCar.kilometers.toLocaleString()}km to ${carData.kilometers.toLocaleString()}km`);
+      }
+      if (carData.images && JSON.stringify(oldCar.images) !== JSON.stringify(carData.images)) {
+        const addedImages = carData.images.length - oldCar.images.length;
+        if (addedImages > 0) {
+          changes.push(`added ${addedImages} image${addedImages > 1 ? 's' : ''}`);
+        } else if (addedImages < 0) {
+          changes.push(`removed ${Math.abs(addedImages)} image${addedImages < -1 ? 's' : ''}`);
+        } else {
+          changes.push('updated images');
+        }
+      }
+
+      // Check for description changes
+      if (carData.description && oldCar.description !== carData.description) {
+        changes.push('updated description');
+      }
+
+      // Check for features changes
+      if (carData.features && JSON.stringify(oldCar.features) !== JSON.stringify(carData.features)) {
+        changes.push('updated features');
+      }
+
+      const details = changes.length > 0 
+        ? `Updated: ${changes.join('; ')}`
+        : 'No significant changes detected';
+
+      return {
+        ...prev,
+        cars: prev.cars.map((car) =>
+          car.id === carId
+            ? {
+                ...car,
+                ...carData,
+                auditLog: [
+                  ...car.auditLog,
+                  {
+                    action: "Updated",
+                    user: "Current User",
+                    timestamp: new Date().toISOString(),
+                    details: details,
+                  },
+                ],
+              }
+            : car,
+        ),
+        currentScreen: "dashboard",
+        editingCar: null,
+      };
+    });
   }
 
   const updateCarStatus = (carId: string, status: CarStatus, reservedBy?: string, phone?: string) => {
     setAppState((prev) => {
+      const oldCar = prev.cars.find(car => car.id === carId);
+      if (!oldCar) return prev;
+
+      // Create detailed status change message
+      let statusChangeMessage = `Status changed from "${formatStatus(oldCar.status)}" to "${formatStatus(status)}"`;
+      
+      // Add reservation details if applicable
+      if (status === "reserved" && reservedBy) {
+        statusChangeMessage += ` (Reserved by ${reservedBy}${phone ? `, ${phone}` : ''})`;
+      } else if (oldCar.status === "reserved" && status !== "reserved" && oldCar.reservedBy) {
+        statusChangeMessage += ` (Removed reservation from ${oldCar.reservedBy})`;
+      }
+
+      // Add to audit log
       const updatedCars = prev.cars.map((car) =>
         car.id === carId
           ? {
@@ -114,24 +201,24 @@ export default function CarInventoryApp() {
                   action: "Status Changed",
                   user: "Current User",
                   timestamp: new Date().toISOString(),
-                  details: `Status changed to ${status}${reservedBy ? ` (Reserved by ${reservedBy})` : ""}`,
+                  details: statusChangeMessage,
                 },
               ],
             }
           : car,
-      )
+      );
 
       // If the currently selected car is the one updated, refresh it too
       const updatedSelected = prev.selectedCar && prev.selectedCar.id === carId
         ? updatedCars.find((c) => c.id === carId) || prev.selectedCar
-        : prev.selectedCar
+        : prev.selectedCar;
 
       // Add client if provided
       const updatedClients = phone && reservedBy
         ? prev.clients.some((c) => c.phone === phone)
           ? prev.clients
           : [...prev.clients, { id: Date.now().toString(), name: reservedBy, phone }]
-        : prev.clients
+        : prev.clients;
 
       return {
         ...prev,
@@ -139,7 +226,7 @@ export default function CarInventoryApp() {
         selectedCar: updatedSelected,
         showReserveModal: false,
         clients: updatedClients,
-      }
+      };
     })
   }
 
@@ -192,6 +279,7 @@ export default function CarInventoryApp() {
       {appState.showReserveModal && appState.selectedCar && (
         <ReserveModal
           car={appState.selectedCar}
+          clients={appState.clients}
           onConfirm={(name, phone) => updateCarStatus(appState.selectedCar!.id, "reserved", name, phone)}
           onClose={hideReserveModal}
         />

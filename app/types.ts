@@ -12,6 +12,8 @@ export interface Car {
   transmission: "manual" | "automatic" | "cvt"
   vin: string
   notes: string
+  description?: string
+  features?: string[]
   status: CarStatus
   reservedBy?: string
   createdAt: string
