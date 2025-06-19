@@ -108,11 +108,8 @@ export function ReserveModal({ car, clients, onConfirm, onClose }: ReserveModalP
                 <SelectValue placeholder="Select reason" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="test-drive">Test Drive Scheduled</SelectItem>
-                <SelectItem value="inspection">Pending Inspection</SelectItem>
-                <SelectItem value="financing">Financing Review</SelectItem>
                 <SelectItem value="deposit">Deposit Received</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="finance-docs">Finance - Docs Received</SelectItem>
               </SelectContent>
             </Select>
           </div>
