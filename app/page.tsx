@@ -252,7 +252,16 @@ export default function CarInventoryApp() {
           clients={appState.clients}
           onCarSelect={(car) => navigateTo("car-detail", { car })}
           onAddCar={() => navigateTo("add-car")}
-          onStatusChange={(carId, status) => updateCarStatus(carId, status)}
+          onStatusChange={(carId, status) => {
+            if (status === "reserved") {
+              const selected = appState.cars.find((c) => c.id === carId)
+              if (selected) {
+                setAppState((prev) => ({ ...prev, selectedCar: selected, showReserveModal: true }))
+              }
+            } else {
+              updateCarStatus(carId, status)
+            }
+          }}
         />
       )}
 
