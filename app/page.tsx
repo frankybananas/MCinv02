@@ -337,6 +337,10 @@ export default function CarInventoryApp() {
           client={appState.editingClient}
           onSave={(clientData) => updateClient(appState.editingClient!.id, clientData)}
           onCancel={() => navigateTo("dashboard", { activeTabId: "clients" })}
+          onDelete={(clientId) => {
+            deleteClient(clientId)
+            navigateTo("dashboard", { activeTabId: "clients" })
+          }}
         />
       )}
 

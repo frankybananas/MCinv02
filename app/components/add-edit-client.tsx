@@ -11,9 +11,10 @@ interface AddEditClientProps {
   client?: Client
   onSave: (clientData: Partial<Client>) => void
   onCancel: () => void
+  onDelete?: (clientId: string) => void
 }
 
-export function AddEditClient({ client, onSave, onCancel }: AddEditClientProps) {
+export function AddEditClient({ client, onSave, onCancel, onDelete }: AddEditClientProps) {
   const [formData, setFormData] = useState<Partial<Client>>({
     name: client?.name || "",
     phone: client?.phone || "",
@@ -76,6 +77,23 @@ export function AddEditClient({ client, onSave, onCancel }: AddEditClientProps) 
               Save Client
             </Button>
           </div>
+          
+          {client && onDelete && (
+            <div className="mt-8 pt-8 border-t">
+              <Button 
+                type="button" 
+                variant="destructive" 
+                className="w-full"
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+                    onDelete(client.id)
+                  }
+                }}
+              >
+                Delete Client
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     </div>

@@ -134,37 +134,15 @@ export function Dashboard({
         <div className="p-4 space-y-4">
           {clients.length === 0 && <p className="text-sm text-muted-foreground">No clients yet.</p>}
           {clients.map((client: Client) => (
-            <Card key={client.id} className="cursor-pointer hover:shadow-md transition-shadow">
+            <Card 
+              key={client.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => onClientSelect && onClientSelect(client)}
+            >
               <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <div onClick={() => onClientSelect && onClientSelect(client)}>
-                    <p className="font-medium">{client.name}</p>
-                    <p className="text-sm text-muted-foreground">{client.phone}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onClientSelect && onClientSelect(client);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Are you sure you want to delete ${client.name}?`)) {
-                          onClientDelete && onClientDelete(client.id);
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+                <div>
+                  <p className="font-medium">{client.name}</p>
+                  <p className="text-sm text-muted-foreground">{client.phone}</p>
                 </div>
               </CardContent>
             </Card>
