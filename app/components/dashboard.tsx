@@ -79,7 +79,12 @@ export function Dashboard({ cars, clients, onCarSelect, onAddCar, onAddClient, a
             <CarIcon className="w-6 h-6" />
             Car Inventory
           </h1>
-          <Badge variant="secondary">{filteredCars.length} cars</Badge>
+          <Badge variant="secondary">
+            {showClients 
+              ? `${clients.length} ${clients.length === 1 ? 'client' : 'clients'}` 
+              : `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'}`
+            }
+          </Badge>
         </div>
       </header>
 
