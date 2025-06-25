@@ -16,12 +16,22 @@ interface DashboardProps {
   clients: Client[]
   onCarSelect: (car: Car) => void
   onAddCar: () => void
+  onAddClient: () => void
+  activeTabId?: (tabId: CarStatus | "clients") => void
   onStatusChange: (carId: string, status: CarStatus) => void
 }
 
-export function Dashboard({ cars, clients, onCarSelect, onAddCar, onStatusChange }: DashboardProps) {
+export function Dashboard({ cars, clients, onCarSelect, onAddCar, onAddClient, activeTabId, onStatusChange }: DashboardProps) {
   type TabId = CarStatus | "clients"
   const [activeTab, setActiveTab] = useState<TabId>("all")
+  
+  // Update parent component with active tab
+  const handleTabChange = (tabId: TabId) => {
+    setActiveTab(tabId)
+    if (activeTabId) {
+      activeTabId(tabId)
+    }
+  }
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "all", label: "All" },
@@ -82,7 +92,7 @@ export function Dashboard({ cars, clients, onCarSelect, onAddCar, onStatusChange
                 key={tab.id}
                 variant={activeTab === tab.id ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className="whitespace-nowrap"
               >
                 {tab.label}
@@ -196,7 +206,11 @@ export function Dashboard({ cars, clients, onCarSelect, onAddCar, onStatusChange
       </ScrollArea>
 
       {/* Floating Action Button */}
-      <Button onClick={onAddCar} size="lg" className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg">
+      <Button 
+        onClick={activeTab === "clients" ? onAddClient : onAddCar} 
+        size="lg" 
+        className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg"
+      >
         <Plus className="w-6 h-6" />
       </Button>
     </div>

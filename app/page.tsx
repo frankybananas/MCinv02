@@ -6,9 +6,10 @@ import { OTPScreen } from "./components/otp-screen"
 import { Dashboard } from "./components/dashboard"
 import { CarDetail } from "./components/car-detail"
 import { AddEditCar } from "./components/add-edit-car"
+import { AddEditClient } from "./components/add-edit-client"
 import { ReserveModal } from "./components/reserve-modal"
 import { mockCars } from "./data/mock-data"
-import type { Car, AppState, CarStatus } from "./types"
+import type { Car, AppState, CarStatus, Client } from "./types"
 
 export default function CarInventoryApp() {
   const [appState, setAppState] = useState<AppState>({
@@ -20,6 +21,7 @@ export default function CarInventoryApp() {
     showReserveModal: false,
     editingCar: null,
     clients: [],
+    editingClient: null
   })
 
   const navigateTo = (screen: AppState["currentScreen"], data?: any) => {
@@ -28,6 +30,7 @@ export default function CarInventoryApp() {
       currentScreen: screen,
       selectedCar: data?.car || prev.selectedCar,
       editingCar: data?.editingCar || null,
+      editingClient: data?.editingClient || null,
     }))
   }
 
@@ -238,6 +241,31 @@ export default function CarInventoryApp() {
     setAppState((prev) => ({ ...prev, showReserveModal: false }))
   }
 
+  const addClient = (clientData: Partial<Client>) => {
+    const newClient: Client = {
+      ...(clientData as Client),
+      id: Date.now().toString(),
+    }
+
+    setAppState((prev) => ({
+      ...prev,
+      clients: [...prev.clients, newClient],
+      currentScreen: "dashboard",
+    }))
+  }
+
+  const updateClient = (clientId: string, clientData: Partial<Client>) => {
+    setAppState((prev) => ({
+      ...prev,
+      clients: prev.clients.map((client) =>
+        client.id === clientId
+          ? { ...client, ...clientData }
+          : client
+      ),
+      currentScreen: "dashboard",
+    }))
+  }
+
   return (
     <div className="w-full max-w-screen-xl mx-auto bg-background min-h-screen px-4">
       {appState.currentScreen === "login" && <LoginScreen onLogin={login} />}
@@ -252,6 +280,8 @@ export default function CarInventoryApp() {
           clients={appState.clients}
           onCarSelect={(car) => navigateTo("car-detail", { car })}
           onAddCar={() => navigateTo("add-car")}
+          onAddClient={() => navigateTo("add-client")}
+          activeTabId={(tabId) => setAppState(prev => ({ ...prev, activeTabId: tabId }))}
           onStatusChange={(carId, status) => {
             if (status === "reserved") {
               const selected = appState.cars.find((c) => c.id === carId)
@@ -281,6 +311,18 @@ export default function CarInventoryApp() {
         <AddEditCar
           car={appState.editingCar}
           onSave={(carData) => updateCar(appState.editingCar!.id, carData)}
+          onCancel={() => navigateTo("dashboard")}
+        />
+      )}
+
+      {appState.currentScreen === "add-client" && (
+        <AddEditClient onSave={addClient} onCancel={() => navigateTo("dashboard")} />
+      )}
+
+      {appState.currentScreen === "edit-client" && appState.editingClient && (
+        <AddEditClient
+          client={appState.editingClient}
+          onSave={(clientData) => updateClient(appState.editingClient!.id, clientData)}
           onCancel={() => navigateTo("dashboard")}
         />
       )}
