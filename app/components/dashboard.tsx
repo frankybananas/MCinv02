@@ -196,10 +196,17 @@ export function Dashboard({ cars, clients, onCarSelect, onAddCar, onAddClient, a
             </Card>
           ))}
 
-          {filteredCars.length === 0 && (
+          {filteredCars.length === 0 && !showClients && (
             <div className="text-center py-12">
               <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No cars found in this category</p>
+            </div>
+          )}
+          
+          {showClients && clients.length === 0 && (
+            <div className="text-center py-12">
+              <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No clients</p>
             </div>
           )}
         </div>
