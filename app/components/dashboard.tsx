@@ -32,7 +32,9 @@ export function Dashboard({ cars, clients, onCarSelect, onAddCar, onStatusChange
     { id: "clients", label: "Clients" },
   ]
 
-  const filteredCars = activeTab === "all" ? cars : cars.filter((car) => car.status === activeTab)
+  const filteredCars = activeTab === "all" ? cars : 
+    activeTab === "in-stock" ? cars.filter((car) => car.status !== "coming") : 
+    cars.filter((car) => car.status === activeTab)
   const showClients = activeTab === "clients"
 
   const getStatusColor = (status: CarStatus) => {
