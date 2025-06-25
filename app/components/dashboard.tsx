@@ -96,11 +96,13 @@ export function Dashboard({
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="bg-white border-b p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <CarIcon className="w-6 h-6" />
             Car Inventory
           </h1>
+        </div>
+        <div className="flex justify-center mt-2">
           <Badge variant="secondary">
             {showClients 
               ? `${clients.length} ${clients.length === 1 ? 'client' : 'clients'}` 
