@@ -291,7 +291,8 @@ export default function CarInventoryApp() {
           onCarSelect={(car) => navigateTo("car-detail", { car })}
           onAddCar={() => navigateTo("add-car")}
           onAddClient={() => navigateTo("add-client")}
-          activeTabId={(tabId) => setAppState(prev => ({ ...prev, activeTabId: tabId }))}
+          activeTabId={appState.activeTabId || "all"}
+          onTabChange={(tabId) => setAppState(prev => ({ ...prev, activeTabId: tabId }))}
           onClientSelect={(client) => navigateTo("edit-client", { editingClient: client })}
           onClientDelete={(clientId) => deleteClient(clientId)}
           onStatusChange={(carId, status) => {
