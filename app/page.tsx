@@ -241,6 +241,13 @@ export default function CarInventoryApp() {
     setAppState((prev) => ({ ...prev, showReserveModal: false }))
   }
 
+  const deleteClient = (clientId: string) => {
+    setAppState((prev) => ({
+      ...prev,
+      clients: prev.clients.filter((client) => client.id !== clientId)
+    }))
+  }
+
   const addClient = (clientData: Partial<Client>) => {
     const newClient: Client = {
       ...(clientData as Client),
@@ -282,6 +289,8 @@ export default function CarInventoryApp() {
           onAddCar={() => navigateTo("add-car")}
           onAddClient={() => navigateTo("add-client")}
           activeTabId={(tabId) => setAppState(prev => ({ ...prev, activeTabId: tabId }))}
+          onClientSelect={(client) => navigateTo("edit-client", { editingClient: client })}
+          onClientDelete={(clientId) => deleteClient(clientId)}
           onStatusChange={(carId, status) => {
             if (status === "reserved") {
               const selected = appState.cars.find((c) => c.id === carId)
