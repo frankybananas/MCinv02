@@ -5,7 +5,7 @@ A Next.js application with Firebase authentication and admin user management.
 
 ## Current Status (2025-06-12)
 - [x] Project setup and dependency configuration
-- [x] Removed all references to V0/Vercel
+- [x] Removed all references to V0/
 - [x] Created comprehensive checkpoint documentation
 - [ ] Implement Firebase phone authentication (in progress)
 
