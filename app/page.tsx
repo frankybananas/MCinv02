@@ -31,6 +31,7 @@ export default function CarInventoryApp() {
       selectedCar: data?.car || prev.selectedCar,
       editingCar: data?.editingCar || null,
       editingClient: data?.editingClient || null,
+      activeTabId: data?.activeTabId || prev.activeTabId,
     }))
   }
 
@@ -258,6 +259,7 @@ export default function CarInventoryApp() {
       ...prev,
       clients: [...prev.clients, newClient],
       currentScreen: "dashboard",
+      activeTabId: "clients"
     }))
   }
 
@@ -270,6 +272,7 @@ export default function CarInventoryApp() {
           : client
       ),
       currentScreen: "dashboard",
+      activeTabId: "clients"
     }))
   }
 
@@ -325,14 +328,14 @@ export default function CarInventoryApp() {
       )}
 
       {appState.currentScreen === "add-client" && (
-        <AddEditClient onSave={addClient} onCancel={() => navigateTo("dashboard")} />
+        <AddEditClient onSave={addClient} onCancel={() => navigateTo("dashboard", { activeTabId: "clients" })} />
       )}
 
       {appState.currentScreen === "edit-client" && appState.editingClient && (
         <AddEditClient
           client={appState.editingClient}
           onSave={(clientData) => updateClient(appState.editingClient!.id, clientData)}
-          onCancel={() => navigateTo("dashboard")}
+          onCancel={() => navigateTo("dashboard", { activeTabId: "clients" })}
         />
       )}
 

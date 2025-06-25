@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,7 +17,7 @@ interface DashboardProps {
   onCarSelect: (car: Car) => void
   onAddCar: () => void
   onAddClient: () => void
-  activeTabId?: (tabId: CarStatus | "clients") => void
+  activeTabId?: ((tabId: CarStatus | "clients") => void) | (CarStatus | "clients")
   onStatusChange: (carId: string, status: CarStatus) => void
   onClientSelect?: (client: Client) => void
   onClientDelete?: (clientId: string) => void
@@ -35,12 +35,21 @@ export function Dashboard({
   onClientDelete 
 }: DashboardProps) {
   type TabId = CarStatus | "clients"
-  const [activeTab, setActiveTab] = useState<TabId>("all")
+  // Initialize with activeTabId from props if available and it's a string value
+  const initialTab = typeof activeTabId === 'string' ? activeTabId as TabId : "all"
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
+  
+  // Update local state when activeTabId prop changes
+  useEffect(() => {
+    if (typeof activeTabId === 'string') {
+      setActiveTab(activeTabId as TabId)
+    }
+  }, [activeTabId])
   
   // Update parent component with active tab
   const handleTabChange = (tabId: TabId) => {
     setActiveTab(tabId)
-    if (activeTabId) {
+    if (activeTabId && typeof activeTabId === 'function') {
       activeTabId(tabId)
     }
   }
