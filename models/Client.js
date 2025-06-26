@@ -40,6 +40,16 @@ const ClientSchema = new mongoose.Schema({
     ref: 'Document',
   }],
   notes: String,
+  interactionHistory: [{
+    note: {
+      type: String,
+      required: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

@@ -20,6 +20,13 @@ export async function POST(request) {
     await connectToDatabase();
     const body = await request.json();
 
+    // Sanitize body: remove empty string fields so Mongoose doesn't fail validation
+    // on optional fields.
+    Object.keys(body).forEach(key => {
+      if (body[key] === '') {
+        delete body[key];
+      }
+    });
     
     // Format phone number if provided
     if (body.phone) {

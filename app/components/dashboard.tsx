@@ -84,12 +84,13 @@ export function Dashboard({
     }
   }
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price?: number | null) => {
+    const validPrice = typeof price === 'number' ? price : 0;
     return new Intl.NumberFormat("en-ZA", {
       style: "currency",
       currency: "ZAR",
       minimumFractionDigits: 0,
-    }).format(price)
+    }).format(validPrice)
   }
 
   return (
@@ -135,115 +136,115 @@ export function Dashboard({
       {showClients && (
         <div className="p-4 space-y-4">
           {clients.length === 0 && <p className="text-sm text-muted-foreground">No clients yet.</p>}
-          {clients.map((client: Client) => (
-            <Card 
-              key={client.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => onClientSelect && onClientSelect(client)}
-            >
-              <CardContent className="p-4">
-                <div>
-                  <p className="font-medium">{client.name}</p>
-                  <p className="text-sm text-muted-foreground">{client.phone}</p>
-                </div>
-              </CardContent>
-            </Card>
+          {clients.map((client) => (
+            <div key={client.id}>
+              <Card
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => onClientSelect && onClientSelect(client)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">{client.firstName} {client.lastName}</h3>
+                      <p className="text-sm text-muted-foreground">{client.phone}</p>
+                      {client.email && <p className="text-sm text-muted-foreground">{client.email}</p>}
+                    </div>
+                    {/* Delete button can be added here if needed */}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ))}
         </div>
       )}
 
       {/* Car list */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {filteredCars.map((car) => (
-            <Card
-              key={car.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => onCarSelect(car)}
-            >
-              <CardContent className="p-4">
-                <div className="flex gap-4">
-                  <img
-                    src={car.images[0] || "/placeholder.svg"}
-                    alt={`${car.year} ${car.make} ${car.model}`}
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {car.year} {car.make} {car.model}
-                        </h3>
-                        <p className="text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
+      {!showClients && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-4">
+            {filteredCars.length > 0 ? (
+              filteredCars.map((car) => (
+                <div key={car.id}>
+                  <Card
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => onCarSelect(car)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        <img
+                          src={car.images?.[0] || "/placeholder.svg"}
+                          alt={`${car.year} ${car.make} ${car.model}`}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg">
+                                {car.year} {car.make} {car.model}
+                              </h3>
+                              <p className="text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Badge
+                                  className={getStatusColor(car.status)}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {car.status === "in-stock"
+                                    ? "In Stock"
+                                    : car.status === "coming"
+                                      ? "Coming"
+                                      : car.status === "reserved"
+                                        ? "Reserved"
+                                        : "Sold"}
+                                </Badge>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {(["in-stock", "coming", "reserved", "sold"] as CarStatus[]).map((statusOption) => (
+                                  <DropdownMenuItem
+                                    key={statusOption}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (statusOption !== car.status) {
+                                        onStatusChange(car.id, statusOption)
+                                      }
+                                    }}
+                                  >
+                                    {statusOption === "in-stock"
+                                      ? "In Stock"
+                                      : statusOption === "coming"
+                                        ? "Coming"
+                                        : statusOption === "reserved"
+                                          ? "Reserved"
+                                          : "Sold"}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <div className="flex gap-4 text-sm text-muted-foreground mt-2">
+                            <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
+                            <span>{car.color}</span>
+                            <span className="capitalize">{car.transmission}</span>
+                          </div>
+                          {car.status === "reserved" && car.reservedBy && (
+                            <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
+                          )}
+                        </div>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Badge
-                            className={getStatusColor(car.status)}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {car.status === "in-stock"
-                              ? "In Stock"
-                              : car.status === "coming"
-                                ? "Coming"
-                                : car.status === "reserved"
-                                  ? "Reserved"
-                                  : "Sold"}
-                          </Badge>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {(["in-stock", "coming", "reserved", "sold"] as CarStatus[]).map((statusOption) => (
-                            <DropdownMenuItem
-                              key={statusOption}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (statusOption !== car.status) {
-                                  onStatusChange(car.id, statusOption)
-                                }
-                              }}
-                            >
-                              {statusOption === "in-stock"
-                                ? "In Stock"
-                                : statusOption === "coming"
-                                  ? "Coming"
-                                  : statusOption === "reserved"
-                                    ? "Reserved"
-                                    : "Sold"}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                          
-                    </div>
-                    <div className="flex gap-4 text-sm text-muted-foreground mt-2">
-                      <span>{car.kilometers.toLocaleString()} km</span>
-                      <span>{car.color}</span>
-                      <span className="capitalize">{car.transmission}</span>
-                    </div>
-                    {car.status === "reserved" && car.reservedBy && (
-                      <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {filteredCars.length === 0 && !showClients && (
-            <div className="text-center py-12">
-              <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No cars found in this category</p>
-            </div>
-          )}
-          
-          {showClients && clients.length === 0 && (
-            <div className="text-center py-12">
-              <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No clients</p>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No cars found in this category</p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      )}
 
       {/* Floating Action Button */}
       <Button 

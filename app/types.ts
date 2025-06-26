@@ -20,12 +20,21 @@ export interface Car {
   auditLog: AuditLogEntry[]
 }
 
+export interface Interaction {
+  note: string;
+  timestamp: string;
+  _id?: string;
+}
+
 export interface Client {
   id: string;
   firstName: string;
-  lastName: string;
-  email: string;
+  lastName?: string;
+  email?: string;
   phone: string;
+  notes?: string;
+  interactionHistory?: Interaction[];
+  createdAt?: string;
 }
 
 export interface AuditLogEntry {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Car, Client, AppState, CarStatus } from "./types";
 import { LoginScreen } from "./components/login-screen";
 import { OTPScreen } from "./components/otp-screen";
@@ -26,6 +26,31 @@ export default function Page() {
     showReserveModal: false,
     activeTabId: "all" as CarStatus,
   });
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        // Fetch Cars
+        const carsRes = await fetch('/api/cars');
+        if (!carsRes.ok) throw new Error('Failed to fetch cars');
+        const { data: cars } = await carsRes.json();
+
+        // Fetch Clients
+        const clientsRes = await fetch('/api/clients');
+        if (!clientsRes.ok) throw new Error('Failed to fetch clients');
+        const { data: clients } = await clientsRes.json();
+
+        setAppState(prev => ({ ...prev, cars, clients }));
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        // Optionally, set an error state to show a message to the user
+      }
+    };
+
+    if (appState.currentScreen === 'dashboard') {
+      fetchInitialData();
+    }
+  }, [appState.currentScreen]);
 
   // Navigation helpers
   function navigateTo(screen: AppState['currentScreen'], params: any = {}) {
@@ -167,6 +192,31 @@ export default function Page() {
       // Optionally, show an error message to the user
     }
   }
+  async function addInteraction(clientId: string, note: string) {
+    try {
+      const response = await fetch(`/api/clients/${clientId}/interactions`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note }),
+        });
+
+      if (!response.ok) {
+        throw new Error('Failed to add interaction');
+      }
+
+      const { data: updatedClient } = await response.json();
+
+      setAppState((prev) => ({
+        ...prev,
+        clients: prev.clients.map((c) => (c.id === clientId ? updatedClient : c)),
+        editingClient: updatedClient,
+      }));
+    } catch (error) {
+      console.error('Error adding interaction:', error);
+    }
+  }
+
   const updateClient = (clientId: string, clientData: Partial<Client>) => {
     setAppState((prev) => ({
       ...prev,
@@ -234,6 +284,7 @@ export default function Page() {
           client={appState.editingClient}
           onSave={(clientData) => updateClient(appState.editingClient!.id, clientData)}
           onCancel={() => navigateTo("dashboard", { activeTabId: "clients" })}
+          onAddInteraction={addInteraction}
           onDelete={(clientId) => {
             deleteClient(clientId)
             navigateTo("dashboard", { activeTabId: "clients" })
