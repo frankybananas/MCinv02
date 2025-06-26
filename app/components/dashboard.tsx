@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, CarIcon } from "lucide-react"
+import { CarIcon, Plus, UsersIcon } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus } from "../types"
 
@@ -132,119 +133,117 @@ export function Dashboard({
         </ScrollArea>
       </div>
 
-      {/* Clients list */}
-      {showClients && (
+      {/* Main Content */}
+      <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          {clients.length === 0 && <p className="text-sm text-muted-foreground">No clients yet.</p>}
-          {clients.map((client) => (
-            <div key={client.id}>
-              <Card
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => onClientSelect && onClientSelect(client)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">{client.firstName} {client.lastName}</h3>
-                      <p className="text-sm text-muted-foreground">{client.phone}</p>
-                      {client.email && <p className="text-sm text-muted-foreground">{client.email}</p>}
-                    </div>
-                    {/* Delete button can be added here if needed */}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Car list */}
-      {!showClients && (
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-4">
-            {filteredCars.length > 0 ? (
-              filteredCars.map((car) => (
-                <div key={car.id}>
-                  <Card
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onCarSelect(car)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        <img
-                          src={car.images?.[0] || "/placeholder.svg"}
-                          alt={`${car.year} ${car.make} ${car.model}`}
-                          className="w-20 h-20 object-cover rounded-lg"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-semibold text-lg">
-                                {car.year} {car.make} {car.model}
-                              </h3>
-                              <p className="text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Badge
-                                  className={getStatusColor(car.status)}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {car.status === "in-stock"
-                                    ? "In Stock"
-                                    : car.status === "coming"
-                                      ? "Coming"
-                                      : car.status === "reserved"
-                                        ? "Reserved"
-                                        : "Sold"}
-                                </Badge>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {(["in-stock", "coming", "reserved", "sold"] as CarStatus[]).map((statusOption) => (
-                                  <DropdownMenuItem
-                                    key={statusOption}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      if (statusOption !== car.status) {
-                                        onStatusChange(car.id, statusOption)
-                                      }
-                                    }}
-                                  >
-                                    {statusOption === "in-stock"
-                                      ? "In Stock"
-                                      : statusOption === "coming"
-                                        ? "Coming"
-                                        : statusOption === "reserved"
-                                          ? "Reserved"
-                                          : "Sold"}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                          <div className="flex gap-4 text-sm text-muted-foreground mt-2">
-                            <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
-                            <span>{car.color}</span>
-                            <span className="capitalize">{car.transmission}</span>
-                          </div>
-                          {car.status === "reserved" && car.reservedBy && (
-                            <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+          {/* Clients list */}
+          {showClients && (
+            <React.Fragment key="clients-section">
+              {clients.length === 0 ? (
+                <div className="text-center py-12">
+                  <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No clients yet.</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No cars found in this category</p>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      )}
+              ) : (
+                clients.map((client) => (
+                  <div key={client.id}>
+                    <Card
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => onClientSelect && onClientSelect(client)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold">
+                              {client.firstName} {client.lastName}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">{client.phone}</p>
+                            {client.email && <p className="text-sm text-muted-foreground">{client.email}</p>}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))
+              )}
+            </React.Fragment>
+          )}
+
+          {/* Car list */}
+          {!showClients && (
+            <React.Fragment key="cars-section">
+              {filteredCars.length === 0 ? (
+                <div className="text-center py-12">
+                  <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No cars found in this category</p>
+                </div>
+              ) : (
+                filteredCars.map((car) => (
+                  <div key={car.id}>
+                    <Card
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => onCarSelect(car)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <img
+                            src={car.images?.[0] || "/placeholder.svg"}
+                            alt={`${car.year} ${car.make} ${car.model}`}
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="font-semibold text-lg">
+                                  {car.year} {car.make} {car.model}
+                                </h3>
+                                <p className="text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Badge
+                                    className={getStatusColor(car.status)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+                                  </Badge>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {(new Array<CarStatus>("in-stock", "coming", "reserved", "sold")).map((statusOption) => (
+                                    <DropdownMenuItem
+                                      key={statusOption}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (statusOption !== car.status) {
+                                          onStatusChange(car.id, statusOption);
+                                        }
+                                      }}
+                                    >
+                                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <div className="flex gap-4 text-sm text-muted-foreground mt-2">
+                              <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
+                              <span>{car.color}</span>
+                              <span className="capitalize">{car.transmission}</span>
+                            </div>
+                            {car.status === "reserved" && car.reservedBy && (
+                              <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))
+              )}
+            </React.Fragment>
+          )}
+        </div>
+      </ScrollArea>
 
       {/* Floating Action Button */}
       <Button 
