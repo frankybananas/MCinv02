@@ -1,6 +1,7 @@
 // Direct MongoDB connection test script
 require('dotenv').config({ path: '.env.local' });
 const mongoose = require('mongoose');
+const Client = require('./models/Client').default; // Import the Client model
 
 async function testMongoDBConnection() {
   console.log('Starting direct MongoDB connection test...');
@@ -35,6 +36,22 @@ async function testMongoDBConnection() {
     // List collections
     const collections = await mongoose.connection.db.listCollections().toArray();
     console.log('Collections:', collections.map(c => c.name));
+
+    // Attempt to create a new client
+    console.log('\nAttempting to create a new client...');
+    try {
+      const newClient = await Client.create({
+        firstName: 'Direct',
+        lastName: 'Test',
+        email: `direct.test.${Date.now()}@example.com`, // Ensure unique email
+      });
+      console.log('Successfully created client:', newClient);
+    } catch (createError) {
+      console.error('Failed to create client directly:', createError);
+      // Close connection and return failure
+      await mongoose.disconnect();
+      return false;
+    }
     
     // Close connection
     await mongoose.disconnect();

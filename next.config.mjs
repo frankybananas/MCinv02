@@ -9,14 +9,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // External packages configuration moved out of experimental
-  transpilePackages: ["mongoose"],
+  serverExternalPackages: ["mongoose"],
   webpack: (config) => {
-    
     config.experiments = {
       ...config.experiments,
       topLevelAwait: true,
-      layers: true, // Fix for 'entryOptions.layer' error
     };
 
     return config;

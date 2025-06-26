@@ -32,6 +32,12 @@ const CarSchema = new mongoose.Schema({
   mileage: {
     type: Number,
   },
+  status: {
+    type: String,
+    enum: ['In Stock', 'Coming', 'Reserved', 'Sold'],
+    default: 'Coming',
+    required: true,
+  },
   serviceHistory: [{
     date: Date,
     description: String,

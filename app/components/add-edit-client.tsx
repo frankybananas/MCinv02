@@ -16,7 +16,9 @@ interface AddEditClientProps {
 
 export function AddEditClient({ client, onSave, onCancel, onDelete }: AddEditClientProps) {
   const [formData, setFormData] = useState<Partial<Client>>({
-    name: client?.name || "",
+    firstName: client?.firstName || "",
+    lastName: client?.lastName || "",
+    email: client?.email || "",
     phone: client?.phone || "",
   })
 
@@ -46,13 +48,38 @@ export function AddEditClient({ client, onSave, onCancel, onDelete }: AddEditCli
       <div className="flex-1 p-4 overflow-auto">
         <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto">
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="firstName">First Name</Label>
             <Input
-              id="name"
-              name="name"
-              value={formData.name}
+              id="firstName"
+              name="firstName"
+              value={formData.firstName}
               onChange={handleChange}
-              placeholder="Enter client's full name"
+              placeholder="Enter client's first name"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lastName">Last Name</Label>
+            <Input
+              id="lastName"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              placeholder="Enter client's last name"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="Enter client's email"
               required
             />
           </div>
@@ -85,7 +112,7 @@ export function AddEditClient({ client, onSave, onCancel, onDelete }: AddEditCli
                 variant="destructive" 
                 className="w-full"
                 onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${client.name}?`)) {
+                  if (confirm(`Are you sure you want to delete ${client.firstName} ${client.lastName}?`)) {
                     onDelete(client.id)
                   }
                 }}

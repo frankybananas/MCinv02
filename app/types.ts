@@ -21,9 +21,11 @@ export interface Car {
 }
 
 export interface Client {
-  id: string
-  name: string
-  phone: string
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
 }
 
 export interface AuditLogEntry {

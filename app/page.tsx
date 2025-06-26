@@ -44,26 +44,31 @@ export default function Page() {
   }
 
   // Car logic
-  function addCar(carData: Partial<Car>) {
-    const car: Car = {
-      id: Date.now().toString(),
-      make: carData.make || '',
-      model: carData.model || '',
-      year: carData.year || 0,
-      status: (carData.status as CarStatus) || 'available',
-      auditLog: [],
-      images: carData.images || [],
-      price: carData.price || 0,
-      kilometers: carData.kilometers || 0,
-      color: carData.color || '',
-      transmission: carData.transmission || 'automatic',
-      description: carData.description || '',
-      vin: carData.vin || '',
-      notes: carData.notes || '',
-      createdAt: carData.createdAt || new Date().toISOString(),
-      ...carData
-    };
-    setAppState((prev) => ({ ...prev, cars: [...prev.cars, car], currentScreen: "dashboard" }));
+  async function addCar(carData: Partial<Car>) {
+    try {
+      const response = await fetch('/api/cars', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(carData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create car');
+      }
+
+      const { data: newCar } = await response.json();
+
+      setAppState((prev) => ({
+        ...prev,
+        cars: [...prev.cars, newCar],
+        currentScreen: 'dashboard',
+      }));
+    } catch (error) {
+      console.error('Error adding car:', error);
+      // Optionally, show an error message to the user
+    }
   }
   function updateCar(carId: string, carData: Partial<Car>) {
     setAppState((prev) => ({
@@ -98,11 +103,20 @@ export default function Page() {
         ? updatedCars.find((c) => c.id === carId) || prev.selectedCar
         : prev.selectedCar;
       // Add client if provided
-      const updatedClients = phone && reservedBy
-        ? prev.clients.some((c) => c.phone === phone)
-          ? prev.clients
-          : [...prev.clients, { id: Date.now().toString(), name: reservedBy, phone }]
-        : prev.clients;
+      // Add client if provided, creating a temporary client object.
+      // Note: This client is only stored in local state and not yet saved to the database.
+      const updatedClients = [...prev.clients];
+      if (phone && reservedBy && !prev.clients.some((c) => c.phone === phone)) {
+        const nameParts = reservedBy.split(' ');
+        const newClient: Client = {
+          id: Date.now().toString(),
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          email: `${Date.now()}@placeholder.com`, // Placeholder, as email is required
+          phone,
+        };
+        updatedClients.push(newClient);
+      }
       return {
         ...prev,
         cars: updatedCars,
@@ -126,17 +140,32 @@ export default function Page() {
       clients: prev.clients.filter((client) => client.id !== clientId)
     }))
   }
-  const addClient = (clientData: Partial<Client>) => {
-    const newClient: Client = {
-      ...(clientData as Client),
-      id: Date.now().toString(),
+  async function addClient(clientData: Partial<Client>) {
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(clientData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create client');
+      }
+
+      const { data: newClient } = await response.json();
+
+      setAppState((prev) => ({
+        ...prev,
+        clients: [...prev.clients, newClient],
+        currentScreen: 'dashboard',
+        activeTabId: 'clients' as TabId,
+      }));
+    } catch (error) {
+      console.error('Error adding client:', error);
+      // Optionally, show an error message to the user
     }
-    setAppState((prev) => ({
-      ...prev,
-      clients: [...prev.clients, newClient],
-      currentScreen: "dashboard",
-      activeTabId: "clients" as TabId,
-    }))
   }
   const updateClient = (clientId: string, clientData: Partial<Client>) => {
     setAppState((prev) => ({

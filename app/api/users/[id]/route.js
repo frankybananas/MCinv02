@@ -6,6 +6,8 @@ import { NextResponse } from 'next/server';
 export async function GET(request, { params }) {
   try {
     await connectToDatabase();
+    // Workaround for Next.js bug where params cannot be accessed without awaiting request
+    await request.blob();
     const { id } = params;
     
     const user = await User.findById(id);
@@ -28,6 +30,8 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     await connectToDatabase();
+    // Workaround for Next.js bug where params cannot be accessed without awaiting request
+    await request.blob();
     const { id } = params;
     const body = await request.json();
     
@@ -59,6 +63,8 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectToDatabase();
+    // Workaround for Next.js bug where params cannot be accessed without awaiting request
+    await request.blob();
     const { id } = params;
     
     const user = await User.findByIdAndDelete(id);

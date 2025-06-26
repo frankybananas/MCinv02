@@ -8,16 +8,17 @@ const ClientSchema = new mongoose.Schema({
   },
   lastName: {
     type: String,
-    required: [true, 'Please provide the client\'s last name'],
     trim: true,
   },
   email: {
     type: String,
-    required: [true, 'Please provide the client\'s email'],
     unique: true,
     trim: true,
     lowercase: true,
     match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email address'],
+    // Email is optional, but if provided, it must be unique.
+    // To enforce this, we can use a sparse index.
+    sparse: true,
   },
   phone: {
     type: String,
