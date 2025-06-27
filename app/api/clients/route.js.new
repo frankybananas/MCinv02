@@ -1,0 +1,125 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+import { connectToDatabase, withRetry } from '@/lib/mongodb';
+import Client from '@/models/Client';
+import Phone from '@/models/Phone';
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  try {
+    await connectToDatabase();
+    const clients = await withRetry(() => Client.find({}).sort({ createdAt: -1 }));
+    return NextResponse.json({ success: true, data: clients });
+  } catch (error) {
+    console.error('GET clients error:', error);
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  try {
+    console.log('Client POST handler started');
+    
+    // Safely parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+      console.log('Client request body parsed successfully:', JSON.stringify(body));
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return NextResponse.json(
+        { success: false, message: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+    
+    await connectToDatabase();
+    console.log('Database connected');
+    
+    // Normalize minimal payloads
+    let { firstName, lastName, email, phone, name, phoneNumbers = [], ...rest } = body;
+
+    if (!firstName || !lastName) {
+      // If a single name field is provided, split by last space
+      if (name) {
+        const parts = name.trim().split(' ');
+        firstName = parts.shift();
+        lastName = parts.length ? parts.join(' ') : '-';
+      }
+    }
+
+    if (!email) {
+      // fabricate placeholder unique email if none
+      email = `user_${Date.now()}_${Math.floor(Math.random() * 10000)}@placeholder.local`;
+    }
+
+    // Ensure phoneNumbers array for schema
+    if (!phoneNumbers.length && phone) {
+      phoneNumbers = [{ number: phone, type: 'mobile', primary: true }];
+    }
+
+    console.log('Creating client with data:', { firstName, lastName, email });
+    
+    let client;
+    try {
+      client = await withRetry(() => Client.create({ firstName, lastName, email, ...rest }));
+      console.log('Client created successfully:', client._id);
+    } catch (clientError) {
+      console.error('Failed to create client:', clientError);
+      console.error('Error name:', clientError.name);
+      console.error('Error message:', clientError.message);
+      console.error('Error code:', clientError.code);
+      if (clientError.errors) {
+        console.error('Validation errors:', JSON.stringify(clientError.errors));
+      }
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Failed to create client', 
+          error: clientError.message,
+          code: clientError.code || 'UNKNOWN'
+        },
+        { status: 500 }
+      );
+    }
+
+    // Persist any phoneNumbers docs
+    if (Array.isArray(phoneNumbers) && phoneNumbers.length) {
+      console.log('Creating phones:', phoneNumbers.length);
+      for (const phoneData of phoneNumbers) {
+        try {
+          const phone = await withRetry(() => Phone.create({ ...phoneData, client: client._id }));
+          console.log('Phone created:', phone.number);
+        } catch (err) {
+          console.error('Error creating phone number:', err);
+          if (err?.code === 11000) {
+            console.warn('Duplicate phone number, skipping:', phoneData.number);
+          } else {
+            // Log but don't throw - we want to continue even if phone creation fails
+            console.error('Non-duplicate phone error:', err.message);
+          }
+        }
+      }
+    }
+
+    console.log('Client creation complete, returning 201 response');
+    return NextResponse.json({ success: true, data: client }, { status: 201 });
+  } catch (error) {
+    console.error('Client API Error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors));
+    }
+    
+    return NextResponse.json({
+      success: false,
+      message: error.message,
+      code: error.code || 'UNKNOWN',
+      name: error.name
+    }, { status: 500 });
+  }
+}

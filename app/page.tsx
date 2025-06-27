@@ -95,12 +95,50 @@ export default function Page() {
       // Optionally, show an error message to the user
     }
   }
-  function updateCar(carId: string, carData: Partial<Car>) {
-    setAppState((prev) => ({
-      ...prev,
-      cars: prev.cars.map((car) => (car.id === carId ? { ...car, ...carData } : car)),
-      currentScreen: "dashboard"
-    }));
+    async function updateCar(carId: string, carData: Partial<Car>) {
+    // Create a deep copy to avoid mutating the original state directly
+    const dataToSend = JSON.parse(JSON.stringify(carData));
+
+    // Filter out temporary blob URLs before sending to the backend.
+    if (dataToSend.images && Array.isArray(dataToSend.images)) {
+      dataToSend.images = dataToSend.images.filter(
+        (image: any) => typeof image === 'object' && image !== null
+      );
+    }
+
+    try {
+      const response = await fetch(`/api/cars/${carId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ message: 'Failed to update car' }));
+        throw new Error(errorBody.message);
+      }
+
+      const responseBody = await response.json();
+      if (!responseBody.success) {
+        throw new Error(responseBody.message || 'API returned success:false');
+      }
+
+      const updatedCar = responseBody.data;
+
+      setAppState((prev) => {
+        const newCars = prev.cars.map((car) => (car.id === carId ? updatedCar : car));
+        return {
+          ...prev,
+          cars: newCars,
+          currentScreen: 'dashboard',
+          selectedCar: null,
+          editingCar: null,
+        };
+      });
+    } catch (error) {
+      console.error('Error in updateCar:', error);
+      // Optionally, show an error message to the user
+    }
   }
   function updateCarStatus(carId: string, status: CarStatus, reservedBy?: string, phone?: string) {
     setAppState((prev) => {
@@ -240,7 +278,7 @@ export default function Page() {
         <Dashboard
           cars={appState.cars}
           clients={appState.clients}
-          onCarSelect={(car) => navigateTo("car-detail", { car })}
+          onCarSelect={(car) => navigateTo("car-detail", { selectedCar: car })}
           onAddCar={() => navigateTo("add-car")}
           onAddClient={() => navigateTo("add-client")}
           activeTabId={appState.activeTabId as TabId}

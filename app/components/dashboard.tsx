@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus } from "../types"
 
@@ -124,7 +124,6 @@ export function Dashboard({
                 variant={activeTab === tab.id ? "default" : "ghost"}
                 size="sm"
                 onClick={() => handleTabChange(tab.id)}
-                className="whitespace-nowrap"
               >
                 {tab.label}
               </Button>
@@ -133,53 +132,49 @@ export function Dashboard({
         </ScrollArea>
       </div>
 
-      {/* Main Content */}
+      {/* Main content */}
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          {/* Clients list */}
+          {/* Client list */}
           {showClients && (
-            <React.Fragment key="clients-section">
+            <div key="clients-section">
               {clients.length === 0 ? (
-                <div className="text-center py-12">
+                <div key="no-clients-found" className="text-center py-12">
                   <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No clients yet.</p>
+                  <p className="text-muted-foreground">No clients found</p>
                 </div>
               ) : (
-                clients.map((client) => (
-                  <div key={client.id}>
-                    <Card
-                      className="cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => onClientSelect && onClientSelect(client)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-semibold">
-                              {client.firstName} {client.lastName}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">{client.phone}</p>
-                            {client.email && <p className="text-sm text-muted-foreground">{client.email}</p>}
-                          </div>
+                clients.map((client, index) => (
+                  <div key={`${client.id}-${index}`}>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
+                      <CardContent className="p-4 flex justify-between items-center">
+                        <div>
+                          <h3 className="font-semibold">{client.firstName} {client.lastName}</h3>
+                          <p className="text-sm text-muted-foreground">{client.email}</p>
+                          <p className="text-sm text-muted-foreground">{client.phone}</p>
                         </div>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client.id); }}>
+                          <Trash2Icon className="w-4 h-4" />
+                        </Button>
                       </CardContent>
                     </Card>
                   </div>
                 ))
               )}
-            </React.Fragment>
+            </div>
           )}
 
           {/* Car list */}
           {!showClients && (
-            <React.Fragment key="cars-section">
+            <div key="cars-section">
               {filteredCars.length === 0 ? (
-                <div className="text-center py-12">
+                <div key="no-cars-found" className="text-center py-12">
                   <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No cars found in this category</p>
                 </div>
               ) : (
-                filteredCars.map((car) => (
-                  <div key={car.id}>
+                filteredCars.map((car, index) => (
+                  <div key={`${car.id}-${index}`}>
                     <Card
                       className="cursor-pointer hover:shadow-md transition-shadow"
                       onClick={() => onCarSelect(car)}
@@ -240,7 +235,7 @@ export function Dashboard({
                   </div>
                 ))
               )}
-            </React.Fragment>
+            </div>
           )}
         </div>
       </ScrollArea>

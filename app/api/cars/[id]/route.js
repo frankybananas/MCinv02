@@ -6,17 +6,21 @@ import { NextResponse } from 'next/server';
 export async function GET(request, { params }) {
   try {
     await connectToDatabase();
-    // Workaround for Next.js bug where params cannot be accessed without awaiting request
-    await request.blob();
-    const { id } = params;
+    const id = params.id;
     
     const car = await Car.findById(id).populate('owner').populate('images');
     
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
     }
+
+    // Manually transform the data to include a string ID
+    const carObject = car.toObject();
+    carObject.id = carObject._id.toString();
+    delete carObject._id;
+    delete carObject.__v;
     
-    return NextResponse.json({ success: true, data: car });
+    return NextResponse.json({ success: true, data: carObject });
   } catch (error) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
@@ -26,9 +30,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     await connectToDatabase();
-    // Workaround for Next.js bug where params cannot be accessed without awaiting request
-    await request.blob();
-    const { id } = params;
+    const id = params.id;
     const body = await request.json();
     
     const car = await Car.findByIdAndUpdate(
@@ -40,8 +42,14 @@ export async function PUT(request, { params }) {
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
     }
+
+    // Manually transform the data to include a string ID
+    const carObject = car.toObject();
+    carObject.id = carObject._id.toString();
+    delete carObject._id;
+    delete carObject.__v;
     
-    return NextResponse.json({ success: true, data: car });
+    return NextResponse.json({ success: true, data: carObject });
   } catch (error) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
@@ -51,9 +59,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectToDatabase();
-    // Workaround for Next.js bug where params cannot be accessed without awaiting request
-    await request.blob();
-    const { id } = params;
+    const id = params.id;
     
     const car = await Car.findByIdAndDelete(id);
     

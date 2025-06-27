@@ -86,20 +86,20 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
           <div className="space-y-4">
             <div className="relative">
               <img
-                src={car.images[currentImageIndex] || "/placeholder.svg"}
+                src={(car.images ?? [])[currentImageIndex] || "/placeholder.svg"}
                 alt={`${car.year} ${car.make} ${car.model}`}
                 className="w-full h-64 object-cover rounded-lg"
               />
-              {car.images.length > 1 && (
+              {(car.images ?? []).length > 1 && (
                 <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
-                  {currentImageIndex + 1} / {car.images.length}
+                  {currentImageIndex + 1} / {(car.images ?? []).length}
                 </div>
               )}
             </div>
 
-            {car.images.length > 1 && (
+            {(car.images ?? []).length > 1 && (
               <div className="flex gap-2 overflow-x-auto">
-                {car.images.map((image, index) => (
+                {(car.images ?? []).map((image, index) => (
                   <img
                     key={index}
                     src={image || "/placeholder.svg"}
@@ -117,7 +117,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
           {/* Price and Status */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-3xl font-bold text-green-600">{formatPrice(car.price)}</p>
+              <p className="text-3xl font-bold text-green-600">{formatPrice(car.price ?? 0)}</p>
               {car.status === "reserved" && car.reservedBy && (
                 <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
               )}
@@ -183,7 +183,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Kilometers</p>
-                  <p className="font-semibold">{car.kilometers.toLocaleString()}</p>
+                  <p className="font-semibold">{(car.kilometers ?? 0).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Color</p>
@@ -219,7 +219,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {car.auditLog.slice(0, 3).map((entry, index) => (
+                {(car.auditLog ?? []).slice(0, 3).map((entry, index) => (
                   <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
                     <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
                     <div className="flex-1 min-w-0">

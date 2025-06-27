@@ -18,8 +18,17 @@ export async function GET() {
       .populate('images');
       
     console.log(`Successfully fetched ${cars.length} cars.`);
+
+    // Manually transform the data to include a string ID
+    const formattedCars = cars.map(car => {
+      const carObject = car.toObject();
+      carObject.id = carObject._id.toString();
+      delete carObject._id;
+      delete carObject.__v;
+      return carObject;
+    });
     
-    return NextResponse.json({ success: true, data: cars });
+    return NextResponse.json({ success: true, data: formattedCars });
   } catch (error) {
     console.error('Cars API GET Error:', error);
     
@@ -43,8 +52,14 @@ export async function POST(request) {
     const body = await request.json();
     
     const car = await Car.create(body);
+
+    // Manually transform the data to include a string ID
+    const carObject = car.toObject();
+    carObject.id = carObject._id.toString();
+    delete carObject._id;
+    delete carObject.__v;
     
-    return NextResponse.json({ success: true, data: car }, { status: 201 });
+    return NextResponse.json({ success: true, data: carObject }, { status: 201 });
   } catch (error) {
     console.error('Cars API POST Error:', error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });

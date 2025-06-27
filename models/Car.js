@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const CarSchema = new mongoose.Schema({
+  // Schema definition...
   make: {
     type: String,
     required: [true, 'Please provide the car make'],
@@ -29,7 +30,11 @@ const CarSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-  mileage: {
+  price: {
+    type: Number,
+    required: [true, 'Please provide the car price'],
+  },
+  kilometers: {
     type: Number,
   },
   status: {
