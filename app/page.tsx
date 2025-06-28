@@ -69,14 +69,11 @@ export default function Page() {
   }
 
   // Car logic
-  async function addCar(carData: Partial<Car>) {
+  async function addCar(carData: FormData) {
     try {
       const response = await fetch('/api/cars', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(carData),
+        body: carData,
       });
 
       if (!response.ok) {
@@ -92,25 +89,14 @@ export default function Page() {
       }));
     } catch (error) {
       console.error('Error adding car:', error);
-      // Optionally, show an error message to the user
+      throw error; // Re-throw the error to be caught by the caller
     }
   }
-    async function updateCar(carId: string, carData: Partial<Car>) {
-    // Create a deep copy to avoid mutating the original state directly
-    const dataToSend = JSON.parse(JSON.stringify(carData));
-
-    // Filter out temporary blob URLs before sending to the backend.
-    if (dataToSend.images && Array.isArray(dataToSend.images)) {
-      dataToSend.images = dataToSend.images.filter(
-        (image: any) => typeof image === 'object' && image !== null
-      );
-    }
-
+  async function updateCar(carId: string, carData: FormData) {
     try {
       const response = await fetch(`/api/cars/${carId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend),
+        body: carData,
       });
 
       if (!response.ok) {
@@ -125,19 +111,15 @@ export default function Page() {
 
       const updatedCar = responseBody.data;
 
-      setAppState((prev) => {
-        const newCars = prev.cars.map((car) => (car.id === carId ? updatedCar : car));
-        return {
-          ...prev,
-          cars: newCars,
-          currentScreen: 'dashboard',
-          selectedCar: null,
-          editingCar: null,
-        };
-      });
+      setAppState((prev) => ({
+        ...prev,
+        cars: prev.cars.map((c) => (c.id === carId ? updatedCar : c)),
+        currentScreen: 'dashboard',
+        editingCar: null,
+      }));
     } catch (error) {
-      console.error('Error in updateCar:', error);
-      // Optionally, show an error message to the user
+      console.error('Error updating car:', error);
+      throw error; // Re-throw the error to be caught by the caller
     }
   }
   function updateCarStatus(carId: string, status: CarStatus, reservedBy?: string, phone?: string) {

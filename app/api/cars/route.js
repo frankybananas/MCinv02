@@ -46,18 +46,64 @@ export async function GET() {
   }
 }
 
+import { s3 } from '@/lib/s3';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { v4 as uuidv4 } from 'uuid';
+
 export async function POST(request) {
   try {
     await connectToDatabase();
-    const body = await request.json();
-    
-    const car = await Car.create(body);
+    const data = await request.formData();
 
-    // Manually transform the data to include a string ID
-    const carObject = car.toObject();
-    carObject.id = carObject._id.toString();
-    delete carObject._id;
-    delete carObject.__v;
+    const carData = {};
+    const files = data.getAll('images');
+
+    for (const [key, value] of data.entries()) {
+      if (key !== 'images') {
+        carData[key] = value;
+      }
+    }
+
+    // Create the car first without the images
+    const newCar = await Car.create(carData);
+
+    if (files && files.length > 0) {
+      const newPictureIds = [];
+      for (const file of files) {
+        if (file.size === 0) continue;
+
+        const fileExtension = file.name.split('.').pop();
+        const newFileName = `${uuidv4()}.${fileExtension}`;
+
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: newFileName,
+            Body: Buffer.from(await file.arrayBuffer()),
+            ContentType: file.type,
+          })
+        );
+
+        const imageUrl = `${process.env.R2_PUBLIC_URL}/${newFileName}`;
+
+        const newPicture = new Picture({
+          title: newCar.make + ' ' + newCar.model,
+          imageUrl: imageUrl,
+          car: newCar._id,
+        });
+        await newPicture.save();
+        newPictureIds.push(newPicture._id);
+      }
+
+      // Add all new pictures to the car's images array
+      newCar.images.push(...newPictureIds);
+      await newCar.save();
+    }
+
+    // Repopulate to return the full object
+    const populatedCar = await Car.findById(newCar._id).populate('owner').populate('images');
+
+    const carObject = populatedCar.toObject({ virtuals: true });
     
     return NextResponse.json({ success: true, data: carObject }, { status: 201 });
   } catch (error) {

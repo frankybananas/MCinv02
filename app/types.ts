@@ -1,8 +1,28 @@
 export type CarStatus = "all" | "in-stock" | "coming" | "reserved" | "sold"
 
+export interface Picture {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl: string;
+  thumbnailUrl?: string;
+  altText?: string;
+  car?: string;
+  client?: string;
+  tags?: string[];
+  metadata?: {
+    width?: number;
+    height?: number;
+    format?: string;
+    size?: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Car {
   id: string
-  images: string[]
+  images: Picture[]
   year: number
   make: string
   model: string
