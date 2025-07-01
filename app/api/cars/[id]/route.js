@@ -23,6 +23,7 @@ export async function GET(request, { params }) {
 
 // PUT handler with corrected file upload logic
 export async function PUT(request, { params }) {
+  const { id } = params;
   try {
     await connectToDatabase();
     const data = await request.formData();
@@ -31,7 +32,8 @@ export async function PUT(request, { params }) {
 
     // Handle new image uploads
     const imageFiles = data.getAll('images');
-    for (const file of imageFiles) {
+    const imageTitles = data.getAll('imageTitles');
+    for (const [index, file] of imageFiles.entries()) {
       if (typeof file === 'object' && file.name) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const fileName = `${uuidv4()}-${file.name}`;
@@ -44,7 +46,11 @@ export async function PUT(request, { params }) {
         }));
 
         const imageUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
-        const newPicture = new Picture({ imageUrl, fileName });
+        const newPicture = new Picture({
+          imageUrl,
+          fileName,
+          title: imageTitles[index] || file.name, // Use provided title or fallback to filename
+        });
         await newPicture.save();
         newImageIds.push(newPicture._id.toString());
       }
@@ -55,7 +61,7 @@ export async function PUT(request, { params }) {
 
     // Handle other form fields
     for (const [key, value] of data.entries()) {
-      if (key !== 'images' && key !== 'existingImages') {
+      if (key !== 'images' && key !== 'existingImages' && key !== 'imageTitles') {
         updateData[key] = value;
       }
     }
@@ -63,7 +69,7 @@ export async function PUT(request, { params }) {
     // Combine image lists and update the car
     updateData.images = [...existingImageIds, ...newImageIds];
 
-    const updatedCar = await Car.findByIdAndUpdate(params.id, updateData, {
+    const updatedCar = await Car.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     }).populate('images');

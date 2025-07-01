@@ -21,19 +21,34 @@ interface AddEditCarProps {
 }
 
 interface DisplayImage {
-  id: string;      // MongoDB ObjectId for existing, UUID for new
-  url: string;     // Public URL for existing, blob URL for new
-  file?: File;     // The File object for new uploads
+  id: string;
+  url: string;
+  file?: File;
   isNew: boolean;
 }
 
+// Helper function to format the price with spaces
+const formatPrice = (value: string | number): string => {
+  if (value === '' || value === null || value === undefined) return '';
+  const stringValue = String(value).replace(/\s/g, '');
+  if (isNaN(Number(stringValue))) return '';
+  return stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+};
+
+// Helper function to parse the formatted price back to a number
+const parsePrice = (value: string): number => {
+  return Number(String(value).replace(/\s/g, ''));
+};
+
 export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
+  const isEditing = !!car;
+
   const [formData, setFormData] = useState({
     make: car?.make ?? "",
     model: car?.model ?? "",
-    year: car?.year ?? new Date().getFullYear(),
-    price: car?.price ?? 0,
-    kilometers: car?.kilometers ?? 0,
+    year: car?.year ?? '',
+    price: car ? formatPrice(car.price) : '',
+    kilometers: car?.kilometers ?? '',
     description: car?.description ?? "",
     color: car?.color ?? '',
     transmission: car?.transmission ?? 'automatic',
@@ -45,9 +60,11 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+
+
   useEffect(() => {
     const initialImages = car?.images?.map(img => ({
-      id: img.id,
+      id: img._id || img.id || uuidv4(),
       url: img.imageUrl,
       isNew: false,
     })) ?? [];
@@ -63,7 +80,12 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   }, [car]);
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === 'price') {
+      const formattedValue = formatPrice(value);
+      setFormData((prev) => ({ ...prev, [field]: formattedValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,16 +114,23 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     setIsSaving(true);
 
     const data = new FormData();
+    const submissionData = { ...formData };
 
-    Object.entries(formData).forEach(([key, value]) => {
+    // Parse the price back to a number before submission
+    submissionData.price = String(parsePrice(formData.price));
+
+    Object.entries(submissionData).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {
         data.append(key, String(value));
       }
     });
 
+    // Append new images with their file data and a title
     displayedImages.forEach(img => {
       if (img.isNew && img.file) {
         data.append('images', img.file);
+        // Use the original filename as the title
+        data.append('imageTitles', img.file.name); 
       } else if (!img.isNew) {
         data.append('existingImages', img.id);
       }
@@ -117,185 +146,191 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     }
   };
 
-  const isEditing = !!car;
-
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <form onSubmit={handleSubmit} className="flex flex-col h-full">
-        <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-4">
+        <header className="bg-white border-b p-3 sm:p-4 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button variant="ghost" size="icon" type="button" onClick={onCancel}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-lg font-semibold">{isEditing ? "Edit Car" : "Add New Car"}</h1>
+            <h1 className="text-base sm:text-lg font-semibold truncate">{isEditing ? "Edit Car" : "Add New Car"}</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
+          <Button type="submit" disabled={isSaving} size="sm" className="text-xs sm:text-sm">
+            {isSaving ? "Saving..." : "Save Car"}
+          </Button>
         </header>
 
-        <ScrollArea className="flex-grow p-4">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Images</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept="image/*"
-                  multiple
-                />
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                  {displayedImages.map((image) => (
-                    <div key={image.id} className="relative aspect-square">
-                      <img
-                        src={image.url}
-                        alt="Car image"
-                        className="w-full h-full object-cover rounded-md"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 rounded-full"
-                        onClick={() => handleRemoveImage(image.id)}
+        <ScrollArea className="flex-grow">
+          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base sm:text-lg">Vehicle Images</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-4">
+                      {displayedImages.map((img) => (
+                        <div key={img.id} className="relative group aspect-square">
+                          <img
+                            src={img.url}
+                            alt="Car image"
+                            className="w-full h-full object-cover rounded-md"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleRemoveImage(img.id)}
+                          >
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <div
+                        className="aspect-square border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
+                        <span className="text-gray-500 text-2xl">+</span>
+                      </div>
                     </div>
-                  ))}
-                  <div
-                    className="w-full aspect-square border-2 border-dashed rounded-md flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground">Add Image</p>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      multiple
+                      accept="image/*"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="md:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base sm:text-lg">Vehicle Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs sm:text-sm font-medium">Year</label>
+                        <Input
+                          type="number"
+                          value={formData.year}
+                          onChange={(e) => handleInputChange("year", e.target.value)}
+                          placeholder="e.g. 2023"
+                          min="1900"
+                          max={new Date().getFullYear() + 1}
+                          required
+                          className="text-sm sm:text-base"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs sm:text-sm font-medium">Price (R)</label>
+                        <Input
+                          type="text"
+                          value={formData.price}
+                          onChange={(e) => handleInputChange("price", e.target.value)}
+                          placeholder="e.g. 150 000"
+                          required
+                          className="text-sm sm:text-base"
+                        />
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Vehicle Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Year</label>
-                    <Input
-                      type="number"
-                      value={formData.year}
-                      onChange={(e) => handleInputChange("year", Number.parseInt(e.target.value))}
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Price (R)</label>
-                    <Input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => handleInputChange("price", Number.parseFloat(e.target.value))}
-                      min="0"
-                      step="100"
-                      required
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs sm:text-sm font-medium">Make</label>
+                        <Input
+                          value={formData.make}
+                          onChange={(e) => handleInputChange("make", e.target.value)}
+                          placeholder="e.g. Toyota"
+                          required
+                          className="text-sm sm:text-base"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs sm:text-sm font-medium">Model</label>
+                        <Input
+                          value={formData.model}
+                          onChange={(e) => handleInputChange("model", e.target.value)}
+                          placeholder="e.g. Hilux"
+                          required
+                          className="text-sm sm:text-base"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="text-sm font-medium">Make</label>
-                  <Input
-                    value={formData.make}
-                    onChange={(e) => handleInputChange("make", e.target.value)}
-                    placeholder="e.g. Toyota, Honda, BMW"
-                    required
-                  />
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs sm:text-sm font-medium">Kilometers</label>
+                        <Input
+                          type="number"
+                          value={formData.kilometers}
+                          onChange={(e) => handleInputChange("kilometers", e.target.value)}
+                          placeholder="e.g. 50000"
+                          min="0"
+                          required
+                          className="text-sm sm:text-base"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs sm:text-sm font-medium">Color</label>
+                        <Input
+                          value={formData.color}
+                          onChange={(e) => handleInputChange("color", e.target.value)}
+                          placeholder="e.g. White"
+                          required
+                          className="text-sm sm:text-base"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="text-sm font-medium">Model</label>
-                  <Input
-                    value={formData.model}
-                    onChange={(e) => handleInputChange("model", e.target.value)}
-                    placeholder="e.g. Camry, Civic, 3 Series"
-                    required
-                  />
-                </div>
+                    <div>
+                      <label className="text-xs sm:text-sm font-medium">Transmission</label>
+                      <Select
+                        value={formData.transmission}
+                        onValueChange={(value) => handleInputChange("transmission", value)}
+                      >
+                        <SelectTrigger className="text-sm sm:text-base">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">Manual</SelectItem>
+                          <SelectItem value="automatic">Automatic</SelectItem>
+                          <SelectItem value="cvt">CVT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Kilometers</label>
-                    <Input
-                      type="number"
-                      value={formData.kilometers}
-                      onChange={(e) => handleInputChange("kilometers", Number.parseInt(e.target.value))}
-                      min="0"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Color</label>
-                    <Input
-                      value={formData.color}
-                      onChange={(e) => handleInputChange("color", e.target.value)}
-                      placeholder="e.g. White, Black, Silver"
-                      required
-                    />
-                  </div>
-                </div>
+                    <div>
+                      <label className="text-xs sm:text-sm font-medium">VIN (Optional)</label>
+                      <Input
+                        value={formData.vin}
+                        onChange={(e) => handleInputChange("vin", e.target.value)}
+                        placeholder="Vehicle Identification Number"
+                        maxLength={17}
+                        className="text-sm sm:text-base"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-sm font-medium">Transmission</label>
-                  <Select
-                    value={formData.transmission}
-                    onValueChange={(value) => handleInputChange("transmission", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manual">Manual</SelectItem>
-                      <SelectItem value="automatic">Automatic</SelectItem>
-                      <SelectItem value="cvt">CVT</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">VIN</label>
-                  <Input
-                    value={formData.vin}
-                    onChange={(e) => handleInputChange("vin", e.target.value)}
-                    placeholder="Vehicle Identification Number"
-                    maxLength={17}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Notes</label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => handleInputChange("notes", e.target.value)}
-                    placeholder="Additional notes about the vehicle..."
-                    rows={3}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                    <div>
+                      <label className="text-xs sm:text-sm font-medium">Notes (Optional)</label>
+                      <Textarea
+                        value={formData.notes}
+                        onChange={(e) => handleInputChange("notes", e.target.value)}
+                        placeholder="Additional notes about the vehicle..."
+                        rows={3}
+                        className="text-sm sm:text-base"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </form>

@@ -1,7 +1,8 @@
 export type CarStatus = "all" | "in-stock" | "coming" | "reserved" | "sold"
 
 export interface Picture {
-  id: string;
+  _id?: string;
+  id?: string;
   title: string;
   description?: string;
   imageUrl: string;

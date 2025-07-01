@@ -95,70 +95,72 @@ export function Dashboard({
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b p-4">
-        <div className="flex items-center justify-center">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <CarIcon className="w-6 h-6" />
-            Car Inventory
-          </h1>
-        </div>
-        <div className="flex justify-center mt-2">
-          <Badge variant="secondary">
-            {showClients 
-              ? `${clients.length} ${clients.length === 1 ? 'client' : 'clients'}` 
-              : `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'}`
-            }
-          </Badge>
+      <header className="bg-white border-b p-4 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-center text-center">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                <CarIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                Car Inventory
+              </h1>
+              <Badge variant="secondary" className="mt-2">
+                {showClients
+                  ? `${clients.length} ${clients.length === 1 ? 'client' : 'clients'}`
+                  : `${filteredCars.length} ${filteredCars.length === 1 ? 'car' : 'cars'}`}
+              </Badge>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Tabs */}
-      <div className="bg-white border-b">
+      <div className="bg-white border-b sticky top-[98px] z-10">
         <ScrollArea className="w-full">
-          <div className="flex gap-1 p-4">
-            {tabs.map((tab) => (
-              <Button
-                key={tab.id}
-                variant={activeTab === tab.id ? "default" : "ghost"}
-                size="sm"
-                onClick={() => handleTabChange(tab.id)}
-              >
-                {tab.label}
-              </Button>
-            ))}
+          <div className="flex justify-center p-2 sm:p-4">
+            <div className="flex gap-1 flex-wrap justify-center">
+              {tabs.map((tab) => (
+                <Button
+                  key={tab.id}
+                  variant={activeTab === tab.id ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handleTabChange(tab.id)}
+                  className="text-xs sm:text-sm"
+                >
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </ScrollArea>
       </div>
 
       {/* Main content */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
+        <div className="p-2 sm:p-4 space-y-4 max-w-4xl mx-auto">
           {/* Client list */}
           {showClients && (
-            <div key="clients-section">
+            <div key="clients-section" className="space-y-2 sm:space-y-4">
               {clients.length === 0 ? (
                 <div key="no-clients-found" className="text-center py-12">
                   <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No clients found</p>
                 </div>
               ) : (
-                clients.map((client, index) => (
-                  <div key={`${client.id}-${index}`}>
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
-                      <CardContent className="p-4 flex justify-between items-center">
-                        <div>
-                          <h3 className="font-semibold">{client.firstName} {client.lastName}</h3>
-                          <p className="text-sm text-muted-foreground">{client.email}</p>
-                          <p className="text-sm text-muted-foreground">{client.phone}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client.id); }}>
-                          <Trash2Icon className="w-4 h-4" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
+                clients.map((client) => (
+                  <Card key={client.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
+                    <CardContent className="p-3 sm:p-4 flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{client.email}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{client.phone}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client.id); }}>
+                        <Trash2Icon className="w-4 h-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
                 ))
               )}
             </div>
@@ -166,73 +168,68 @@ export function Dashboard({
 
           {/* Car list */}
           {!showClients && (
-            <div key="cars-section">
+            <div key="cars-section" className="space-y-2 sm:space-y-4">
               {filteredCars.length === 0 ? (
                 <div key="no-cars-found" className="text-center py-12">
                   <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No cars found in this category</p>
                 </div>
               ) : (
-                filteredCars.map((car, index) => (
-                  <div key={`${car.id}-${index}`}>
-                    <Card
-                      className="cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => onCarSelect(car)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          <img
-                            src={car.images?.[0] || "/placeholder.svg"}
-                            alt={`${car.year} ${car.make} ${car.model}`}
-                            className="w-20 h-20 object-cover rounded-lg"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <h3 className="font-semibold text-lg">
-                                  {car.year} {car.make} {car.model}
-                                </h3>
-                                <p className="text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Badge
-                                    className={getStatusColor(car.status)}
-                                    onClick={(e) => e.stopPropagation()}
+                filteredCars.map((car) => (
+                  <Card key={car.id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onCarSelect(car)}>
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <img
+                          src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
+                          alt={`${car.year} ${car.make} ${car.model}`}
+                          className="w-full sm:w-24 sm:h-24 h-48 object-cover rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-base sm:text-lg truncate">
+                                {car.year} {car.make} {car.model}
+                              </h3>
+                              <p className="text-xl sm:text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Badge
+                                  className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+                                </Badge>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {(['in-stock', 'coming', 'reserved', 'sold'] as CarStatus[]).map((statusOption) => (
+                                  <DropdownMenuItem
+                                    key={statusOption}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (statusOption !== car.status) {
+                                        onStatusChange(car.id, statusOption);
+                                      }
+                                    }}
                                   >
-                                    {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
-                                  </Badge>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {(new Array<CarStatus>("in-stock", "coming", "reserved", "sold")).map((statusOption) => (
-                                    <DropdownMenuItem
-                                      key={statusOption}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (statusOption !== car.status) {
-                                          onStatusChange(car.id, statusOption);
-                                        }
-                                      }}
-                                    >
-                                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            <div className="flex gap-4 text-sm text-muted-foreground mt-2">
-                              <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
-                              <span>{car.color}</span>
-                              <span className="capitalize">{car.transmission}</span>
-                            </div>
-                            {car.status === "reserved" && car.reservedBy && (
-                              <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
-                            )}
+                                    {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-muted-foreground mt-2">
+                            <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
+                            <span>{car.color}</span>
+                            <span className="capitalize">{car.transmission}</span>
+                          </div>
+                          {car.status === "reserved" && car.reservedBy && (
+                            <p className="text-xs sm:text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
+                          )}
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))
               )}
             </div>
@@ -241,13 +238,13 @@ export function Dashboard({
       </ScrollArea>
 
       {/* Floating Action Button */}
-      <Button 
-        onClick={activeTab === "clients" ? onAddClient : onAddCar} 
-        size="lg" 
-        className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg"
+      <Button
+        onClick={activeTab === "clients" ? onAddClient : onAddCar}
+        size="lg"
+        className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg z-20"
       >
         <Plus className="w-6 h-6" />
       </Button>
     </div>
-  )
+  );
 }
