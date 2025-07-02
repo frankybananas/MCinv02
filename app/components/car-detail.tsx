@@ -127,23 +127,16 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               <Card>
                 <CardHeader className="pb-0">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base sm:text-lg mb-1">Vehicle Details</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-xs h-8" 
-                          onClick={() => onEdit(car)}
-                        >
-                          <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl sm:text-3xl font-bold text-primary">{formatPrice(car.price ?? 0)}</p>
-                    </div>
+                    <CardTitle className="text-base sm:text-lg">Vehicle Details</CardTitle>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs h-8" 
+                      onClick={() => onEdit(car)}
+                    >
+                      <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                      Edit
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm sm:text-base">
@@ -153,34 +146,38 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                       <div>Reserved by {car.reservedBy}</div>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                    <div className="space-y-1">
+                  <div className="divide-y divide-gray-200">
+                    <div className="py-3 flex justify-between items-center">
+                      <p className="text-muted-foreground">Price</p>
+                      <p className="text-xl sm:text-2xl font-bold text-primary">{formatPrice(car.price ?? 0)}</p>
+                    </div>
+                    <div className="py-3 flex justify-between items-center">
                       <p className="text-muted-foreground">Year</p>
                       <p className="font-semibold">{car.year}</p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="py-3 flex justify-between items-center">
                       <p className="text-muted-foreground">Make</p>
                       <p className="font-semibold">{car.make}</p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="py-3 flex justify-between items-center">
                       <p className="text-muted-foreground">Model</p>
                       <p className="font-semibold">{car.model}</p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="py-3 flex justify-between items-center">
                       <p className="text-muted-foreground">Kilometers</p>
                       <p className="font-semibold">{(car.kilometers ?? 0).toLocaleString()}</p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="py-3 flex justify-between items-center">
                       <p className="text-muted-foreground">Color</p>
                       <p className="font-semibold capitalize">{car.color}</p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="py-3 flex justify-between items-center">
                       <p className="text-muted-foreground">Transmission</p>
                       <p className="font-semibold capitalize">{car.transmission || 'N/A'}</p>
                     </div>
                   </div>
 
-                  <div className="space-y-1 col-span-2">
+                  <div className="space-y-1 pt-4">
                     <p className="text-muted-foreground">VIN</p>
                     <p className="font-mono text-xs sm:text-sm bg-muted/50 p-2 rounded-md break-all border">
                       {car.vin || 'N/A'}
