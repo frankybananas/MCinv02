@@ -62,10 +62,6 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
           <div className={`px-3 py-1 rounded-md text-sm font-medium ${getStatusColor(car.status)}`}>
             {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
           </div>
-          <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => onEdit(car)}>
-            <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-            Edit
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="w-8 h-8 sm:w-9 sm:h-9">
@@ -131,7 +127,20 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               <Card>
                 <CardHeader className="pb-0">
                   <div className="flex justify-between items-start">
-                    <CardTitle className="text-base sm:text-lg">Vehicle Details</CardTitle>
+                    <div>
+                      <CardTitle className="text-base sm:text-lg mb-1">Vehicle Details</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-xs h-8" 
+                          onClick={() => onEdit(car)}
+                        >
+                          <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
+                    </div>
                     <div className="text-right">
                       <p className="text-2xl sm:text-3xl font-bold text-primary">{formatPrice(car.price ?? 0)}</p>
                     </div>
@@ -139,11 +148,12 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm sm:text-base">
                   {car.status === "reserved" && car.reservedBy && (
-                    <div className="mb-4 p-3 bg-amber-50 text-amber-800 text-sm rounded-md">
-                      Reserved by {car.reservedBy}
+                    <div className="mb-4 p-3 bg-amber-50 text-amber-800 text-sm rounded-md border border-amber-200">
+                      <div className="font-medium">Reservation</div>
+                      <div>Reserved by {car.reservedBy}</div>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                     <div className="space-y-1">
                       <p className="text-muted-foreground">Year</p>
                       <p className="font-semibold">{car.year}</p>
@@ -170,9 +180,11 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     </div>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 col-span-2">
                     <p className="text-muted-foreground">VIN</p>
-                    <p className="font-mono text-xs sm:text-sm bg-muted p-2 rounded-md break-all">{car.vin}</p>
+                    <p className="font-mono text-xs sm:text-sm bg-muted/50 p-2 rounded-md break-all border">
+                      {car.vin || 'N/A'}
+                    </p>
                   </div>
 
                   {car.notes && (
