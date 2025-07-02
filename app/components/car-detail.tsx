@@ -59,6 +59,9 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <div className={`px-3 py-1 rounded-md text-sm font-medium ${getStatusColor(car.status)}`}>
+            {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+          </div>
           <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => onEdit(car)}>
             <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
             Edit
@@ -131,38 +134,15 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     <CardTitle className="text-base sm:text-lg">Vehicle Details</CardTitle>
                     <div className="text-right">
                       <p className="text-2xl sm:text-3xl font-bold text-primary">{formatPrice(car.price ?? 0)}</p>
-                      {car.status === "reserved" && car.reservedBy && (
-                        <p className="text-xs text-amber-600">Reserved by {car.reservedBy}</p>
-                      )}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm sm:text-base">
-                  <div className="pt-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                          <span>
-                            Status: <span className={`font-semibold ${getStatusColor(car.status).replace(/bg\-\S+/, "")}`}>
-                              {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
-                            </span>
-                          </span>
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[--radix-dropdown-menu-trigger-width]">
-                        {(new Array<CarStatus>("in-stock", "coming", "reserved", "sold")).map((statusOption) => (
-                          <DropdownMenuItem
-                            key={statusOption}
-                            disabled={statusOption === car.status}
-                            onClick={() => onStatusChange(statusOption)}
-                          >
-                            {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  {car.status === "reserved" && car.reservedBy && (
+                    <div className="mb-4 p-3 bg-amber-50 text-amber-800 text-sm rounded-md">
+                      Reserved by {car.reservedBy}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <p className="text-muted-foreground">Year</p>
