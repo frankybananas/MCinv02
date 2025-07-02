@@ -120,31 +120,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 </CardContent>
               </Card>
 
-              {/* Audit Log */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
-                    Audit Log
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(car.auditLog ?? []).slice(0, 5).map((entry, index) => (
-                      <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
-                        <div className="w-2 h-2 bg-primary rounded-full mt-1.5 sm:mt-2 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm sm:text-base">{entry.action}</p>
-                          <p className="text-sm text-muted-foreground">{entry.details}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {entry.user} • {formatDate(entry.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+
             </div>
 
             <div className="lg:col-span-1 space-y-6">
@@ -228,6 +204,34 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 </CardContent>
               </Card>
             </div>
+          </div>
+          
+          {/* Moved Audit Log to bottom */}
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Audit Log
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {(car.auditLog ?? []).slice(0, 5).map((entry, index) => (
+                    <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
+                      <div className="w-2 h-2 bg-primary rounded-full mt-1.5 sm:mt-2 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm sm:text-base">{entry.action}</p>
+                        <p className="text-sm text-muted-foreground">{entry.details}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.user} • {formatDate(entry.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </ScrollArea>
