@@ -182,7 +182,7 @@ export function Dashboard({
                         <img
                           src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
                           alt={`${car.year} ${car.make} ${car.model}`}
-                          className="w-full sm:w-24 sm:h-24 h-48 object-cover rounded-lg"
+                          className="w-full sm:w-24 object-contain rounded-lg"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">

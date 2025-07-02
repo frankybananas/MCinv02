@@ -85,11 +85,11 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               {/* Image Gallery */}
               <Card>
                 <CardContent className="p-2 sm:p-4">
-                  <div className="relative aspect-video sm:aspect-[16/10]">
+                  <div className="relative">
                     <img
                       src={(car.images ?? [])[currentImageIndex]?.imageUrl || "/placeholder.svg"}
                       alt={`${car.year} ${car.make} ${car.model}`}
-                      className="w-full h-full object-cover rounded-md"
+                      className="w-full object-contain rounded-md"
                     />
                     {(car.images ?? []).length > 1 && (
                       <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-black/60 text-white px-2 py-1 rounded-md text-xs sm:text-sm">
