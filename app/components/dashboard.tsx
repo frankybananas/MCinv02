@@ -70,6 +70,10 @@ export function Dashboard({
     cars.filter((car) => car.status === activeTab)
   const showClients = activeTab === "clients"
 
+  if (showClients) {
+    console.log("Rendering clients:", JSON.stringify(clients, null, 2));
+  }
+
   const getStatusColor = (status: CarStatus) => {
     switch (status) {
       case "in-stock":
