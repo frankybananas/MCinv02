@@ -124,45 +124,45 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
             </div>
 
             <div className="lg:col-span-1 space-y-6">
-              {/* Price and Status */}
+              {/* Combined Vehicle Details and Price/Status */}
               <Card>
-                <CardContent className="p-4 sm:p-6 space-y-4">
-                  <div>
-                    <p className="text-3xl sm:text-4xl font-bold text-primary">{formatPrice(car.price ?? 0)}</p>
-                    {car.status === "reserved" && car.reservedBy && (
-                      <p className="text-sm text-amber-600 mt-1">Reserved by {car.reservedBy}</p>
-                    )}
+                <CardHeader className="pb-0">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-base sm:text-lg">Vehicle Details</CardTitle>
+                    <div className="text-right">
+                      <p className="text-2xl sm:text-3xl font-bold text-primary">{formatPrice(car.price ?? 0)}</p>
+                      {car.status === "reserved" && car.reservedBy && (
+                        <p className="text-xs text-amber-600">Reserved by {car.reservedBy}</p>
+                      )}
+                    </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between">
-                        <span>
-                          Status: <span className={`font-semibold ${getStatusColor(car.status).replace(/bg-\S+/, "")}`}>{car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}</span>
-                        </span>
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[--radix-dropdown-menu-trigger-width]">
-                      {(new Array<CarStatus>("in-stock", "coming", "reserved", "sold")).map((statusOption) => (
-                        <DropdownMenuItem
-                          key={statusOption}
-                          disabled={statusOption === car.status}
-                          onClick={() => onStatusChange(statusOption)}
-                        >
-                          {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardContent>
-              </Card>
-
-              {/* Car Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Vehicle Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm sm:text-base">
+                  <div className="pt-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          <span>
+                            Status: <span className={`font-semibold ${getStatusColor(car.status).replace(/bg\-\S+/, "")}`}>
+                              {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+                            </span>
+                          </span>
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[--radix-dropdown-menu-trigger-width]">
+                        {(new Array<CarStatus>("in-stock", "coming", "reserved", "sold")).map((statusOption) => (
+                          <DropdownMenuItem
+                            key={statusOption}
+                            disabled={statusOption === car.status}
+                            onClick={() => onStatusChange(statusOption)}
+                          >
+                            {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <p className="text-muted-foreground">Year</p>
@@ -186,7 +186,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     </div>
                     <div className="space-y-1">
                       <p className="text-muted-foreground">Transmission</p>
-                      <p className="font-semibold capitalize">{car.transmission}</p>
+                      <p className="font-semibold capitalize">{car.transmission || 'N/A'}</p>
                     </div>
                   </div>
 
