@@ -152,7 +152,9 @@ export function Dashboard({
                   <p className="text-muted-foreground">No clients found</p>
                 </div>
               ) : (
-                clients.map((client) => (
+                clients.map((client) => {
+                  console.log('Inspecting client:', JSON.stringify(client, null, 2));
+                  return (
                   <Card key={client.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
                     <CardContent className="p-3 sm:p-4 flex justify-between items-center">
                       <div>
@@ -165,7 +167,7 @@ export function Dashboard({
                       </Button>
                     </CardContent>
                   </Card>
-                ))
+                )})
               )}
             </div>
           )}
