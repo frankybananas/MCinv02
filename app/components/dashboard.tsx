@@ -70,10 +70,6 @@ export function Dashboard({
     cars.filter((car) => car.status === activeTab)
   const showClients = activeTab === "clients"
 
-  if (showClients) {
-    console.log("Rendering clients:", JSON.stringify(clients, null, 2));
-  }
-
   const getStatusColor = (status: CarStatus) => {
     switch (status) {
       case "in-stock":
@@ -152,22 +148,22 @@ export function Dashboard({
                   <p className="text-muted-foreground">No clients found</p>
                 </div>
               ) : (
-                clients.map((client) => {
-                  console.log('Inspecting client:', JSON.stringify(client, null, 2));
-                  return (
-                  <Card key={client.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
-                    <CardContent className="p-3 sm:p-4 flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{client.email}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{client.phone}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client.id); }}>
-                        <Trash2Icon className="w-4 h-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )})
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {clients.map((client) => (
+                    <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
+                      <CardContent className="p-3 sm:p-4 flex justify-between items-center">
+                        <div>
+                          <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
+                          <p className="text-sm text-muted-foreground">{client.email}</p>
+                          <p className="text-sm text-muted-foreground">{client.phone}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }} className="text-muted-foreground hover:text-red-500">
+                          <Trash2Icon className="w-5 h-5" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </div>
           )}
