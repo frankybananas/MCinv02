@@ -67,8 +67,7 @@ export interface AuditLogEntry {
 
 export interface AppState {
   isAuthenticated: boolean
-  currentScreen: "login" | "otp" | "dashboard" | "car-detail" | "add-car" | "edit-car" | "add-client" | "edit-client"
-  phoneNumber: string
+  currentScreen: "dashboard" | "car-detail" | "add-car" | "edit-car" | "add-client" | "edit-client"
   selectedCar: Car | null
   cars: Car[]
   showReserveModal: boolean

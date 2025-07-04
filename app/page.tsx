@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Car, Client, AppState, CarStatus } from "./types";
-import { LoginScreen } from "./components/login-screen";
-import { OTPScreen } from "./components/otp-screen";
+import { LoginForm } from "./components/login-form";
 import { Dashboard } from "./components/dashboard";
 import { CarDetail } from "./components/car-detail";
 import { AddEditCar } from "./components/add-edit-car";
@@ -16,8 +15,7 @@ type TabId = CarStatus | "clients";
 export default function Page() {
   const [appState, setAppState] = useState<AppState>({
     isAuthenticated: false,
-    currentScreen: "login", // "login" | "otp" | "dashboard" | "car-detail" | "add-car" | "edit-car" | "add-client" | "edit-client"
-    phoneNumber: "",
+    currentScreen: "dashboard",
     cars: [],
     clients: [],
     selectedCar: null,
@@ -47,25 +45,14 @@ export default function Page() {
       }
     };
 
-    if (appState.currentScreen === 'dashboard') {
+    if (appState.isAuthenticated) {
       fetchInitialData();
     }
-  }, [appState.currentScreen]);
+  }, [appState.isAuthenticated]);
 
   // Navigation helpers
   function navigateTo(screen: AppState['currentScreen'], params: any = {}) {
     setAppState(prev => ({ ...prev, currentScreen: screen, ...params }));
-  }
-
-  // Authentication logic
-  function login(phone: string) {
-    setAppState((prev) => ({ ...prev, phoneNumber: phone, currentScreen: "otp" }));
-  }
-  function verifyOTP(otp: string) {
-    // Mock OTP check
-    if (otp === "1234") {
-      setAppState((prev) => ({ ...prev, currentScreen: "dashboard" }));
-    }
   }
 
   // Car logic
@@ -124,66 +111,44 @@ export default function Page() {
   }
   function updateCarStatus(carId: string, status: CarStatus, reservedBy?: string, phone?: string) {
     setAppState((prev) => {
-      const statusChangeMessage = status === "reserved" ? `Reserved by ${reservedBy}` : status;
-      const updatedCars = prev.cars.map((car) =>
-        car.id === carId
-          ? {
-              ...car,
-              status,
-              reservedBy: status === "reserved" ? reservedBy : undefined,
-              auditLog: [
-                ...car.auditLog,
-                {
-                  action: "Status Changed",
-                  user: "Current User",
-                  timestamp: new Date().toISOString(),
-                  details: statusChangeMessage,
-                },
-              ],
-            }
-          : car,
-      );
-      // If the currently selected car is the one updated, refresh it too
-      const updatedSelected = prev.selectedCar && prev.selectedCar.id === carId
-        ? updatedCars.find((c) => c.id === carId) || prev.selectedCar
-        : prev.selectedCar;
-      // Add client if provided
-      // Add client if provided, creating a temporary client object.
-      // Note: This client is only stored in local state and not yet saved to the database.
-      const updatedClients = [...prev.clients];
-      if (phone && reservedBy && !prev.clients.some((c) => c.phone === phone)) {
-        const nameParts = reservedBy.split(' ');
-        const newClient: Client = {
-          id: Date.now().toString(),
-          firstName: nameParts[0] || '',
-          lastName: nameParts.slice(1).join(' ') || '',
-          email: `${Date.now()}@placeholder.com`, // Placeholder, as email is required
-          phone,
-        };
-        updatedClients.push(newClient);
-      }
-      return {
+      const updatedCars = prev.cars.map((car) => {
+        if (car.id === carId) {
+          const newStatus = { ...car, status };
+          if (status === "reserved" && reservedBy && phone) {
+            newStatus.reservedBy = `${reservedBy} (${phone})`;
+          } else if (status !== "reserved") {
+            newStatus.reservedBy = undefined;
+          }
+          return newStatus;
+        }
+        return car;
+      });
+
+      const newState = {
         ...prev,
         cars: updatedCars,
-        selectedCar: updatedSelected,
         showReserveModal: false,
-        clients: updatedClients,
-        activeTabId: "all" as CarStatus,
       };
-    })
+
+      if (prev.selectedCar?.id === carId) {
+        newState.selectedCar = updatedCars.find(c => c.id === carId) || null;
+      }
+
+      return newState;
+    });
   }
-  const showReserveModal = () => {
-    setAppState((prev) => ({ ...prev, showReserveModal: true }))
+  function showReserveModal() {
+    setAppState(prev => ({ ...prev, showReserveModal: true }));
   }
-  const hideReserveModal = () => {
-    setAppState((prev) => ({ ...prev, showReserveModal: false }))
+  function hideReserveModal() {
+    setAppState(prev => ({ ...prev, showReserveModal: false }));
   }
   // Client logic
-  const deleteClient = (clientId: string) => {
+  function deleteClient(clientId: string) {
     setAppState((prev) => ({
       ...prev,
-      clients: prev.clients.filter((client) => client.id !== clientId)
-    }))
+      clients: prev.clients.filter((c) => c._id !== clientId),
+    }));
   }
   async function addClient(clientData: Partial<Client>) {
     try {
@@ -205,17 +170,15 @@ export default function Page() {
         ...prev,
         clients: [...prev.clients, newClient],
         currentScreen: 'dashboard',
-        activeTabId: 'clients' as TabId,
+        activeTabId: 'clients'
       }));
     } catch (error) {
       console.error('Error adding client:', error);
-      // Optionally, show an error message to the user
     }
   }
   async function addInteraction(clientId: string, note: string) {
     try {
-      const response = await fetch(`/api/clients/${clientId}/interactions`,
-        {
+      const response = await fetch(`/api/clients/${clientId}/interactions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ note }),
@@ -229,7 +192,7 @@ export default function Page() {
 
       setAppState((prev) => ({
         ...prev,
-        clients: prev.clients.map((c) => (c.id === clientId ? updatedClient : c)),
+        clients: prev.clients.map((c) => (c._id === clientId ? updatedClient : c)),
         editingClient: updatedClient,
       }));
     } catch (error) {
@@ -241,7 +204,7 @@ export default function Page() {
     setAppState((prev) => ({
       ...prev,
       clients: prev.clients.map((client) =>
-        client.id === clientId
+        client._id === clientId
           ? { ...client, ...clientData }
           : client
       ),
@@ -250,12 +213,16 @@ export default function Page() {
     }))
   }
 
+  const handleLoginSuccess = () => {
+    setAppState(prev => ({ ...prev, isAuthenticated: true, currentScreen: 'dashboard' }));
+  };
+
+  if (!appState.isAuthenticated) {
+    return <LoginForm onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="w-full max-w-screen-xl mx-auto bg-background min-h-screen px-4">
-      {appState.currentScreen === "login" && <LoginScreen onLogin={login} />}
-      {appState.currentScreen === "otp" && (
-        <OTPScreen phoneNumber={appState.phoneNumber} onVerify={verifyOTP} onBack={() => navigateTo("login")} />
-      )}
       {appState.currentScreen === "dashboard" && (
         <Dashboard
           cars={appState.cars}
@@ -302,7 +269,7 @@ export default function Page() {
       {appState.currentScreen === "edit-client" && appState.editingClient && (
         <AddEditClient
           client={appState.editingClient}
-          onSave={(clientData) => updateClient(appState.editingClient!.id, clientData)}
+          onSave={(clientData) => updateClient(appState.editingClient!._id, clientData)}
           onCancel={() => navigateTo("dashboard", { activeTabId: "clients" })}
           onAddInteraction={addInteraction}
           onDelete={(clientId) => {
