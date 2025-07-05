@@ -58,6 +58,15 @@ const CarSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Picture',
   }],
+  auditLog: [{
+    action: String,
+    details: String,
+    user: String, // Storing user identifier (e.g., phone number)
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

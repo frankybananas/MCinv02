@@ -78,40 +78,45 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
   const handleAddCar = () => console.log('Add car clicked');
   const handleAddClient = () => console.log('Add client clicked');
 
-      const handleStatusChange = async (carId: string, status: CarState) => {
-    const originalCars = cars;
-    const originalSelectedCar = selectedCar;
+          const handleStatusChange = async (carId: string, status: CarState) => {
+      console.log(`[1] handleStatusChange triggered for carId: ${carId} to status: ${status}`);
 
-    // Optimistically update the UI for both the main list and the detail view
-    setCars(currentCars =>
-      currentCars.map(car =>
-        car._id === carId ? { ...car, status: status } : car
-      )
-    );
-        if (selectedCar && selectedCar._id === carId) {
-      setSelectedCar({ ...selectedCar, status: status });
-    }
+      try {
+        console.log('[2] Calling API: PUT /api/cars/' + carId);
+        const response = await fetch(`/api/cars/${carId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+        console.log('[3] API response received.');
 
-    try {
-      const response = await fetch(`/api/cars/${carId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[4a] API response not OK.', { status: response.status, text: errorText });
+          throw new Error(`API Error: ${response.statusText}`);
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
+        const result = await response.json();
+        console.log('[4b] API response OK. Data received:', result.data);
+
+        const updatedCar = result.data as Car;
+
+        setCars(currentCars => {
+          console.log('[5] Updating cars state array.');
+          return currentCars.map(car => (car._id === carId ? updatedCar : car));
+        });
+
+        if (selectedCar?._id === carId) {
+          console.log('[6] Updating selectedCar state.');
+          setSelectedCar(updatedCar);
+        }
+
+      } catch (err) {
+        console.error('[ERROR] An error occurred in handleStatusChange:', err);
+      } finally {
+        console.log('[7] handleStatusChange finished.');
       }
-    } catch (err) {
-      console.error('Failed to update car status:', err);
-      // Revert the optimistic update on error
-      setCars(originalCars);
-      if (originalSelectedCar) {
-        setSelectedCar(originalSelectedCar);
-      }
-    }
-  };
+    };
 
   const handleClientSelect = (client: Client | null) => console.log('Client selected:', client);
   const handleClientDelete = async (clientId: string) => {

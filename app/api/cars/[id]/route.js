@@ -101,11 +101,29 @@ export async function PUT(request, context) {
         return NextResponse.json({ success: false, message: 'Invalid status provided' }, { status: 400 });
       }
 
-      const updatedCar = await Car.findByIdAndUpdate(id, { status }, { new: true, runValidators: true }).populate('images');
+            const carToUpdate = await Car.findById(id);
 
-      if (!updatedCar) {
+      if (!carToUpdate) {
         return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
       }
+
+      const oldStatus = carToUpdate.status;
+
+      // Only add a log entry if the status actually changed.
+      if (oldStatus !== status) {
+        const auditEntry = {
+          action: 'Status Change',
+          details: `Status changed from ${oldStatus.replace('-', ' ')} to ${status.replace('-', ' ')}`,
+          user: auth.phone, // User identifier from verified JWT
+        };
+        carToUpdate.auditLog.push(auditEntry);
+      }
+
+      carToUpdate.status = status;
+      const updatedCar = await carToUpdate.save();
+
+            await updatedCar.populate('images');
+
       return NextResponse.json({ success: true, data: updatedCar.toObject({ virtuals: true }) });
 
     } else if (contentType.includes('multipart/form-data')) {
@@ -153,10 +171,56 @@ export async function PUT(request, context) {
       // Combine image lists and update the car
       updateData.images = [...existingImageIds, ...newImageIds];
 
-      const updatedCar = await Car.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).populate('images');
+            const carToUpdate = await Car.findById(id);
+      if (!carToUpdate) {
+        return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
+      }
+
+      const oldData = carToUpdate.toObject();
+      const changes = [];
+
+            // Compare fields and log changes
+      for (const key in updateData) {
+        if (key === 'images') continue;
+
+        const oldValue = oldData[key];
+        const newValue = updateData[key];
+
+        // Treat null, undefined, and '' as equivalent for empty fields to avoid phantom logs.
+        const oldIsEmpty = oldValue === null || oldValue === undefined || oldValue === '';
+        const newIsEmpty = newValue === null || newValue === undefined || newValue === '';
+
+        if (oldIsEmpty && newIsEmpty) {
+          continue; // Both are empty, so no change.
+        }
+
+        // If values are genuinely different, log the change.
+        if (String(oldValue) !== String(newValue)) {
+          changes.push(`'${key}' from '${oldValue || 'N/A'}' to '${newValue}'`);
+        }
+      }
+
+      // Special handling for images to see if they changed
+      const oldImageIds = oldData.images.map(img => img.toString());
+      const newImageIdsCombined = [...existingImageIds, ...newImageIds];
+      if (JSON.stringify(oldImageIds.sort()) !== JSON.stringify(newImageIdsCombined.sort())) {
+        changes.push('images were updated');
+      }
+
+      if (changes.length > 0) {
+        const auditEntry = {
+          action: 'Car Details Update',
+          details: `Updated fields: ${changes.join(', ')}`,
+          user: auth.phone,
+        };
+        carToUpdate.auditLog.push(auditEntry);
+      }
+
+      // Apply updates
+      Object.assign(carToUpdate, updateData);
+
+      const updatedCar = await carToUpdate.save();
+      await updatedCar.populate('images');
 
       if (!updatedCar) {
         return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
