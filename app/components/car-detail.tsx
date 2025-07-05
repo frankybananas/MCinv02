@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { ArrowLeft, Edit, MoreVertical, Clock } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import type { Car, CarStatus } from "../types"
+import type { Car, CarStatus, CarState } from "../types"
 
 interface CarDetailProps {
   car: Car
   onBack: () => void
   onEdit: (car: Car) => void
   onReserve: () => void
-  onStatusChange: (status: CarStatus) => void
+  onStatusChange: (status: CarState) => void
 }
 
 export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: CarDetailProps) {

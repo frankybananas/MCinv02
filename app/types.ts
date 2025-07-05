@@ -1,4 +1,6 @@
-export type CarStatus = "all" | "in-stock" | "coming" | "reserved" | "sold"
+export type CarState = "in-stock" | "coming" | "reserved" | "sold";
+export type CarStatus = "all" | CarState;
+export type DashboardTab = CarStatus | "clients";
 
 export interface Picture {
   _id?: string;
@@ -22,7 +24,8 @@ export interface Picture {
 }
 
 export interface Car {
-  id: string
+  _id: string;
+  id?: string;
   images: Picture[]
   year: number
   make: string
@@ -35,7 +38,7 @@ export interface Car {
   notes: string
   description?: string
   features?: string[]
-  status: CarStatus
+  status: CarState
   reservedBy?: string
   createdAt: string
   auditLog: AuditLogEntry[]
