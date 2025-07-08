@@ -133,7 +133,7 @@ export function Dashboard({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {clients.map((client) => (
-                    <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onClientSelect?.(client)}>
+                    <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onClientSelect(client)}>
                       <CardContent className="p-3 sm:p-4 flex justify-between items-center">
                         <div>
                           <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
