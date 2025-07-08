@@ -56,6 +56,7 @@ export interface Client {
   lastName?: string;
   email?: string;
   phone: string;
+  cars?: Car[];
   notes?: string;
   interactionHistory?: Interaction[];
   createdAt?: string;

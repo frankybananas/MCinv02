@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { Dashboard } from './dashboard';
 import { LoginForm } from './login-form';
 import { CarDetail } from './car-detail';
+import { ClientDetail } from './client-detail';
 import { AddEditCar } from './add-edit-car';
+import { AddEditClient } from './add-edit-client';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab } from '../types';
 
 interface MainPageProps {
@@ -16,7 +18,9 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editingCar, setEditingCar] = useState<Car | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +29,7 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (res.ok) {
-        window.location.reload(); // Reload to reflect logged-out state
+        window.location.reload();
       } else {
         console.error('Logout failed');
       }
@@ -33,37 +37,38 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
       console.error('An error occurred during logout:', err);
     }
   };
-      const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
+
+  const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [clientsRes, carsRes] = await Promise.all([
+        fetch('/api/clients'),
+        fetch('/api/cars'),
+      ]);
+
+      if (!clientsRes.ok || !carsRes.ok) {
+        throw new Error('Failed to fetch data');
+      }
+
+      const clientsData = await clientsRes.json();
+      const carsData = await carsRes.json();
+
+      setClients(clientsData.data || []);
+      setCars(carsData.data || []);
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      console.error("Fetch error:", errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
-      const fetchData = async () => {
-        try {
-          setLoading(true);
-          const [clientsRes, carsRes] = await Promise.all([
-            fetch('/api/clients'),
-            fetch('/api/cars'),
-          ]);
-
-          if (!clientsRes.ok || !carsRes.ok) {
-            throw new Error('Failed to fetch data');
-          }
-
-          const clientsData = await clientsRes.json();
-          const carsData = await carsRes.json();
-
-          setClients(clientsData.data || []);
-          setCars(carsData.data || []);
-          setError(null);
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-          setError(errorMessage);
-          console.error("Fetch error:", errorMessage);
-        } finally {
-          setLoading(false);
-        }
-      };
-
       fetchData();
     }
   }, [isAuthenticated]);
@@ -74,69 +79,64 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
 
   const handleCarSelect = (car: Car) => {
     setSelectedCar(car);
+    setSelectedClient(null);
   };
-  const handleAddCar = () => console.log('Add car clicked');
-  const handleAddClient = () => console.log('Add client clicked');
 
-          const handleStatusChange = async (carId: string, status: CarState) => {
-      console.log(`[1] handleStatusChange triggered for carId: ${carId} to status: ${status}`);
+  const handleAddCar = () => setEditingCar({} as Car);
+  const handleAddClient = () => setEditingClient({} as Client);
 
-      try {
-        console.log('[2] Calling API: PUT /api/cars/' + carId);
-        const response = await fetch(`/api/cars/${carId}`, {
+  const handleStatusChange = async (carId: string, status: CarState) => {
+    try {
+      const response = await fetch(`/api/cars/${carId}`,
+        {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status }),
         });
-        console.log('[3] API response received.');
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[4a] API response not OK.', { status: response.status, text: errorText });
-          throw new Error(`API Error: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log('[4b] API response OK. Data received:', result.data);
-
-        const updatedCar = result.data as Car;
-
-        setCars(currentCars => {
-          console.log('[5] Updating cars state array.');
-          return currentCars.map(car => (car._id === carId ? updatedCar : car));
-        });
-
-        if (selectedCar?._id === carId) {
-          console.log('[6] Updating selectedCar state.');
-          setSelectedCar(updatedCar);
-        }
-
-      } catch (err) {
-        console.error('[ERROR] An error occurred in handleStatusChange:', err);
-      } finally {
-        console.log('[7] handleStatusChange finished.');
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText}`);
       }
-    };
 
-  const handleClientSelect = (client: Client | null) => console.log('Client selected:', client);
-  const handleClientDelete = async (clientId: string) => {
-    console.log('Delete client:', clientId);
-    // Here you would make an API call to delete the client
+      const result = await response.json();
+      const updatedCar = result.data as Car;
+
+      setCars(currentCars => currentCars.map(car => (car._id === carId ? updatedCar : car)));
+
+      if (selectedCar?._id === carId) {
+        setSelectedCar(updatedCar);
+      }
+
+    } catch (err) {
+      console.error('An error occurred in handleStatusChange:', err);
+    }
   };
 
-        const filteredCars = activeStatus === 'all' 
-    ? cars 
-    : activeStatus === 'clients'
-    ? [] // Don't show any cars when the clients tab is active
-    : cars.filter(car => car.status === activeStatus);
-
-  const handleBackFromDetail = () => {
+  const handleClientSelect = (client: Client | null) => {
+    setSelectedClient(client);
     setSelectedCar(null);
+  };
+
+  const handleClientDelete = async (clientId: string) => {
+    console.log('Delete client:', clientId);
+    // API call to delete client
+  };
+
+  const handleBack = () => {
+    setSelectedCar(null);
+    setSelectedClient(null);
+    setEditingCar(null);
+    setEditingClient(null);
   };
 
   const handleEditCar = (car: Car) => {
     setEditingCar(car);
-    setSelectedCar(null); // Close the detail view
+    setSelectedCar(null);
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    setSelectedClient(null);
   };
 
   const handleReserveCar = () => {
@@ -145,68 +145,70 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
   };
 
   const handleSaveCar = async (carData: FormData) => {
-    const carId = editingCar?._id;
-    if (!carId) return;
+    const method = editingCar?._id ? 'PUT' : 'POST';
+    const url = editingCar?._id ? `/api/cars/${editingCar._id}` : '/api/cars';
 
     try {
-      const response = await fetch(`/api/cars/${carId}`, {
-        method: 'PUT',
-        body: carData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save car');
-      }
-
-      const updatedCar = await response.json();
-      setCars(cars.map(c => c._id === carId ? updatedCar.data : c));
-      setEditingCar(null);
+      const response = await fetch(url, { method, body: carData });
+      if (!response.ok) throw new Error('Failed to save car');
+      await fetchData();
+      handleBack();
     } catch (error) {
       console.error('Error saving car:', error);
     }
   };
 
-  if (editingCar) {
-    return <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={() => setEditingCar(null)} />;
-  }
+  const handleSaveClient = async (clientData: Omit<Client, '_id' | 'cars'>) => {
+    const method = editingClient?._id ? 'PUT' : 'POST';
+    const url = editingClient?._id ? `/api/clients/${editingClient._id}` : '/api/clients';
 
-  if (selectedCar) {
-    return (
-      <CarDetail
-        car={selectedCar}
-        onBack={handleBackFromDetail}
-        onEdit={handleEditCar}
-        onReserve={handleReserveCar}
-        onStatusChange={(status) => handleStatusChange(selectedCar._id, status)}
-      />
-    );
-  }
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientData),
+      });
+      if (!response.ok) throw new Error('Failed to save client');
+      await fetchData();
+      handleBack();
+    } catch (error) {
+      console.error('Error saving client:', error);
+    }
+  };
 
-  if (!isAuthenticated) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} />;
-  }
+  const filteredCars = activeStatus === 'all'
+    ? cars
+    : activeStatus === 'clients'
+      ? []
+      : cars.filter(car => car.status === activeStatus);
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
+  if (!isAuthenticated) return <LoginForm onLoginSuccess={handleLoginSuccess} />;
+  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (error) return <div className="flex items-center justify-center h-screen text-red-500">Error: {error}</div>;
 
-  if (error) {
-    return <div className="flex items-center justify-center h-screen text-red-500">Error: {error}</div>;
+  if (editingCar) return <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />;
+    if (editingClient) return <AddEditClient client={editingClient} onSave={handleSaveClient as (clientData: Partial<Client>) => void} onCancel={handleBack} />;
+  
+      if (selectedCar) {
+    return <CarDetail car={selectedCar} onBack={handleBack} onEdit={handleEditCar} onStatusChange={(status) => handleStatusChange(selectedCar._id, status)} onReserve={handleReserveCar} />;
+  }
+  if (selectedClient) {
+    return <ClientDetail client={selectedClient} onBack={handleBack} onEdit={handleEditClient} onSelectCar={handleCarSelect} />;
   }
 
   return (
     <Dashboard
       cars={filteredCars}
       clients={clients}
-      activeStatus={activeStatus} // Pass active status
-      onStatusFilterChange={setActiveStatus} // Pass status change handler
+      activeStatus={activeStatus}
+      onStatusFilterChange={setActiveStatus}
       onCarSelect={handleCarSelect}
       onAddCar={handleAddCar}
       onAddClient={handleAddClient}
       onStatusChange={handleStatusChange as (carId: string, status: CarState) => void}
       onClientSelect={handleClientSelect}
       onClientDelete={handleClientDelete}
-      onLogout={handleLogout} // Pass logout handler
+      onLogout={handleLogout}
     />
   );
 }
