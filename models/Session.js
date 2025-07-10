@@ -15,6 +15,24 @@ const sessionSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // 'mobile' or 'desktop'
+  deviceType: {
+    type: String,
+    enum: ['mobile', 'desktop'],
+    required: true,
+    index: true,
+  },
+  // Timestamp of the last OTP verification for this session
+  lastOtpAt: {
+    type: Date,
+    required: true,
+  },
+  // Session expiry (24 h after last OTP)
+  expiresAt: {
+    type: Date,
+    required: true,
+    index: true,
+  },
   ipAddress: String,
   userAgent: String,
   createdAt: {

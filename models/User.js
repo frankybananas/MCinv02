@@ -16,6 +16,17 @@ const UserSchema = new mongoose.Schema({
     enum: ['admin', 'user', 'manager'],
     default: 'user',
   },
+  // Job position/title (e.g. Sales Executive)
+  position: {
+    type: String,
+    trim: true,
+  },
+  // Department the user belongs to (New / Used vehicles)
+  department: {
+    type: String,
+    enum: ['new', 'used'],
+    required: true,
+  },
   profile: {
     firstName: {
       type: String,

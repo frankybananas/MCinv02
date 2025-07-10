@@ -1,84 +1,115 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import parsePhoneNumber from 'libphonenumber-js';
+
+// Define a type for the user object for better type safety
+interface User {
+  phone: string;
+  role: string;
+  profile?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+}
 
 export default function LoginPage() {
-  const [step, setStep] = useState('phone'); // 'phone' or 'otp'
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [user, setUser] = useState(null);
+  const router = useRouter();
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [phone, setPhone] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
 
-  async function handlePhoneSubmit(e) {
+  async function handlePhoneSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+    setSuccess('');
+
+    const phoneNumber = parsePhoneNumber(phone, 'ZA');
+    if (!phoneNumber || !phoneNumber.isValid()) {
+      setError('Please enter a valid phone number.');
+      setLoading(false);
+      return;
+    }
+
+    const normalizedPhone = phoneNumber.format('E.164');
+
     try {
-      const response = await fetch('/api/auth/phone', {
+      const response = await fetch('/api/auth/otp/send', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phone }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalizedPhone }),
       });
-      
+
       const data = await response.json();
-      
-      if (data.success) {
+
+      if (response.ok) {
         setSuccess('OTP sent successfully');
         setStep('otp');
-        
-        // If this is a test account, we can pre-fill the OTP
         if (data.testOtp) {
           setOtp(data.testOtp);
         }
       } else {
-        setError(data.message || 'Failed to send OTP');
+        setError(data.error || 'Failed to send OTP');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError('Error sending OTP: ' + err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleOtpSubmit(e) {
+  async function handleOtpSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+    setSuccess('');
+
+    const phoneNumber = parsePhoneNumber(phone, 'ZA');
+    if (!phoneNumber || !phoneNumber.isValid()) {
+      // This should not happen if the first step worked, but as a safeguard:
+      setError('An error occurred with the phone number. Please go back.');
+      setLoading(false);
+      return;
+    }
+
+    const normalizedPhone = phoneNumber.format('E.164');
+
     try {
-      const response = await fetch('/api/auth/verify', {
+      const response = await fetch('/api/auth/otp/verify', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phone, otp }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalizedPhone, code: otp }),
       });
-      
+
       const data = await response.json();
-      
-      if (data.success) {
-        setSuccess('Authentication successful');
-        setUser(data.user);
-        
-        // In a real app, you would store the user in a context or state management
-        // and redirect to a protected page
+
+      if (response.ok) {
+        setSuccess('Authentication successful! Redirecting...');
+        router.replace('/');
       } else {
-        setError(data.message || 'Failed to verify OTP');
+        setError(data.error || 'Failed to verify OTP');
       }
-    } catch (err) {
+    } catch (err: any) {
       setError('Error verifying OTP: ' + err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleBack() {
+    setStep('phone');
+    setError('');
+    setSuccess('');
   }
 
   return (
@@ -87,51 +118,39 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>Login</CardTitle>
           <CardDescription>
-            {step === 'phone' 
-              ? 'Enter your phone number to receive a verification code' 
+            {step === 'phone'
+              ? 'Enter your phone number to receive a verification code'
               : 'Enter the verification code sent to your phone'}
           </CardDescription>
         </CardHeader>
-        
+
         {error && (
           <div className="mx-6 mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
         )}
-        
-        {success && !user && (
+
+        {success && step === 'otp' && (
           <div className="mx-6 mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
             {success}
           </div>
         )}
-        
-        {user ? (
-          <CardContent>
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-              Authentication successful!
-            </div>
-            
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Welcome, {user.profile?.firstName || 'User'}</h3>
-              <p>Phone: {user.phone}</p>
-              <p>Role: {user.role}</p>
-              <p>Email: {user.profile?.email || 'N/A'}</p>
-            </div>
-          </CardContent>
-        ) : step === 'phone' ? (
+
+        {step === 'phone' ? (
           <form onSubmit={handlePhoneSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
-                  placeholder="+1 650-555-3434"
+                  type="tel"
+                  placeholder="+27720560090"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  For testing, use: +1 650-555-3434
+                  For testing, use: +16505553434
                 </p>
               </div>
             </CardContent>
@@ -148,27 +167,23 @@ export default function LoginPage() {
                 <Label htmlFor="otp">Verification Code</Label>
                 <Input
                   id="otp"
+                  inputMode="numeric"
                   placeholder="123456"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   required
                 />
-                <p className="text-xs text-gray-500">
+                 <p className="text-xs text-gray-500">
                   For testing, use: 123456
                 </p>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-2">
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Verifying...' : 'Verify Code'}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setStep('phone')} 
-                className="w-full"
-              >
+            <CardFooter className="flex justify-between">
+              <Button type="button" variant="outline" onClick={handleBack}>
                 Back
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Verifying...' : 'Verify Code'}
               </Button>
             </CardFooter>
           </form>

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import twilio from 'twilio';
+import { Twilio } from 'twilio';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
-import { connectToDatabase } from '@/lib/mongodb';
+import parsePhoneNumber from 'libphonenumber-js';
+const dbConnect = require('@/lib/mongodb');
+import User from '@/models/User';
 import Session from '@/models/Session';
+import { getTestOtp } from '@/lib/test-accounts';
 
 export async function POST(request: Request) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -17,47 +20,95 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
   }
 
-  const client = twilio(accountSid, authToken);
+  const client = new Twilio(accountSid, authToken);
 
   try {
-    const { phone, code } = await request.json();
+    const { phone: rawPhone, code } = await request.json();
 
-    if (!phone || !code) {
+    if (!rawPhone || !code) {
       return NextResponse.json({ error: 'Phone number and code are required' }, { status: 400 });
     }
 
-    // 1. Verify the OTP using Twilio Verify
-    const verificationCheck = await client.verify.v2.services(verifyServiceSid)
-      .verificationChecks
-      .create({ to: phone, code: code });
+    const phoneNumber = parsePhoneNumber(rawPhone, 'ZA');
+    if (!phoneNumber || !phoneNumber.isValid()) {
+      return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+    }
+    const phone = phoneNumber.format('E.164');
 
-    // 2. Check if the verification was successful
-    if (verificationCheck.status === 'approved') {
-      await connectToDatabase();
+    // 1. Handle test accounts by checking the code directly
+    const testOtp = getTestOtp(phone);
+    let isApproved = false;
 
-      // 3. Check for concurrent sessions
-      const existingSessions = await Session.find({ phoneNumber: phone, isActive: true });
-      if (existingSessions.length > 0) {
-        console.warn(`Concurrent session detected for ${phone}. Active sessions: ${existingSessions.length}`);
-        // Depending on business logic, you might want to invalidate old sessions here.
-        // For now, we'll just log it.
+    if (testOtp) {
+      if (code === testOtp) {
+        isApproved = true;
+        console.log(`Test OTP verification successful for ${phone}`);
+      } else {
+        return NextResponse.json({ success: false, error: 'Invalid test OTP.' }, { status: 400 });
+      }
+    } else {
+      // For real users, verify the OTP using Twilio Verify
+      const verificationCheck = await client.verify.v2.services(verifyServiceSid)
+        .verificationChecks
+        .create({ to: phone, code: code });
+      if (verificationCheck.status === 'approved') {
+        isApproved = true;
+      }
+    }
+
+    // 2. If approved, proceed with session creation
+    if (isApproved) {
+      await dbConnect();
+
+      // 3. Find user and enforce device limits
+      const user = await User.findOne({ phone });
+      if (!user) {
+        // This case should not be reached if the `send` route is working correctly
+        return NextResponse.json({ error: 'User not found after OTP verification.' }, { status: 404 });
+      }
+
+      const ua = request.headers.get('user-agent') || '';
+      const deviceType: 'mobile' | 'desktop' = /android|iphone|ipad|mobile/i.test(ua) ? 'mobile' : 'desktop';
+
+      const activeSessions = await Session.find({ phoneNumber: phone, isActive: true }).sort({ createdAt: 1 });
+      const sessionsByType = {
+        mobile: activeSessions.filter((s: any) => s.deviceType === 'mobile'),
+        desktop: activeSessions.filter((s: any) => s.deviceType === 'desktop'),
+      };
+
+      // Block login only if user already has 2 active sessions (1 mobile, 1 desktop)
+      if (sessionsByType.mobile.length >= 1 && sessionsByType.desktop.length >= 1) {
+        // And the current login attempt is from a new device type (which is impossible, but good practice)
+        if (!sessionsByType[deviceType] || sessionsByType[deviceType].length === 0) {
+            return NextResponse.json({ success: false, error: 'Device limit of 2 (1 mobile, 1 desktop) reached.' }, { status: 403 });
+        }
+      }
+
+      // If a session of the same type already exists, deactivate it.
+      if (sessionsByType[deviceType].length >= 1) {
+        const oldestSession = sessionsByType[deviceType][0]; // Already sorted by date
+        await Session.findByIdAndUpdate(oldestSession._id, { isActive: false });
       }
 
       // 4. Create a JWT to manage the session
       const jwtId = uuidv4();
-      const token = jwt.sign({ phone }, jwtSecret, { expiresIn: '7d', jwtid: jwtId });
+      const token = jwt.sign({ phone: user.phone, userId: user._id, role: user.role }, jwtSecret, { expiresIn: '7d', jwtid: jwtId });
 
-      // 5. Create a new session record
+      // 5. Create a new session record with device tracking
+      const now = new Date();
       const newSession = new Session({
-        phoneNumber: phone,
+        userId: user._id,
         jwtId: jwtId,
-        userAgent: request.headers.get('user-agent') || 'Unknown',
-        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('remote-addr') || 'Unknown',
+        deviceType,
+        lastOtpAt: now,
+        expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        userAgent: ua,
+        ipAddress: request.headers.get('x-forwarded-for') || 'Unknown',
       });
       await newSession.save();
 
       // 6. Create the response and set the cookie
-      const response = NextResponse.json({ success: true, message: 'OTP verified successfully.' });
+      const response = NextResponse.json({ success: true, message: 'OTP verified successfully.', user: { role: user.role } });
       response.cookies.set('session_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
