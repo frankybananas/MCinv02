@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { headers } from 'next/headers';
 import { connectToDatabase } from '@/lib/mongodb';
 import { s3 } from '@/lib/s3';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
@@ -11,12 +10,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 // GET handler
 export async function GET(request, { params }) {
-  const auth = await verifyAuth(request);
-  if (!auth.authorized) {
-    return NextResponse.json({ success: false, message: auth.error }, { status: auth.status });
-  }
-
   try {
+    await connectToDatabase();
     const car = await Car.findById(params.id).populate('owner').populate('images');
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
@@ -28,65 +23,12 @@ export async function GET(request, { params }) {
   }
 }
 
-async function verifyAuth(request) {
-  console.log('--- Verifying Auth (Cars/[id]) ---');
-  try {
-    await connectToDatabase();
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    console.log('Token from cookie:', token ? 'Found' : 'Not Found');
 
-    if (!token) {
-      console.log('Auth failed: No token provided.');
-      return { authorized: false, error: 'Unauthorized', status: 401 };
-    }
-
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not defined in environment variables.');
-    }
-
-    const decoded = jwt.verify(token, jwtSecret);
-    console.log('Decoded JWT:', decoded);
-
-    if (!decoded || !decoded.jti) {
-        console.log('Auth failed: Invalid token payload, jti missing.');
-        return { authorized: false, error: 'Invalid token payload', status: 401 };
-    }
-
-    console.log(`Querying for active session with jti: ${decoded.jti}`);
-    const session = await Session.findOne({ jwtId: decoded.jti, isActive: true });
-
-    if (!session) {
-        console.log('Auth failed: Session not found in DB or is inactive.');
-        return { authorized: false, error: 'Session not found or inactive', status: 401 };
-    }
-
-    // Optionally, update lastAccessedAt
-    session.lastAccessedAt = new Date();
-    await session.save();
-
-    console.log('Auth successful.');
-    return { authorized: true, phone: decoded.phone };
-  } catch (error) {
-    console.error('--- Auth Error (Cars/[id]) ---');
-    if (error.name === 'JsonWebTokenError') {
-      console.error('JWT Error:', error.message);
-    } else if (error.name === 'TokenExpiredError') {
-      console.error('JWT Expired:', error.message);
-    } else {
-      console.error('An unexpected error occurred during auth:', error);
-    }
-    return { authorized: false, error: 'Unauthorized: Invalid token', status: 401 };
-  }
-}
 
 // PUT handler now supports both JSON (for status updates) and formData (for full edits)
 export async function PUT(request, context) {
-  const auth = await verifyAuth(request);
-  if (!auth.authorized) {
-    return NextResponse.json({ success: false, message: auth.error }, { status: auth.status });
-  }
+  const headersList = headers();
+  const userPhone = headersList.get('x-user-phone');
 
     const { id } = await context.params;
 
@@ -112,9 +54,9 @@ export async function PUT(request, context) {
       // Only add a log entry if the status actually changed.
       if (oldStatus !== status) {
         const auditEntry = {
-          action: 'Status Change',
-          details: `Status changed from ${oldStatus.replace('-', ' ')} to ${status.replace('-', ' ')}`,
-          user: auth.phone, // User identifier from verified JWT
+          action: 'Car Status Update',
+          details: `Status changed from '${oldStatus}' to '${status}'`,
+          user: userPhone, // Retrieved from header
         };
         carToUpdate.auditLog.push(auditEntry);
       }
@@ -211,7 +153,7 @@ export async function PUT(request, context) {
         const auditEntry = {
           action: 'Car Details Update',
           details: `Updated fields: ${changes.join(', ')}`,
-          user: auth.phone,
+          user: userPhone,
         };
         carToUpdate.auditLog.push(auditEntry);
       }
@@ -239,12 +181,8 @@ export async function PUT(request, context) {
 
 // DELETE handler
 export async function DELETE(request, { params }) {
-  const auth = await verifyAuth(request);
-  if (!auth.authorized) {
-    return NextResponse.json({ success: false, message: auth.error }, { status: auth.status });
-  }
-
   try {
+    await connectToDatabase();
     const car = await Car.findByIdAndDelete(params.id);
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });

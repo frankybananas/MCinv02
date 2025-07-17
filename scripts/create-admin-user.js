@@ -31,29 +31,26 @@ async function createAdminUser() {
     console.log('Connected to MongoDB');
 
     const phone = '+27720560090';
-    
-    // Check if user already exists
-    const existingUser = await User.findOne({ phone });
-    if (existingUser) {
-      console.log(`User ${phone} already exists:`, existingUser.toObject());
-      return;
-    }
-
-    // Create new admin user
-    const newUser = new User({
+    const adminData = {
       phone,
       isAuthorized: true,
       role: 'admin',
-      department: 'new', // Required field
+      department: 'new',
       profile: {
         firstName: 'Admin',
         lastName: 'User',
       },
-      isTestAccount: false, // This is a real user, not a test account
-    });
+      isTestAccount: false,
+    };
 
-    await newUser.save();
-    console.log(`Created admin user for ${phone}:`, newUser.toObject());
+    // Use findOneAndUpdate with upsert to create or update the admin user
+    const updatedUser = await User.findOneAndUpdate(
+      { phone },
+      { $set: adminData },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    console.log(`Admin user ${phone} ensured:`, updatedUser.toObject());
 
   } catch (error) {
     console.error('Error creating admin user:', error);

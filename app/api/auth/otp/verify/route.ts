@@ -93,12 +93,17 @@ export async function POST(request: Request) {
       // 4. Create a JWT to manage the session
       const jwtId = uuidv4();
       const secret = new TextEncoder().encode(jwtSecret);
-      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role })
+      const tokenPayload = { phone: user.phone, userId: user._id, role: user.role };
+      console.log('[OTP Verify] Creating JWT with payload:', tokenPayload);
+
+      const token = await new SignJWT(tokenPayload)
         .setProtectedHeader({ alg: 'HS256' })
         .setJti(jwtId)
         .setIssuedAt()
         .setExpirationTime('7d')
         .sign(secret);
+
+      console.log('[OTP Verify] JWT created successfully. Token snippet:', token.substring(0, 30) + '...');
 
       // 5. Create a new session record with device tracking
       const now = new Date();

@@ -1,26 +1,13 @@
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
 import MainPage from './components/main-page';
 
 export default async function Page() {
-  let isAuthenticated = false;
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session_token')?.value;
 
-  try {
-    const cookieStore = await cookies(); // Await the cookies() function
-    const token = cookieStore.get('session_token')?.value;
-
-    if (token) {
-      const jwtSecret = process.env.JWT_SECRET;
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET is not defined in environment variables.');
-      }
-      jwt.verify(token, jwtSecret);
-      isAuthenticated = true;
-    }
-  } catch (error) {
-    console.error('[SERVER] JWT Verification Error:', error);
-    isAuthenticated = false;
-  }
+  // The middleware handles JWT verification. We just check for the token's 
+  // presence to determine the initial authenticated state for the client component.
+  const isAuthenticated = !!token;
 
   return <MainPage initialIsAuthenticated={isAuthenticated} />;
 }

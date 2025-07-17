@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 import { connectToDatabase } from '@/lib/mongodb';
 import Session from '@/models/Session';
 
@@ -16,11 +16,14 @@ export async function POST(request: Request) {
         throw new Error('JWT_SECRET is not defined');
       }
 
-      try {
-        const decoded = jwt.verify(token, jwtSecret) as { jti: string };
-        if (decoded && decoded.jti) {
+            try {
+        const secret = new TextEncoder().encode(jwtSecret);
+        const { payload } = await jwtVerify(token, secret);
+        const jti = payload.jti;
+
+        if (jti) {
           await Session.findOneAndUpdate(
-            { jwtId: decoded.jti, isActive: true },
+            { jwtId: jti, isActive: true },
             { isActive: false, lastAccessedAt: new Date() }
           );
         }
