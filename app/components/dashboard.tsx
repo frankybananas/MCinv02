@@ -24,6 +24,7 @@ interface DashboardProps {
   onClientSelect: (client: Client | null) => void;
   onClientDelete: (clientId: string) => void;
   onLogout: () => void;
+  userRole: string | null;
 }
 
 import { LogOut } from 'lucide-react';
@@ -39,16 +40,21 @@ export function Dashboard({
   onStatusChange, 
   onClientSelect, 
   onClientDelete,
-  onLogout
+  onLogout,
+  userRole
 }: DashboardProps) {
-    const tabs: { id: DashboardTab; label: string }[] = [
+  const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
     { id: "all", label: "All" },
     { id: "in-stock", label: "In-Stock" },
     { id: "coming", label: "Coming" },
     { id: "reserved", label: "Reserved" },
     { id: "sold", label: "Sold" },
     { id: "clients", label: "Clients" },
-  ]
+  ];
+
+  if (userRole === 'admin') {
+    tabs.push({ id: 'admin', label: 'Admin' });
+  }
 
   const showClients = activeStatus === "clients"
 
@@ -86,9 +92,9 @@ export function Dashboard({
               <CarIcon className="h-6 w-6" />
               Franky's Inventory
             </h1>
-            <Button onClick={onLogout} variant="ghost" size="icon">
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Logout</span>
+            <Button onClick={onLogout} variant="outline">
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </Button>
           </div>
           <div className="flex justify-center">
@@ -108,7 +114,13 @@ export function Dashboard({
                   key={tab.id}
                   variant={activeStatus === tab.id ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => onStatusFilterChange(tab.id)}
+                  onClick={() => {
+                    if (tab.id === 'admin') {
+                      window.location.href = '/admin';
+                    } else {
+                      onStatusFilterChange(tab.id as DashboardTab);
+                    }
+                  }}
                   className="h-9 rounded-md px-3 text-xs sm:text-sm"
                 >
                   {tab.label}

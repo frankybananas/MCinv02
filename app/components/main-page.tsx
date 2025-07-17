@@ -11,9 +11,10 @@ import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab } from
 
 interface MainPageProps {
   initialIsAuthenticated: boolean;
+  userRole: string | null;
 }
 
-export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
+export default function MainPage({ initialIsAuthenticated, userRole }: MainPageProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(initialIsAuthenticated);
   const [clients, setClients] = useState<Client[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
@@ -209,6 +210,7 @@ export default function MainPage({ initialIsAuthenticated }: MainPageProps) {
       onClientSelect={handleClientSelect}
       onClientDelete={handleClientDelete}
       onLogout={handleLogout}
+      userRole={userRole}
     />
   );
 }
