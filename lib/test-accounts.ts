@@ -2,7 +2,7 @@ import User from '@/models/User';
 
 const TEST_ACCOUNTS: { [key: string]: string } = {
   '+16505553434': '123456', // A standard test number
-  '+27720560090': '000000', // Admin test number
+  // Removed +27720560090 to use real Twilio SMS instead of mock OTP
 };
 
 /**

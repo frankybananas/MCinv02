@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server';
 import { Twilio } from 'twilio';
 import parsePhoneNumber from 'libphonenumber-js';
 import User from '@/models/User';
-const dbConnect = require('@/lib/mongodb');
+import { connect } from '@/lib/mongodb';
 import { createTestUser, getTestOtp } from '@/lib/test-accounts';
 
 const twilioClient = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 export async function POST(req: Request) {
+  console.log('[otp/send/route.ts] typeof connect:', typeof connect);
+  console.log('[otp/send/route.ts] connect:', connect);
   try {
-    await dbConnect();
+    await connect();
     const { phone: rawPhone } = await req.json();
 
     if (!rawPhone) {

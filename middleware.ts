@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 // Removed Session DB lookup in middleware to maintain Edge-compatibility
 
@@ -27,9 +27,14 @@ export async function middleware(request: NextRequest) {
     return redirectToLogin(request);
   }
 
-  let payload: any = null;
   try {
-    payload = jwt.verify(token, jwtSecret);
+    const secret = new TextEncoder().encode(jwtSecret);
+    const { payload } = await jwtVerify(token, secret);
+    
+    const response = NextResponse.next();
+    response.headers.set('x-user-phone', payload.phone as string);
+    return response;
+
   } catch (err) {
     // Invalid / expired JWT
     return redirectToLogin(request);
@@ -39,9 +44,7 @@ export async function middleware(request: NextRequest) {
   // supported in edge runtime yet. Rely on JWT validity alone; session cleanup
   // still runs server-side via cron.
 
-  const response = NextResponse.next();
-  response.headers.set('x-user-phone', payload.phone);
-  return response;
+
 }
 
 function redirectToLogin(request: NextRequest) {
@@ -53,5 +56,4 @@ function redirectToLogin(request: NextRequest) {
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-
 };

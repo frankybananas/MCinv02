@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { Twilio } from 'twilio';
-import jwt from 'jsonwebtoken';
+import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 import parsePhoneNumber from 'libphonenumber-js';
-const dbConnect = require('@/lib/mongodb');
+import { connect } from '@/lib/mongodb';
 import User from '@/models/User';
 import Session from '@/models/Session';
 import { getTestOtp } from '@/lib/test-accounts';
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     // 2. If approved, proceed with session creation
     if (isApproved) {
-      await dbConnect();
+      await connect();
 
       // 3. Find user and enforce device limits
       const user = await User.findOne({ phone });
@@ -92,11 +92,26 @@ export async function POST(request: Request) {
 
       // 4. Create a JWT to manage the session
       const jwtId = uuidv4();
-      const token = jwt.sign({ phone: user.phone, userId: user._id, role: user.role }, jwtSecret, { expiresIn: '7d', jwtid: jwtId });
+      const secret = new TextEncoder().encode(jwtSecret);
+      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setJti(jwtId)
+        .setIssuedAt()
+        .setExpirationTime('7d')
+        .sign(secret);
 
       // 5. Create a new session record with device tracking
       const now = new Date();
+      console.log('[DEBUG] About to create Session with:', {
+        phoneNumber: phone,
+        userId: user._id,
+        jwtId: jwtId,
+        deviceType,
+        phone: phone, // Double check phone variable
+        userPhone: user.phone // Check user phone
+      });
       const newSession = new Session({
+        phoneNumber: phone,
         userId: user._id,
         jwtId: jwtId,
         deviceType,
@@ -105,17 +120,35 @@ export async function POST(request: Request) {
         userAgent: ua,
         ipAddress: request.headers.get('x-forwarded-for') || 'Unknown',
       });
-      await newSession.save();
+      console.log('[DEBUG] Session object before save:', newSession.toObject());
+      try {
+        await newSession.save();
+        console.log('[DEBUG] Session saved successfully');
+      } catch (sessionError) {
+        console.error('[DEBUG] Session save failed:', sessionError);
+        throw sessionError;
+      }
 
       // 6. Create the response and set the cookie
+      console.log('[DEBUG] Setting session cookie with token:', token.substring(0, 20) + '...');
+      console.log('[DEBUG] Cookie settings:', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+        domain: undefined // Let browser set domain automatically
+      });
+      
       const response = NextResponse.json({ success: true, message: 'OTP verified successfully.', user: { role: user.role } });
       response.cookies.set('session_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // 7 days
         path: '/',
+        sameSite: 'lax' // Add sameSite for better compatibility
       });
 
+      console.log('[DEBUG] Cookie set in response');
       return response;
     } else {
       return NextResponse.json({ success: false, error: 'Invalid OTP.' }, { status: 400 });

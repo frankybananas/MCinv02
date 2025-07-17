@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest --config=jest.config.new.js",
+    "test:all": "jest --config=jest.config.new.js",
+    "test:watch": "jest --watch --config=jest.config.new.js",
+    "test:coverage": "jest --coverage --config=jest.config.new.js",
+    "test:ci": "jest --ci --coverage --config=jest.config.new.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.839.0",
@@ -45,10 +50,9 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
-    "dotenv": "^16.5.0",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
-    "jsonwebtoken": "^9.0.2",
+    "jose": "^6.0.12",
     "libphonenumber-js": "^1.12.9",
     "lucide-react": "^0.454.0",
     "mongodb": "^6.17.0",
@@ -70,11 +74,20 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "29.5.11",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.5.0",
+    "jest": "29.7.0",
+    "jest-environment-jsdom": "^30.0.4",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "29.1.1",
     "typescript": "^5"
   }
 }

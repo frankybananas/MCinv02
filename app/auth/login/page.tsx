@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,8 @@ interface User {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState<string>('');
   const [otp, setOtp] = useState<string>('');
@@ -95,7 +97,10 @@ export default function LoginPage() {
 
       if (response.ok) {
         setSuccess('Authentication successful! Redirecting...');
-        router.replace('/');
+        // Redirect after a short delay to allow state to update
+        setTimeout(() => {
+          window.location.href = redirectTo;
+        }, 500);
       } else {
         setError(data.error || 'Failed to verify OTP');
       }
