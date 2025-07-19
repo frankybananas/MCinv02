@@ -91,7 +91,10 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       const response = await fetch(`/api/cars/${carId}`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-user-phone': userRole || 'Unknown',
+          },
           body: JSON.stringify({ status }),
         });
 

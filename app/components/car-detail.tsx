@@ -59,14 +59,11 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`px-3 py-1 rounded-md text-sm font-medium ${getStatusColor(car.status)}`}>
-            {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
-          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-8 h-8 sm:w-9 sm:h-9">
-                <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Button>
+              <div className={`px-3 py-1 rounded-md text-sm font-medium ${getStatusColor(car.status)} cursor-pointer`}>
+                {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onStatusChange("in-stock")}>Mark as In Stock</DropdownMenuItem>

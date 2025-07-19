@@ -51,6 +51,9 @@ export async function PUT(request, context) {
 
       const oldStatus = carToUpdate.status;
 
+      console.log(`[AUDIT_DEBUG] Received status update for car ${id}. New status: ${status}, Old status: ${oldStatus}`);
+      console.log(`[AUDIT_DEBUG] User phone from header: ${userPhone}`);
+
       // Only add a log entry if the status actually changed.
       if (oldStatus !== status) {
         const auditEntry = {
@@ -58,11 +61,13 @@ export async function PUT(request, context) {
           details: `Status changed from '${oldStatus}' to '${status}'`,
           user: userPhone, // Retrieved from header
         };
+        console.log('[AUDIT_DEBUG] Status changed. Creating audit entry:', auditEntry);
         carToUpdate.auditLog.push(auditEntry);
       }
 
       carToUpdate.status = status;
       const updatedCar = await carToUpdate.save();
+      console.log('[AUDIT_DEBUG] Car saved successfully. Current auditLog count:', updatedCar.auditLog.length);
 
             await updatedCar.populate('images');
 
