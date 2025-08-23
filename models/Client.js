@@ -24,6 +24,11 @@ const ClientSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Phone number of the user who created/owns this client
+  createdByPhone: {
+    type: String,
+    index: true,
+  },
   address: {
     street: String,
     city: String,

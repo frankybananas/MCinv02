@@ -151,6 +151,9 @@ export function Dashboard({
                           <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
                           <p className="text-sm text-muted-foreground">{client.email}</p>
                           <p className="text-sm text-muted-foreground">{client.phone}</p>
+                          {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
+                            <p className="text-xs text-muted-foreground mt-1">Owner: {client.createdByPhone}</p>
+                          )}
                         </div>
                         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }} className="text-muted-foreground hover:text-red-500">
                           <Trash2Icon className="w-5 h-5" />

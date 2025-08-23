@@ -60,6 +60,8 @@ export interface Client {
   notes?: string;
   interactionHistory?: Interaction[];
   createdAt?: string;
+  // Phone number of the user who created/owns this client
+  createdByPhone?: string;
 }
 
 export interface AuditLogEntry {

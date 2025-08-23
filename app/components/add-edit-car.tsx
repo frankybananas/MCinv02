@@ -56,6 +56,64 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     notes: car?.notes ?? '',
   });
 
+  // MRU suggestions for Make/Model
+  const [recentMakes, setRecentMakes] = useState<string[]>([])
+  const [recentModels, setRecentModels] = useState<string[]>([])
+
+  const MRU_LIMIT = 15
+  const LS_MAKES_KEY = 'mcinv_recent_makes'
+  const LS_MODELS_KEY = 'mcinv_recent_models'
+
+  const loadList = (key: string): string[] => {
+    try {
+      const raw = localStorage.getItem(key)
+      const arr = raw ? JSON.parse(raw) : []
+      return Array.isArray(arr) ? arr.filter(Boolean) : []
+    } catch {
+      return []
+    }
+  }
+
+  const saveList = (key: string, values: string[]) => {
+    try { localStorage.setItem(key, JSON.stringify(values)) } catch {}
+  }
+
+  const addToList = (key: string, value: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    const v = (value || '').trim()
+    if (!v) return
+    setter(prev => {
+      const next = [v, ...prev.filter(item => item.toLowerCase() !== v.toLowerCase())].slice(0, MRU_LIMIT)
+      saveList(key, next)
+      return next
+    })
+  }
+
+  useEffect(() => {
+    // Load MRU lists on mount
+    const makes = loadList(LS_MAKES_KEY)
+    const models = loadList(LS_MODELS_KEY)
+    // Ensure current car values are present (when editing)
+    const withCurrentMakes = formData.make ? [formData.make, ...makes] : makes
+    const withCurrentModels = formData.model ? [formData.model, ...models] : models
+    // Dedupe case-insensitively
+    const dedupe = (arr: string[]) => {
+      const seen = new Set<string>()
+      return arr.filter(x => {
+        const k = x.toLowerCase()
+        if (seen.has(k)) return false
+        seen.add(k)
+        return true
+      }).slice(0, MRU_LIMIT)
+    }
+    const m1 = dedupe(withCurrentMakes)
+    const m2 = dedupe(withCurrentModels)
+    setRecentMakes(m1)
+    setRecentModels(m2)
+    saveList(LS_MAKES_KEY, m1)
+    saveList(LS_MODELS_KEY, m2)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const [displayedImages, setDisplayedImages] = useState<DisplayImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,6 +196,9 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
 
     try {
       await onSave(data);
+      // Persist latest Make/Model to MRU lists on successful save
+      addToList(LS_MAKES_KEY, String(formData.make), setRecentMakes)
+      addToList(LS_MODELS_KEY, String(formData.model), setRecentModels)
     } catch (error) {
       console.error('Failed to save car:', error);
       toast.error('Failed to save car. Please try again.');
@@ -217,16 +278,25 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs sm:text-sm font-medium">Year</label>
-                        <Input
-                          type="number"
-                          value={formData.year}
-                          onChange={(e) => handleInputChange("year", e.target.value)}
-                          placeholder="e.g. 2023"
-                          min="1900"
-                          max={new Date().getFullYear() + 1}
+                        <Select
+                          value={String(formData.year ?? '')}
+                          onValueChange={(value) => handleInputChange("year", value)}
                           required
-                          className="text-sm sm:text-base"
-                        />
+                        >
+                          <SelectTrigger className="text-sm sm:text-base">
+                            <SelectValue placeholder="Select year" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 20 }).map((_, idx) => {
+                              const y = new Date().getFullYear() - idx;
+                              return (
+                                <SelectItem key={y} value={String(y)}>
+                                  {y}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <label className="text-xs sm:text-sm font-medium">Price (R)</label>
@@ -247,20 +317,34 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                         <Input
                           value={formData.make}
                           onChange={(e) => handleInputChange("make", e.target.value)}
+                          onBlur={(e) => addToList(LS_MAKES_KEY, e.target.value, setRecentMakes)}
                           placeholder="e.g. Toyota"
                           required
                           className="text-sm sm:text-base"
+                          list="makes-list"
                         />
+                        <datalist id="makes-list">
+                          {recentMakes.map((m) => (
+                            <option key={m} value={m} />
+                          ))}
+                        </datalist>
                       </div>
                       <div>
                         <label className="text-xs sm:text-sm font-medium">Model</label>
                         <Input
                           value={formData.model}
                           onChange={(e) => handleInputChange("model", e.target.value)}
+                          onBlur={(e) => addToList(LS_MODELS_KEY, e.target.value, setRecentModels)}
                           placeholder="e.g. Hilux"
                           required
                           className="text-sm sm:text-base"
+                          list="models-list"
                         />
+                        <datalist id="models-list">
+                          {recentModels.map((m) => (
+                            <option key={m} value={m} />
+                          ))}
+                        </datalist>
                       </div>
                     </div>
 
