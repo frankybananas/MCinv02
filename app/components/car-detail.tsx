@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { ArrowLeft, Edit, MoreVertical, Clock } from "lucide-react"
+import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
 
 interface CarDetailProps {
@@ -19,6 +20,30 @@ interface CarDetailProps {
 
 export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: CarDetailProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+
+  const images = (car.images ?? [])
+
+  const goPrev = useCallback(() => {
+    if (images.length === 0) return
+    setCurrentImageIndex((i) => (i - 1 + images.length) % images.length)
+  }, [images.length])
+
+  const goNext = useCallback(() => {
+    if (images.length === 0) return
+    setCurrentImageIndex((i) => (i + 1) % images.length)
+  }, [images.length])
+
+  // Keyboard navigation when lightbox is open
+  useEffect(() => {
+    if (!isLightboxOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') goPrev()
+      if (e.key === 'ArrowRight') goNext()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isLightboxOpen, goPrev, goNext])
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-ZA", {
@@ -82,23 +107,48 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               {/* Image Gallery */}
               <Card>
                 <CardContent className="p-2 sm:p-4">
-                  <div className="relative">
+                  <div className="relative group">
                     <img
-                      src={(car.images ?? [])[currentImageIndex]?.imageUrl || "/placeholder.svg"}
+                      src={images[currentImageIndex]?.imageUrl || "/placeholder.svg"}
                       alt={`${car.year} ${car.make} ${car.model}`}
-                      className="w-full object-contain rounded-md"
+                      className="w-full object-contain rounded-md cursor-zoom-in"
+                      onClick={() => setIsLightboxOpen(true)}
                     />
-                    {(car.images ?? []).length > 1 && (
-                      <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-black/60 text-white px-2 py-1 rounded-md text-xs sm:text-sm">
-                        {currentImageIndex + 1} / {(car.images ?? []).length}
-                      </div>
+                    {images.length > 1 && (
+                      <>
+                        {/* Index badge */}
+                        <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-black/60 text-white px-2 py-1 rounded-md text-xs sm:text-sm">
+                          {currentImageIndex + 1} / {images.length}
+                        </div>
+                        {/* Prev/Next arrows over main image */}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="secondary"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white"
+                          onClick={goPrev}
+                          aria-label="Previous image"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="secondary"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white"
+                          onClick={goNext}
+                          aria-label="Next image"
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
+                      </>
                     )}
                   </div>
 
-                  {(car.images ?? []).length > 1 && (
+                  {images.length > 1 && (
                     <ScrollArea className="mt-2 sm:mt-4">
                       <div className="flex gap-2 pb-2">
-                        {(car.images ?? []).map((image, index) => (
+                        {images.map((image, index) => (
                           <img
                             key={image.id || index}
                             src={image.imageUrl || "/placeholder.svg"}
@@ -115,6 +165,50 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                   )}
                 </CardContent>
               </Card>
+
+              {/* Lightbox Dialog */}
+              {images.length > 0 && (
+                <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+                  <DialogContent className="max-w-5xl w-[95vw] bg-black/90 border-0 p-2 sm:p-4">
+                    <DialogTitle className="sr-only">Image gallery</DialogTitle>
+                    <DialogDescription className="sr-only">Use left and right arrow keys or on-screen buttons to navigate images.</DialogDescription>
+                    <div className="relative">
+                      <img
+                        src={images[currentImageIndex]?.imageUrl || "/placeholder.svg"}
+                        alt={`Image ${currentImageIndex + 1}`}
+                        className="w-full max-h-[80vh] object-contain rounded-md"
+                      />
+                      {images.length > 1 && (
+                        <>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="secondary"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                            onClick={goPrev}
+                            aria-label="Previous image"
+                          >
+                            <ChevronLeft className="h-6 w-6" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="secondary"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                            onClick={goNext}
+                            aria-label="Next image"
+                          >
+                            <ChevronRight className="h-6 w-6" />
+                          </Button>
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs sm:text-sm">
+                            {currentImageIndex + 1} / {images.length}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
 
 
             </div>
