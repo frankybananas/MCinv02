@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
@@ -21,8 +21,121 @@ interface CarDetailProps {
 export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: CarDetailProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [dealerInfo, setDealerInfo] = useState<{ name: string; phone: string; email: string } | null>(null)
 
   const images = (car.images ?? [])
+
+  // Fetch logged-in salesperson info for footer
+  useEffect(() => {
+    let mounted = true
+    const fetchMe = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (!res.ok) return
+        const data = await res.json()
+        if (mounted && data?.success) {
+          const d = data.data as { firstName?: string; lastName?: string; phone?: string; email?: string }
+          const name = `${d.firstName ?? ''} ${d.lastName ?? ''}`.trim()
+          setDealerInfo({ name, phone: d.phone ?? '', email: d.email ?? '' })
+        }
+      } catch {}
+    }
+    fetchMe()
+    return () => { mounted = false }
+  }, [])
+
+  const buildShareText = useCallback(() => {
+    const lines: string[] = []
+    const title = `${car.year} ${car.make} ${car.model}`.trim()
+    lines.push(title)
+    if (typeof car.price === 'number') lines.push(`Price: ${formatPrice(car.price)}`)
+    if (car.kilometers != null) lines.push(`Kilometers: ${(car.kilometers ?? 0).toLocaleString()} km`)
+    if (car.color) lines.push(`Color: ${car.color}`)
+    if (car.transmission) lines.push(`Transmission: ${car.transmission}`)
+    if (car.description) lines.push('', car.description)
+
+    // Optional: include a few direct links as references (not required when attaching files)
+    const imgUrls = images.map(i => i.imageUrl).filter(Boolean).slice(0, 3)
+    if (imgUrls.length) {
+      lines.push('', 'Sample Photos:')
+      imgUrls.forEach((u, idx) => lines.push(`${idx + 1}. ${u}`))
+    }
+
+    if (dealerInfo) {
+      lines.push('', '—', 'Your Sales Contact:')
+      if (dealerInfo.name) lines.push(`Name: ${dealerInfo.name}`)
+      if (dealerInfo.phone) lines.push(`Mobile: ${dealerInfo.phone}`)
+      if (dealerInfo.email) lines.push(`Email: ${dealerInfo.email}`)
+    }
+
+    return lines.join('\n')
+  }, [car, images, dealerInfo])
+
+  const chunkFiles = (files: File[], size = 30) => {
+    const chunks: File[][] = []
+    for (let i = 0; i < files.length; i += size) {
+      chunks.push(files.slice(i, i + size))
+    }
+    return chunks
+  }
+
+  const onShare = useCallback(async () => {
+    const text = buildShareText()
+
+    // Try native share with attached image files (best UX on mobile)
+    try {
+      const navAny = typeof navigator !== 'undefined' ? (navigator as any) : undefined
+      if (navAny?.share) {
+        // Attempt to fetch ALL images and attach as files. We'll batch share to respect platform limits.
+        const imgUrls = images.map(i => i.imageUrl).filter(Boolean) as string[]
+        const files: File[] = []
+        for (let i = 0; i < imgUrls.length; i++) {
+          const url = imgUrls[i]
+          try {
+            const resp = await fetch(url, { mode: 'cors' })
+            const blob = await resp.blob()
+            const type = blob.type || 'image/jpeg'
+            const name = `car_${car.make}_${car.model}_${i + 1}.${type.includes('png') ? 'png' : 'jpg'}`
+            files.push(new File([blob], name, { type }))
+          } catch {
+            // If any image fails due to CORS or size, skip that file
+          }
+        }
+
+        // If device supports file sharing, share images in batches first,
+        // then open WhatsApp with the details as a separate text message.
+        if (files.length && navAny.canShare) {
+          const batches = chunkFiles(files, 10)
+          for (const batch of batches) {
+            if (navAny.canShare({ files: batch })) {
+              await navAny.share({
+                title: `${car.year} ${car.make} ${car.model}`,
+                files: batch,
+              })
+            } else {
+              // Fallback: if a batch isn't supported, skip it
+            }
+          }
+          const wa = `https://wa.me/?text=${encodeURIComponent(text)}`
+          window.open(wa, '_blank')
+          return
+        } else {
+          // If we can't attach files, share text only (native sheet)
+          await navAny.share({
+            title: `${car.year} ${car.make} ${car.model}`,
+            text,
+          })
+          return
+        }
+      }
+    } catch (_) {
+      // ignore and fall back to WhatsApp URL
+    }
+
+    // Fallback: WhatsApp text share (no attachments when Web Share API not available)
+    const wa = `https://wa.me/?text=${encodeURIComponent(text)}`
+    window.open(wa, '_blank')
+  }, [buildShareText, car.make, car.model, car.year, images])
 
   const goPrev = useCallback(() => {
     if (images.length === 0) return
@@ -97,6 +210,10 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               <DropdownMenuItem onClick={() => onStatusChange("sold")}>Mark as Sold</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button variant="secondary" size="sm" className="h-8" onClick={onShare}>
+            <Share2 className="w-4 h-4 mr-1" />
+            Share
+          </Button>
         </div>
       </header>
 
@@ -268,6 +385,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     </div>
                   </div>
 
+                  {/* VIN intentionally not included in share text */}
                   <div className="space-y-1 pt-4">
                     <p className="text-muted-foreground">VIN</p>
                     <p className="font-mono text-xs sm:text-sm bg-muted/50 p-2 rounded-md break-all border">

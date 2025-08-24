@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { CarIcon, Plus, UsersIcon, Trash2Icon } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import type { Car, CarStatus, CarState, DashboardTab } from "../types"
+import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
 
 import type { Client } from "../types"
 
@@ -25,9 +25,11 @@ interface DashboardProps {
   onClientDelete: (clientId: string) => void;
   onLogout: () => void;
   userRole: string | null;
+  deliveries?: Delivery[];
+  onDeliverySelect?: (delivery: Delivery) => void;
 }
 
-import { LogOut } from 'lucide-react';
+//
 
 export function Dashboard({ 
   cars, 
@@ -41,8 +43,11 @@ export function Dashboard({
   onClientSelect, 
   onClientDelete,
   onLogout,
-  userRole
+  userRole,
+  deliveries = [],
+  onDeliverySelect
 }: DashboardProps) {
+  // header moved to Root layout
   const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
     { id: "all", label: "All" },
     { id: "in-stock", label: "In-Stock" },
@@ -50,6 +55,7 @@ export function Dashboard({
     { id: "reserved", label: "Reserved" },
     { id: "sold", label: "Sold" },
     { id: "clients", label: "Clients" },
+    { id: "delivery", label: "Delivery" },
   ];
 
   if (userRole === 'admin') {
@@ -57,6 +63,7 @@ export function Dashboard({
   }
 
   const showClients = activeStatus === "clients"
+  const showDelivery = activeStatus === "delivery"
 
     const getStatusColor = (status: CarState) => {
     switch (status) {
@@ -84,28 +91,9 @@ export function Dashboard({
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b p-4 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-              <CarIcon className="h-6 w-6" />
-              Franky's Inventory
-            </h1>
-            <Button onClick={onLogout} variant="outline">
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          </div>
-          <div className="flex justify-center">
-            <Button onClick={onAddCar} className="mr-2">Add Car</Button>
-            <Button onClick={onAddClient}>Add Client</Button>
-          </div>
-        </div>
-      </header>
 
       {/* Tabs */}
-      <div className="bg-white border-b sticky top-[98px] z-10">
+      <div className="bg-white border-b sticky top-[56px] z-10">
         <ScrollArea className="w-full">
           <div className="flex justify-center p-2 sm:p-4">
             <div className="flex gap-1 flex-wrap justify-center">
@@ -131,6 +119,14 @@ export function Dashboard({
         </ScrollArea>
       </div>
 
+      {/* Quick actions under tabs */}
+      <div className="bg-white border-b z-10">
+        <div className="max-w-4xl mx-auto flex justify-center gap-2 p-3">
+          <Button onClick={onAddCar}>Add Car</Button>
+          <Button onClick={onAddClient} variant="secondary">Add Client</Button>
+        </div>
+      </div>
+
       {/* Main content */}
       <ScrollArea className="flex-1">
         <div className="p-2 sm:p-4 space-y-4 max-w-4xl mx-auto">
@@ -154,6 +150,41 @@ export function Dashboard({
                           {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
                             <p className="text-xs text-muted-foreground mt-1">Owner: {client.createdByPhone}</p>
                           )}
+
+          {/* Delivery list */}
+          {showDelivery && (
+            <div key="delivery-section" className="space-y-2 sm:space-y-4">
+              {deliveries.length === 0 ? (
+                <div key="no-deliveries-found" className="text-center py-12">
+                  <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No deliveries assigned to you yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {deliveries.map((d) => (
+                    <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-base sm:text-lg truncate">
+                              {typeof d.car === 'object' ? `${(d.car as any).year} ${(d.car as any).make} ${(d.car as any).model}` : 'Car'}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                              Status: {d.status}
+                            </p>
+                            {d.deliveryDate && (
+                              <p className="text-xs sm:text-sm text-muted-foreground">Delivery: {new Date(d.deliveryDate).toLocaleDateString()}</p>
+                            )}
+                          </div>
+                          <Badge className="flex-shrink-0">Delivery</Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
                         </div>
                         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }} className="text-muted-foreground hover:text-red-500">
                           <Trash2Icon className="w-5 h-5" />
@@ -205,7 +236,7 @@ export function Dashboard({
                                 {(['in-stock', 'coming', 'reserved', 'sold'] as CarState[]).map((statusOption) => (
                                   <DropdownMenuItem
                                     key={statusOption}
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                       e.stopPropagation();
                                       if (statusOption !== car.status) {
                                         onStatusChange(car._id, statusOption);

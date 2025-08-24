@@ -69,7 +69,7 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
 
   const handleAddInteraction = () => {
     if (client && interactionNote.trim()) {
-      onAddInteraction?.(client.id, interactionNote.trim());
+      onAddInteraction?.(client._id, interactionNote.trim());
       setInteractionNote("");
     }
   };
@@ -166,7 +166,7 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
                 className="w-full"
                 onClick={() => {
                   if (client && confirm(`Are you sure you want to delete ${client.firstName} ${client.lastName}?`)) {
-                    onDelete(client.id)
+                    onDelete(client._id)
                   }
                 }}
               >

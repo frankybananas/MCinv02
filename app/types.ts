@@ -1,6 +1,6 @@
 export type CarState = "in-stock" | "coming" | "reserved" | "sold";
 export type CarStatus = "all" | CarState;
-export type DashboardTab = CarStatus | "clients";
+export type DashboardTab = CarStatus | "clients" | "delivery";
 
 export interface Picture {
   _id?: string;
@@ -19,6 +19,39 @@ export interface Picture {
     format?: string;
     size?: number;
   };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DeliveryStatus = "active" | "completed" | "canceled";
+
+export type DeliveryDocKind =
+  | "id_copy"
+  | "proof_of_address"
+  | "company_docs"
+  | "director_id"
+  | "company_proof_of_address"
+  | "brnc_certificate";
+
+export interface DeliveryDoc {
+  kind: DeliveryDocKind;
+  url: string;
+  fileType: string;
+  fileSize?: number;
+  uploadedAt: string;
+}
+
+export interface Delivery {
+  _id: string;
+  car: Car | string;
+  salesperson: string;
+  status: DeliveryStatus;
+  deliveryDate?: string;
+  financeBank?: string;
+  reconNotes?: string;
+  licensing?: { done: boolean; notes?: string };
+  customerType: "natural" | "company";
+  docs: DeliveryDoc[];
   createdAt: string;
   updatedAt: string;
 }
