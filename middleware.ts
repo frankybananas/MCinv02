@@ -34,6 +34,18 @@ export async function middleware(request: NextRequest) {
     const secret = new TextEncoder().encode(jwtSecret);
     const { payload } = await jwtVerify(token, secret);
 
+    // Enforce daily OTP: if the token's otpDay is not today (ZA timezone), force re-auth
+    const nowUtc = new Date();
+    const zaNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
+    const todayZa = zaNow.toISOString().slice(0, 10);
+    const tokenOtpDay = (payload as any).otpDay as string | undefined;
+    if (!tokenOtpDay || tokenOtpDay !== todayZa) {
+      // Clear cookie and redirect to login for fresh OTP
+      const res = redirectToLogin(request);
+      res.cookies.delete('session_token');
+      return res;
+    }
+
     // Role-based authorization for admin panel
     if (ADMIN_PATHS.some((p) => pathname.startsWith(p))) {
       if (payload.role !== 'admin') {

@@ -93,7 +93,13 @@ export async function POST(request: Request) {
       // 4. Create a JWT to manage the session
       const jwtId = uuidv4();
       const secret = new TextEncoder().encode(jwtSecret);
-      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role })
+
+      // Compute the current day in the primary usage timezone (Africa/Johannesburg)
+      const nowUtc = new Date();
+      const zaNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
+      const otpDay = zaNow.toISOString().slice(0, 10); // YYYY-MM-DD in ZA tz
+
+      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role, otpDay })
         .setProtectedHeader({ alg: 'HS256' })
         .setJti(jwtId)
         .setIssuedAt()
