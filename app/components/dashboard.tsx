@@ -127,10 +127,10 @@ export function Dashboard({
               {/* Back arrow to show top-level dashboard */}
               <button
                 aria-label="Back to dashboard"
-                className="absolute left-2 sm:left-4 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                className="absolute left-3 sm:left-6 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
                 onClick={() => onStatusFilterChange('delivery')}
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                 <span className="hidden sm:inline">Back</span>
               </button>
               <div className="flex gap-1 flex-wrap justify-center">
