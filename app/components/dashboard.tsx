@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
 
@@ -48,12 +48,9 @@ export function Dashboard({
   onDeliverySelect
 }: DashboardProps) {
   // header moved to Root layout
+  // Top-level tabs: Stock (car area), Clients, Delivery, and Admin (if role)
   const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
-    { id: "all", label: "All" },
-    { id: "in-stock", label: "In-Stock" },
-    { id: "coming", label: "Coming" },
-    { id: "reserved", label: "Reserved" },
-    { id: "sold", label: "Sold" },
+    { id: "all", label: "Stock" },
     { id: "clients", label: "Clients" },
     { id: "delivery", label: "Delivery" },
   ];
@@ -64,6 +61,7 @@ export function Dashboard({
 
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
+  const isStockStatus = ['all','in-stock','coming','reserved','sold'].includes(activeStatus)
 
     const getStatusColor = (status: CarState) => {
     switch (status) {
@@ -92,32 +90,72 @@ export function Dashboard({
   return (
     <div className="flex flex-col h-screen bg-gray-50">
 
-      {/* Tabs */}
-      <div className="bg-white border-b sticky top-[56px] z-10">
-        <ScrollArea className="w-full">
-          <div className="flex justify-center p-2 sm:p-4">
-            <div className="flex gap-1 flex-wrap justify-center">
-              {tabs.map((tab) => (
-                <Button
-                  key={tab.id}
-                  variant={activeStatus === tab.id ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => {
-                    if (tab.id === 'admin') {
-                      window.location.href = '/admin';
-                    } else {
-                      onStatusFilterChange(tab.id as DashboardTab);
-                    }
-                  }}
-                  className="h-9 rounded-md px-3 text-xs sm:text-sm"
-                >
-                  {tab.label}
-                </Button>
-              ))}
+      {/* Top-level Tabs (hidden whenever viewing Stock) */}
+      {!isStockStatus && (
+        <div className="bg-white border-b sticky top-[56px] z-10">
+          <ScrollArea className="w-full">
+            <div className="flex justify-center p-2 sm:p-4">
+              <div className="flex gap-1 flex-wrap justify-center">
+                {tabs.map((tab) => (
+                  <Button
+                    key={tab.id}
+                    variant={activeStatus === tab.id ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => {
+                      if (tab.id === 'admin') {
+                        window.location.href = '/admin';
+                      } else {
+                        onStatusFilterChange(tab.id as DashboardTab)
+                      }
+                    }}
+                    className="h-9 rounded-md px-3 text-xs sm:text-sm"
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
-        </ScrollArea>
-      </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Secondary navbar for Stock status filters */}
+      {isStockStatus && (
+        <div className="bg-white border-b z-10">
+          <ScrollArea className="w-full">
+            <div className="flex items-center justify-center p-2 sm:p-3">
+              {/* Back arrow to show top-level dashboard */}
+              <button
+                aria-label="Back to dashboard"
+                className="absolute left-2 sm:left-4 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                onClick={() => onStatusFilterChange('clients')}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Back</span>
+              </button>
+              <div className="flex gap-1 flex-wrap justify-center">
+                {([
+                  { id: 'all', label: 'All' },
+                  { id: 'in-stock', label: 'In-Stock' },
+                  { id: 'coming', label: 'Coming' },
+                  { id: 'reserved', label: 'Reserved' },
+                  { id: 'sold', label: 'Sold' },
+                ] as {id: DashboardTab; label: string}[]).map((s) => (
+                  <Button
+                    key={s.id}
+                    variant={activeStatus === s.id ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => onStatusFilterChange(s.id)}
+                    className="h-9 rounded-md px-3 text-xs sm:text-sm"
+                  >
+                    {s.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
+      )}
 
       {/* Quick actions under tabs */}
       <div className="bg-white border-b z-10">
