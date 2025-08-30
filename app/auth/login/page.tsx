@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+
+  // Persist phone number locally so users don't have to retype it
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('login_phone');
+      if (saved) setPhone(saved);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (phone) localStorage.setItem('login_phone', phone);
+    } catch {}
+  }, [phone]);
 
   async function handlePhoneSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -148,7 +162,9 @@ export default function LoginPage() {
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
+                  name="tel"
                   type="tel"
+                  autoComplete="tel"
                   placeholder="+27720560090"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}

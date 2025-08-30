@@ -11,7 +11,8 @@ function clean(v?: string) {
 }
 
 export default function HeaderBar() {
-  const logoPath = clean(process.env.NEXT_PUBLIC_LOGO_PATH) || "/placeholder-logo.svg"
+  // Use the supplied Halfway logo explicitly, removing the previous placeholder/ACME logo
+  const logoPath = "/halfway-logo.png"
   const [profile, setProfile] = useState<{ firstName: string; lastName: string; email: string; phone: string; avatar?: string } | null>(null)
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function HeaderBar() {
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b px-4 py-2 flex items-center justify-between gap-3 dark:bg-neutral-900 dark:border-neutral-800">
-      <Image src={logoPath} alt="Company logo" width={140} height={40} priority className="h-8 w-auto object-contain" />
+      <Image src={logoPath} alt="Halfway" width={140} height={40} priority className="h-8 w-auto object-contain" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
