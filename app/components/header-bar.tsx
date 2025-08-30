@@ -42,11 +42,19 @@ export default function HeaderBar() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            className="relative overflow-hidden pr-3 pl-10"
-            style={profile?.avatar ? { backgroundImage: `url(${profile.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+            className="flex items-center gap-2 pr-3 pl-3"
           >
-            {!profile?.avatar && <User className="absolute left-3 h-4 w-4 opacity-70" />}
-            <span className="relative z-10">
+            {profile?.avatar ? (
+              <span
+                className="h-9 w-9 rounded-full ring-2 ring-primary/30 bg-center bg-cover"
+                style={{ backgroundImage: `url(${profile.avatar})` }}
+              />
+            ) : (
+              <span className="h-9 w-9 rounded-full bg-muted flex items-center justify-center ring-2 ring-muted-foreground/20">
+                <User className="h-4 w-4 opacity-70" />
+              </span>
+            )}
+            <span className="font-semibold tracking-wide">
               {profile ? `${profile.firstName} ${profile.lastName}`.trim() || 'Profile' : 'Profile'}
             </span>
           </Button>
