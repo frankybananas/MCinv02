@@ -128,7 +128,7 @@ export function Dashboard({
               <button
                 aria-label="Back to dashboard"
                 className="absolute left-2 sm:left-4 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
-                onClick={() => onStatusFilterChange('clients')}
+                onClick={() => onStatusFilterChange('delivery')}
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Back</span>
