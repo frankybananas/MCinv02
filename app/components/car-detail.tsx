@@ -202,7 +202,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-white border-b p-3 sm:p-4 flex items-center justify-between sticky top-0 z-20">
+      <header className="sticky top-[56px] z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 p-3 sm:p-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
