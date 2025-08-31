@@ -12,10 +12,10 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     icons: [
       {
-        src: "/halfway-logo.png",
-        sizes: "192x192",
-        type: "image/png",
-      }
+        src: "/placeholder-logo.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+      },
     ],
     categories: ["business", "productivity"],
     lang: "en",
