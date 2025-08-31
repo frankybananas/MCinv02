@@ -61,10 +61,16 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    const response = NextResponse.next();
-    response.headers.set('x-user-phone', payload.phone as string);
-    response.headers.set('x-user-role', payload.role as string);
-    return response;
+    // Forward auth-derived headers to downstream handlers via the REQUEST headers
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-phone', String((payload as any).phone || ''));
+    requestHeaders.set('x-user-role', String((payload as any).role || ''));
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      }
+    });
 
   } catch (err) {
     // Invalid / expired JWT
@@ -86,6 +92,6 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export const config = {
-  // TEMP: disable middleware matching to verify it isn't interfering with dev chunks
-  matcher: [],
+  // Run on all paths; PUBLIC_PATHS above will early-return for assets and auth
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)|manifest.json|docs).*)'],
 };
