@@ -36,7 +36,7 @@ export default function HeaderBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b px-4 py-2 flex items-center justify-between gap-3 dark:bg-neutral-900 dark:border-neutral-800">
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-4 py-2 flex items-center justify-between gap-3 shadow-lg">
       <Image src={logoPath} alt="Halfway" width={140} height={40} loading="eager" className="h-8 w-auto object-contain" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

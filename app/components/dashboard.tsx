@@ -89,13 +89,13 @@ export function Dashboard({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-background">
 
       {/* Top-level Tabs (hidden whenever viewing Stock) */}
       {!isStockStatus && (
         <>
           {/* Mobile/Tablet: floating bottom navbar for top-level tabs */}
-          <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur border-t shadow-lg">
+          <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/80 backdrop-blur-xl border-t border-gray-200/50 shadow-2xl">
             <ScrollArea className="w-full">
               <div className="flex justify-center p-2 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
                 <div className="flex gap-1 flex-wrap justify-center">
@@ -154,7 +154,7 @@ export function Dashboard({
       {isStockStatus && (
         <>
           {/* Mobile/Tablet: floating bottom navbar */}
-          <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur border-t shadow-lg">
+          <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/80 backdrop-blur-xl border-t border-gray-200/50 shadow-2xl">
             <ScrollArea className="w-full">
               <div className="relative flex items-center justify-center p-2 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
                 {/* Back arrow to show top-level dashboard */}
@@ -308,21 +308,81 @@ export function Dashboard({
                 </div>
               ) : (
                 cars.map((car) => (
-                  <Card key={car._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onCarSelect(car)}>
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex flex-col sm:flex-row gap-4">
+                  <Card
+                    key={car._id}
+                    className="cursor-pointer overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"
+                    onClick={() => onCarSelect(car)}
+                  >
+                    <CardContent className="p-0 sm:p-4">
+                      {/* Mobile layout: background image with bottom glass overlay */}
+                      <div className="relative sm:hidden overflow-hidden">
                         <img
                           src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
                           alt={`${car.year} ${car.make} ${car.model}`}
-                          className="w-full sm:w-24 object-contain rounded-lg"
+                          className="w-full h-auto block"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/35" />
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <div className="bg-white/20 backdrop-blur-sm border border-white/10 rounded-md p-2.5 shadow-lg">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-base truncate text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+                                  {car.year} {car.make} {car.model}
+                                </h3>
+                                <p className="text-2xl font-extrabold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">{formatPrice(car.price)}</p>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Badge
+                                    className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+                                  </Badge>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {(['in-stock', 'coming', 'reserved', 'sold'] as CarState[]).map((statusOption) => (
+                                    <DropdownMenuItem
+                                      key={statusOption}
+                                      onClick={(e: React.MouseEvent) => {
+                                        e.stopPropagation();
+                                        if (statusOption !== car.status) {
+                                          onStatusChange(car._id, statusOption);
+                                        }
+                                      }}
+                                    >
+                                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] mt-2 font-medium">
+                              <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
+                              <span>{car.color}</span>
+                              <span className="capitalize">{car.transmission}</span>
+                            </div>
+                            {car.status === "reserved" && car.reservedBy && (
+                              <p className="text-xs text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Desktop/tablet layout: existing horizontal card */}
+                      <div className="hidden sm:flex flex-row gap-4">
+                        <img
+                          src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
+                          alt={`${car.year} ${car.make} ${car.model}`}
+                          className="w-24 object-contain rounded-lg"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-base sm:text-lg truncate">
+                              <h3 className="font-semibold text-base sm:text-lg truncate text-foreground">
                                 {car.year} {car.make} {car.model}
                               </h3>
-                              <p className="text-xl sm:text-2xl font-bold text-green-600">{formatPrice(car.price)}</p>
+                              <p className="text-2xl font-bold text-orange-500">{formatPrice(car.price)}</p>
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -350,13 +410,13 @@ export function Dashboard({
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-sm text-muted-foreground mt-2">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
                             <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
                             <span>{car.color}</span>
                             <span className="capitalize">{car.transmission}</span>
                           </div>
                           {car.status === "reserved" && car.reservedBy && (
-                            <p className="text-xs sm:text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
+                            <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
                           )}
                         </div>
                       </div>
@@ -374,7 +434,7 @@ export function Dashboard({
         {/* Menu Items */}
         <div className={`flex flex-col items-center gap-3 mb-3 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <div className="flex items-center gap-3">
-            <span className="bg-black/80 text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg">
+            <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
               Add Client
             </span>
             <Button
@@ -384,13 +444,13 @@ export function Dashboard({
               }}
               size="lg"
               variant="secondary"
-              className="rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all duration-200 bg-white hover:bg-gray-50 border border-gray-200"
+              className="rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-white/90 backdrop-blur-md border border-gray-200/50 hover:border-blue-300/50"
             >
-              <Users className="w-5 h-5 text-gray-700" />
+              <Users className="w-5 h-5 text-blue-600" />
             </Button>
           </div>
           <div className="flex items-center gap-3">
-            <span className="bg-black/80 text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg">
+            <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
               Add Car
             </span>
             <Button
@@ -399,9 +459,9 @@ export function Dashboard({
                 setFabOpen(false)
               }}
               size="lg"
-              className="rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all duration-200"
+              className="rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-orange-500 hover:bg-orange-600 border border-orange-300/50"
             >
-              <CarLucide className="w-5 h-5" />
+              <CarLucide className="w-5 h-5 text-white" />
             </Button>
           </div>
         </div>
@@ -410,11 +470,11 @@ export function Dashboard({
         <Button
           onClick={() => setFabOpen(!fabOpen)}
           size="lg"
-          className={`rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-300 ${
-            fabOpen ? 'rotate-45 bg-red-500 hover:bg-red-600' : 'rotate-0'
+          className={`rounded-full w-14 h-14 shadow-xl hover:shadow-2xl transition-all duration-300 bg-blue-600 hover:bg-blue-700 border border-blue-300/50 ${
+            fabOpen ? 'rotate-45' : 'rotate-0'
           }`}
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-6 h-6 text-white" />
         </Button>
         
         {/* Backdrop */}

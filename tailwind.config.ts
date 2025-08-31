@@ -60,6 +60,12 @@ const config: Config = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			glass: {
+  				'white': 'rgba(255, 255, 255, 0.25)',
+  				'dark': 'rgba(0, 0, 0, 0.25)',
+  				'primary': 'rgba(26, 35, 126, 0.25)',
+  				'accent': 'rgba(255, 143, 0, 0.25)'
   			}
   		},
   		borderRadius: {
