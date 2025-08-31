@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X } from "lucide-react"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
 
 import type { Client } from "../types"
@@ -48,6 +48,8 @@ export function Dashboard({
   onDeliverySelect
 }: DashboardProps) {
   const [fabOpen, setFabOpen] = useState(false)
+  const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   // header moved to Root layout
   // Top-level tabs: Stock (car area), Clients, Delivery, and Admin (if role)
   const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
@@ -87,6 +89,54 @@ export function Dashboard({
       minimumFractionDigits: 0,
     }).format(validPrice)
   }
+
+  const sortedCars = React.useMemo(() => {
+    const kmOf = (c: any) => (typeof c?.kilometers === 'number' ? c.kilometers : (typeof c?.mileage === 'number' ? c.mileage : 0))
+    const arr = [...cars]
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case 'recent': {
+          const da = new Date((a as any).createdAt ?? 0).getTime()
+          const db = new Date((b as any).createdAt ?? 0).getTime()
+          return sortDir === 'asc' ? da - db : db - da
+        }
+        case 'price': {
+          const pa = (a as any).price ?? 0
+          const pb = (b as any).price ?? 0
+          return sortDir === 'asc' ? pa - pb : pb - pa
+        }
+        case 'year': {
+          const ya = (a as any).year ?? 0
+          const yb = (b as any).year ?? 0
+          return sortDir === 'asc' ? ya - yb : yb - ya
+        }
+        case 'mileage': {
+          const ka = kmOf(a)
+          const kb = kmOf(b)
+          return sortDir === 'asc' ? ka - kb : kb - ka
+        }
+        case 'model': {
+          const ma = `${(a as any).model ?? ''}`.toLowerCase()
+          const mb = `${(b as any).model ?? ''}`.toLowerCase()
+          return sortDir === 'asc' ? ma.localeCompare(mb) : mb.localeCompare(ma)
+        }
+        default:
+          return 0
+      }
+    })
+    return arr
+  }, [cars, sortKey, sortDir])
+
+  const currentSortLabel =
+    sortKey === 'recent'
+      ? 'Recent'
+      : sortKey === 'price'
+      ? 'Price'
+      : sortKey === 'year'
+      ? 'Year'
+      : sortKey === 'mileage'
+      ? 'Mileage'
+      : 'Model'
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -251,43 +301,13 @@ export function Dashboard({
                           {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
                             <p className="text-xs text-muted-foreground mt-1">Owner: {client.createdByPhone}</p>
                           )}
-
-          {/* Delivery list */}
-          {showDelivery && (
-            <div key="delivery-section" className="space-y-2 sm:space-y-4">
-              {deliveries.length === 0 ? (
-                <div key="no-deliveries-found" className="text-center py-12">
-                  <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No deliveries assigned to you yet</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {deliveries.map((d) => (
-                    <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
-                      <CardContent className="p-3 sm:p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="font-semibold text-base sm:text-lg truncate">
-                              {typeof d.car === 'object' ? `${(d.car as any).year} ${(d.car as any).make} ${(d.car as any).model}` : 'Car'}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                              Status: {d.status}
-                            </p>
-                            {d.deliveryDate && (
-                              <p className="text-xs sm:text-sm text-muted-foreground">Delivery: {new Date(d.deliveryDate).toLocaleDateString()}</p>
-                            )}
-                          </div>
-                          <Badge className="flex-shrink-0">Delivery</Badge>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }} className="text-muted-foreground hover:text-red-500">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
+                          className="text-muted-foreground hover:text-red-500"
+                        >
                           <Trash2Icon className="w-5 h-5" />
                         </Button>
                       </CardContent>
@@ -307,7 +327,47 @@ export function Dashboard({
                   <p className="text-muted-foreground">No cars found in this category</p>
                 </div>
               ) : (
-                cars.map((car) => (
+                <>
+                  {/* Compact sort dropdown */}
+                  <div className="mb-2 flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 rounded-md px-3 bg-white/70 backdrop-blur-md border border-gray-200/50"
+                        >
+                          Sort: {currentSortLabel}
+                          <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioGroup
+                          value={sortKey}
+                          onValueChange={(v) => {
+                            const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
+                            setSortKey(key)
+                            setSortDir(key === 'recent' ? 'desc' : 'asc')
+                          }}
+                        >
+                          <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
+                          Direction
+                          <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {sortedCars.map((car) => (
                   <Card
                     key={car._id}
                     className="cursor-pointer overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"
@@ -422,7 +482,8 @@ export function Dashboard({
                       </div>
                     </CardContent>
                   </Card>
-                ))
+                  ))}
+                </>
               )}
             </div>
           )}
