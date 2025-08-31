@@ -118,12 +118,13 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
+  // DnD support for reordering images (first image becomes cover)
+  const dragFromIndex = useRef<number | null>(null);
 
   useEffect(() => {
     const initialImages = car?.images?.map(img => ({
-      id: img._id || img.id || uuidv4(),
-      url: img.imageUrl,
+      id: String((img as any)._id ?? (img as any).id ?? uuidv4()),
+      url: (img as any).imageUrl,
       isNew: false,
     })) ?? [];
     setDisplayedImages(initialImages);
@@ -167,6 +168,32 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     setDisplayedImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
+  const handleDragStart = (index: number) => {
+    dragFromIndex.current = index;
+  };
+
+  const handleDropOnIndex = (toIndex: number) => {
+    const fromIndex = dragFromIndex.current;
+    if (fromIndex === null) return;
+    if (fromIndex === toIndex) {
+      dragFromIndex.current = null;
+      return;
+    }
+    setDisplayedImages(prev => {
+      const arr = [...prev];
+      const [moved] = arr.splice(fromIndex, 1);
+      // Clamp to end if target index is beyond bounds
+      const target = Math.min(Math.max(toIndex, 0), arr.length);
+      arr.splice(target, 0, moved);
+      return arr;
+    });
+    dragFromIndex.current = null;
+  };
+
+  const handleDragEnd = () => {
+    dragFromIndex.current = null;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
@@ -183,14 +210,19 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       }
     });
 
-    // Append new images with their file data and a title
+    // Append images in the displayed order and track order markers
+    let newIdx = 0;
     displayedImages.forEach(img => {
       if (img.isNew && img.file) {
         data.append('images', img.file);
         // Use the original filename as the title
-        data.append('imageTitles', img.file.name); 
+        data.append('imageTitles', img.file.name);
+        data.append('imageOrder', `new:${newIdx}`);
+        newIdx += 1;
       } else if (!img.isNew) {
-        data.append('existingImages', img.id);
+        const existingId = String(img.id);
+        data.append('existingImages', existingId);
+        data.append('imageOrder', existingId);
       }
     });
 
@@ -233,14 +265,25 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4">
-                      {displayedImages.map((img) => (
-                        <div key={img.id} className="relative group aspect-square">
+                      {displayedImages.map((img, idx) => (
+                        <div
+                          key={img.id}
+                          className="relative group aspect-square cursor-move"
+                          draggable
+                          onDragStart={() => handleDragStart(idx)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => handleDropOnIndex(idx)}
+                          onDragEnd={handleDragEnd}
+                        >
 
                           <img
                             src={img.url}
                             alt="Car image"
                             className="w-full h-full object-cover rounded-md"
                           />
+                          {idx === 0 && (
+                            <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
+                          )}
                           <Button
                             type="button"
                             variant="destructive"
@@ -255,6 +298,8 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       <div
                         className="aspect-square border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
                         onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleDropOnIndex(displayedImages.length)}
                       >
                         <span className="text-gray-500 text-2xl">+</span>
                       </div>

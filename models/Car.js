@@ -19,8 +19,6 @@ const CarSchema = new mongoose.Schema({
   licensePlate: {
     type: String,
     trim: true,
-    unique: true,
-    sparse: true,
   },
   vin: {
     type: String,
@@ -95,5 +93,12 @@ CarSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Enforce uniqueness only when licensePlate is a non-empty string
+// This avoids duplicate key errors for null/undefined/empty values
+CarSchema.index(
+  { licensePlate: 1 },
+  { unique: true, partialFilterExpression: { licensePlate: { $type: 'string', $ne: '' } } }
+);
 
 export default mongoose.models.Car || mongoose.model('Car', CarSchema);

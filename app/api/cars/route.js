@@ -3,6 +3,7 @@ import Car from '@/models/Car.js';
 import Client from '@/models/Client';
 import Picture from '@/models/Picture';
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,6 +27,26 @@ export async function GET() {
 export async function POST(request) {
   try {
     await connectToDatabase();
+    const headersList = await headers();
+    const userPhone = headersList.get('x-user-phone');
+    const userName = headersList.get('x-user-name');
+    // Ensure indexes are in sync (applies partial unique index for licensePlate)
+    try {
+      await Car.syncIndexes();
+      // Extra: if existing index is incompatible, drop and recreate with partial filter
+      const indexes = await Car.collection.indexes();
+      const lp = indexes.find(i => i.name === 'licensePlate_1');
+      const needsRecreate = lp && lp.unique && (!lp.partialFilterExpression || !lp.partialFilterExpression.licensePlate);
+      if (needsRecreate) {
+        try { await Car.collection.dropIndex('licensePlate_1'); } catch (e) { console.warn('dropIndex warning:', e?.message || e); }
+        try {
+          await Car.collection.createIndex(
+            { licensePlate: 1 },
+            { name: 'licensePlate_1', unique: true, partialFilterExpression: { licensePlate: { $type: 'string', $ne: '' } } }
+          );
+        } catch (e) { console.warn('createIndex warning:', e?.message || e); }
+      }
+    } catch (e) { console.warn('Car.syncIndexes warning:', e?.message || e); }
     const data = await request.formData();
     const carData = {};
     const files = data.getAll('images');
@@ -40,7 +61,34 @@ export async function POST(request) {
       }
     }
 
-    const newCar = await Car.create(carData);
+    let newCar;
+    try {
+      newCar = await Car.create(carData);
+    } catch (err) {
+      // Handle duplicate key for licensePlate when it's null/empty due to legacy index
+      if (err && err.code === 11000 && err.message?.includes('licensePlate')) {
+        // Retry without licensePlate if none was provided
+        if (!('licensePlate' in carData) || carData.licensePlate == null || carData.licensePlate === '') {
+          const clone = { ...carData };
+          delete clone.licensePlate;
+          try {
+            newCar = await Car.create(clone);
+          } catch (e2) {
+            throw err; // rethrow original
+          }
+        } else {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
+    // Record creation in audit log
+    newCar.auditLog.push({
+      action: 'Car Created',
+      details: 'New car record created',
+      user: userName || userPhone || 'unknown',
+    });
 
     if (files && files.length > 0) {
       const newPictureIds = await Promise.all(files.filter(f => f.size > 0).map(async file => {
@@ -58,6 +106,10 @@ export async function POST(request) {
         return newPicture._id;
       }));
       newCar.images.push(...newPictureIds);
+      await newCar.save();
+    }
+    // Ensure audit entry persists even when there are no images uploaded
+    if (!files || files.length === 0) {
       await newCar.save();
     }
 

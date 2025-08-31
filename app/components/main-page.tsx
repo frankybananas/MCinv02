@@ -28,6 +28,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
+  const [currentUserName, setCurrentUserName] = useState<string>('');
 
   const handleLogout = async () => {
     try {
@@ -98,6 +100,27 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   }, [isAuthenticated]);
 
+  // Fetch current user info for audit logging (phone)
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) return;
+        const j = await res.json();
+        const data = j?.data as { phone?: string; firstName?: string; lastName?: string } | undefined;
+        const phone = data?.phone as string | undefined;
+        const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
+        if (mounted) {
+          if (phone) setCurrentUserPhone(phone);
+          if (name) setCurrentUserName(name);
+        }
+      } catch {}
+    };
+    run();
+    return () => { mounted = false; };
+  }, []);
+
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
   };
@@ -118,7 +141,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           method: 'PUT',
           headers: { 
             'Content-Type': 'application/json',
-            'x-user-phone': userRole || 'Unknown',
+            'x-user-name': currentUserName || 'unknown',
+            'x-user-phone': currentUserPhone || 'unknown',
           },
           body: JSON.stringify({ status }),
         });
@@ -187,9 +211,9 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     setSelectedClient(null);
   };
 
-  const handleReserveCar = () => {
-    console.log('Reserving car:', selectedCar);
-    // Future: Open reserve modal
+  const handleReserveCar = async () => {
+    if (!selectedCar?._id) return;
+    await handleStatusChange(selectedCar._id, 'reserved');
   };
 
   const handleSaveCar = async (carData: FormData) => {
@@ -197,7 +221,15 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     const url = editingCar?._id ? `/api/cars/${editingCar._id}` : '/api/cars';
 
     try {
-      const response = await fetch(url, { method, body: carData });
+      const response = await fetch(url, {
+        method,
+        // Do NOT set Content-Type for FormData. Browser will set boundary.
+        headers: { 
+          'x-user-name': currentUserName || 'unknown',
+          'x-user-phone': currentUserPhone || 'unknown',
+        },
+        body: carData,
+      });
       if (!response.ok) throw new Error('Failed to save car');
       await fetchData();
       handleBack();

@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Car Inventory - Mobile App",
   description: "Mobile car inventory management application",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" }

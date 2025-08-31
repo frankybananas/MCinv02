@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -184,6 +184,21 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
   }
+
+  // Build audit entries including a synthetic creation entry when missing
+  const auditEntries = useMemo(() => {
+    const entries = [...(car.auditLog ?? [])]
+    const hasCreation = entries.some(e => (e.action || "").toLowerCase().includes("created"))
+    if (!hasCreation && car.createdAt) {
+      entries.unshift({
+        action: "Car Created",
+        details: "New car record created",
+        user: (car as any).createdByPhone || "unknown",
+        timestamp: car.createdAt,
+      } as any)
+    }
+    return entries
+  }, [car])
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -415,7 +430,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {(car.auditLog ?? []).slice(0, 5).map((entry, index) => (
+                  {auditEntries.slice(0, 5).map((entry, index) => (
                     <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
                       <div className="w-2 h-2 bg-primary rounded-full mt-1.5 sm:mt-2 flex-shrink-0" />
                       <div className="flex-1 min-w-0">

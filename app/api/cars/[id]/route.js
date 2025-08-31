@@ -5,6 +5,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 import Car from '@/models/Car.js';
 import Picture from '@/models/Picture';
 import Session from '@/models/Session'; // Import Session model
+import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 // GET handler
@@ -26,10 +27,11 @@ export async function GET(request, { params }) {
 
 // PUT handler now supports both JSON (for status updates) and formData (for full edits)
 export async function PUT(request, context) {
-  const headersList = headers();
+  const headersList = await headers();
   const userPhone = headersList.get('x-user-phone');
+  const userName = headersList.get('x-user-name');
 
-    const { id } = await context.params;
+    const { id } = context.params;
 
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -58,7 +60,7 @@ export async function PUT(request, context) {
         const auditEntry = {
           action: 'Car Status Update',
           details: `Status changed from '${oldStatus}' to '${status}'`,
-          user: userPhone, // Retrieved from header
+          user: userName || userPhone || 'unknown', // Prefer name, fallback to phone
         };
         console.log('[AUDIT_DEBUG] Status changed. Creating audit entry:', auditEntry);
         carToUpdate.auditLog.push(auditEntry);
@@ -106,8 +108,9 @@ export async function PUT(request, context) {
         }
       }
 
-      // Handle existing images to keep
-      const existingImageIds = data.getAll('existingImages');
+      // Handle existing images to keep (ensure valid ObjectId strings)
+      const existingImageIdsRaw = data.getAll('existingImages').map(v => String(v));
+      const existingImageIds = existingImageIdsRaw.filter(id => mongoose.Types.ObjectId.isValid(id));
 
       // Handle other form fields
       for (const [key, value] of data.entries()) {
@@ -121,8 +124,32 @@ export async function PUT(request, context) {
         }
       }
 
-      // Combine image lists and update the car
-      updateData.images = [...existingImageIds, ...newImageIds];
+      // Combine image lists respecting client-provided order if available
+      const orderMarkers = data.getAll('imageOrder');
+      if (orderMarkers && orderMarkers.length > 0) {
+        const finalOrdered = [];
+        for (const marker of orderMarkers) {
+          const m = String(marker);
+          if (m.startsWith('new:')) {
+            const idxStr = m.split(':')[1];
+            const idx = parseInt(idxStr, 10);
+            if (!Number.isNaN(idx) && newImageIds[idx]) {
+              finalOrdered.push(newImageIds[idx]);
+            }
+          } else {
+            // Existing image id
+            if (existingImageIds.includes(m) && mongoose.Types.ObjectId.isValid(m)) {
+              finalOrdered.push(m);
+            }
+          }
+        }
+        // Ensure no images are lost: append any not referenced in orderMarkers
+        const remaining = [...existingImageIds, ...newImageIds].filter(id => !finalOrdered.includes(id));
+        updateData.images = [...finalOrdered, ...remaining].filter(id => mongoose.Types.ObjectId.isValid(id));
+      } else {
+        // Fallback: keep existing first then new
+        updateData.images = [...existingImageIds, ...newImageIds].filter(id => mongoose.Types.ObjectId.isValid(id));
+      }
 
             const carToUpdate = await Car.findById(id);
       if (!carToUpdate) {
@@ -153,10 +180,10 @@ export async function PUT(request, context) {
         }
       }
 
-      // Special handling for images to see if they changed
-      const oldImageIds = oldData.images.map(img => img.toString());
-      const newImageIdsCombined = [...existingImageIds, ...newImageIds];
-      if (JSON.stringify(oldImageIds.sort()) !== JSON.stringify(newImageIdsCombined.sort())) {
+      // Special handling for images to see if they changed (including reordering)
+      const oldImageIds = Array.isArray(oldData.images) ? oldData.images.map(img => img.toString()) : [];
+      const newImageIdsCombined = Array.isArray(updateData.images) ? updateData.images.map(id => id.toString()) : [...existingImageIds, ...newImageIds];
+      if (JSON.stringify(oldImageIds) !== JSON.stringify(newImageIdsCombined)) {
         changes.push('images were updated');
       }
 
@@ -164,7 +191,7 @@ export async function PUT(request, context) {
         const auditEntry = {
           action: 'Car Details Update',
           details: `Updated fields: ${changes.join(', ')}`,
-          user: userPhone,
+          user: userName || userPhone || 'unknown',
         };
         carToUpdate.auditLog.push(auditEntry);
       }

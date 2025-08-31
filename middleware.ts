@@ -9,7 +9,12 @@ const PUBLIC_PATHS = [
   '/api/auth',
   '/_next',
   '/favicon',
+  '/favicon.ico',
+  '/manifest.json',
   '/manifest.webmanifest',
+  '/halfway-logo.png',
+  '/placeholder-logo.png',
+  '/placeholder.svg',
   '/docs',
 ];
 
@@ -81,5 +86,6 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // TEMP: disable middleware matching to verify it isn't interfering with dev chunks
+  matcher: [],
 };
