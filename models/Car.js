@@ -18,15 +18,28 @@ const CarSchema = new mongoose.Schema({
   },
   licensePlate: {
     type: String,
-    required: [true, 'Please provide the license plate'],
     trim: true,
     unique: true,
+    sparse: true,
   },
   vin: {
     type: String,
     trim: true,
   },
   color: {
+    type: String,
+    trim: true,
+  },
+  transmission: {
+    type: String,
+    enum: ['manual', 'automatic', 'cvt'],
+    default: 'automatic',
+  },
+  description: {
+    type: String,
+    trim: true,
+  },
+  notes: {
     type: String,
     trim: true,
   },

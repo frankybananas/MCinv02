@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { connectToDatabase } from '@/lib/mongodb';
-import { s3 } from '@/lib/s3';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import Car from '@/models/Car';
+import Car from '@/models/Car.js';
 import Picture from '@/models/Picture';
 import Session from '@/models/Session'; // Import Session model
 import { v4 as uuidv4 } from 'uuid';
@@ -84,6 +83,8 @@ export async function PUT(request, context) {
       const imageTitles = data.getAll('imageTitles');
       for (const [index, file] of imageFiles.entries()) {
         if (typeof file === 'object' && file.name) {
+          // Lazy-load the S3 client to avoid requiring credentials when no image uploads
+          const { s3 } = await import('@/lib/s3');
           const buffer = Buffer.from(await file.arrayBuffer());
           const fileName = `${uuidv4()}-${file.name}`;
 
@@ -111,7 +112,12 @@ export async function PUT(request, context) {
       // Handle other form fields
       for (const [key, value] of data.entries()) {
         if (key !== 'images' && key !== 'existingImages' && key !== 'imageTitles') {
-          updateData[key] = value;
+          if (['year', 'price', 'kilometers'].includes(key)) {
+            const num = key === 'price' ? Number(value) : parseInt(String(value), 10);
+            if (!Number.isNaN(num)) updateData[key] = num;
+          } else {
+            updateData[key] = value;
+          }
         }
       }
 

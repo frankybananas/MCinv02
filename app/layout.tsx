@@ -38,21 +38,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const clean = (v?: string) => {
-    if (!v) return undefined
-    const t = v.trim()
-    // strip wrapping quotes if present
-    return t.replace(/^"|"$/g, '')
-  }
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Car Inventory" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="shortcut icon" href="/favicon.ico" />
-      </head>
+      <head />
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <HeaderBar />

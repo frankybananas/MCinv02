@@ -1,9 +1,8 @@
 import { connectToDatabase } from '@/lib/mongodb';
-import Car from '@/models/Car';
+import Car from '@/models/Car.js';
 import Client from '@/models/Client';
 import Picture from '@/models/Picture';
 import { NextResponse } from 'next/server';
-import { s3 } from '@/lib/s3';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -32,7 +31,13 @@ export async function POST(request) {
     const files = data.getAll('images');
 
     for (const [key, value] of data.entries()) {
-      if (key !== 'images') carData[key] = value;
+      if (key === 'images') continue;
+      if (['year', 'price', 'kilometers'].includes(key)) {
+        const num = key === 'price' ? Number(value) : parseInt(String(value), 10);
+        if (!Number.isNaN(num)) carData[key] = num;
+      } else {
+        carData[key] = value;
+      }
     }
 
     const newCar = await Car.create(carData);
@@ -40,6 +45,7 @@ export async function POST(request) {
     if (files && files.length > 0) {
       const newPictureIds = await Promise.all(files.filter(f => f.size > 0).map(async file => {
         const newFileName = `${uuidv4()}.${file.name.split('.').pop()}`;
+        const { s3 } = await import('@/lib/s3');
         await s3.send(new PutObjectCommand({
           Bucket: process.env.R2_BUCKET_NAME,
           Key: newFileName,

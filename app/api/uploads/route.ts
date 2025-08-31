@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { s3 } from '@/lib/s3'
 
 export const runtime = 'nodejs'
 
@@ -26,6 +25,9 @@ export async function POST(request: Request) {
 
     const ext = file.name.split('.').pop() || ''
     const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+    // Lazy-load S3 client only when this route is invoked
+    const { s3 } = await import('@/lib/s3')
 
     await s3.send(new PutObjectCommand({
       Bucket: bucket,
