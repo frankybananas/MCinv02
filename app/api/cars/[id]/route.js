@@ -12,7 +12,9 @@ import { v4 as uuidv4 } from 'uuid';
 export async function GET(request, { params }) {
   try {
     await connectToDatabase();
-    const car = await Car.findById(params.id).populate('owner').populate('images');
+    await request.blob();
+    const { id } = params;
+    const car = await Car.findById(id).populate('owner').populate('images');
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
     }
@@ -26,12 +28,12 @@ export async function GET(request, { params }) {
 
 
 // PUT handler now supports both JSON (for status updates) and formData (for full edits)
-export async function PUT(request, context) {
+export async function PUT(request, { params }) {
   const headersList = await headers();
   const userPhone = headersList.get('x-user-phone');
   const userName = headersList.get('x-user-name');
 
-    const { id } = context.params;
+  const { id } = await params;
 
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -221,7 +223,9 @@ export async function PUT(request, context) {
 export async function DELETE(request, { params }) {
   try {
     await connectToDatabase();
-    const car = await Car.findByIdAndDelete(params.id);
+    await request.blob();
+    const { id } = params;
+    const car = await Car.findByIdAndDelete(id);
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
     }

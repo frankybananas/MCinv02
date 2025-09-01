@@ -56,8 +56,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const userId = await getUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    await request.blob()
+    const { id } = params
     await connectDb()
-    const item = await Delivery.findOne({ _id: params.id, salesperson: userId })
+    const item = await Delivery.findOne({ _id: id, salesperson: userId })
     if (!item) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
     return NextResponse.json({ success: true, data: item })
   } catch (err: any) {
@@ -70,6 +72,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const userId = await getUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    await request.clone().blob()
+    const { id } = params
     const body = await request.json()
     const { deliveryDate, financeBank, reconNotes, licensing, customerType, docs, status } = body || {}
 
@@ -86,7 +90,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 
     const item = await Delivery.findOneAndUpdate(
-      { _id: params.id, salesperson: userId },
+      { _id: id, salesperson: userId },
       update,
       { new: true }
     )

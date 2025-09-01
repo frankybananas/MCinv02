@@ -3,6 +3,7 @@ import Client from '@/models/Client';
 import { NextResponse } from 'next/server';
 
 export async function POST(request, { params }) {
+  await request.clone().blob();
   const { id } = params;
   try {
     await connectToDatabase();
