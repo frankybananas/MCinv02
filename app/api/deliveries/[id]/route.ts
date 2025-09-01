@@ -85,6 +85,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (licensing !== undefined) update.licensing = licensing
     if (customerType !== undefined) update.customerType = customerType
     if (status !== undefined) update.status = status
+    if (body.client !== undefined) update.client = body.client || null
     if (Array.isArray(docs) && docs.length) {
       update.$push = { docs: { $each: docs } }
     }

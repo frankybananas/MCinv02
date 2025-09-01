@@ -197,7 +197,8 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
         timestamp: car.createdAt,
       } as any)
     }
-    return entries
+    // Reverse to show most recent first
+    return entries.reverse()
   }, [car])
 
   return (
@@ -429,19 +430,37 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {auditEntries.slice(0, 5).map((entry, index) => (
-                    <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-1.5 sm:mt-2 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm sm:text-base">{entry.action}</p>
-                        <p className="text-sm text-muted-foreground">{entry.details}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {entry.user} • {formatDate(entry.timestamp)}
-                        </p>
+                <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                  <div className="space-y-3 pr-2">
+                    {auditEntries.slice(0, 3).map((entry, index) => (
+                      <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
+                        <div className="w-2 h-2 bg-primary rounded-full mt-1.5 sm:mt-2 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base">{entry.action}</p>
+                          <p className="text-sm text-muted-foreground">{entry.details}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.user} • {formatDate(entry.timestamp)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                    {auditEntries.length > 3 && (
+                      <div className="space-y-3">
+                        {auditEntries.slice(3).map((entry, index) => (
+                          <div key={index + 3} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
+                            <div className="w-2 h-2 bg-primary rounded-full mt-1.5 sm:mt-2 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm sm:text-base">{entry.action}</p>
+                              <p className="text-sm text-muted-foreground">{entry.details}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {entry.user} • {formatDate(entry.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

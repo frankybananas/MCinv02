@@ -67,11 +67,18 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('[MAIN_PAGE_DEBUG] Starting fetchData...');
       const [clientsRes, carsRes, deliveriesRes] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/cars'),
         fetch('/api/deliveries'),
       ]);
+
+      console.log('[MAIN_PAGE_DEBUG] API responses:', {
+        clients: clientsRes.ok,
+        cars: carsRes.ok,
+        deliveries: deliveriesRes.ok
+      });
 
       if (!clientsRes.ok || !carsRes.ok || !deliveriesRes.ok) {
         throw new Error('Failed to fetch data');
@@ -80,6 +87,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       const clientsData = await clientsRes.json();
       const carsData = await carsRes.json();
       const deliveriesData = await deliveriesRes.json();
+
+      console.log('[MAIN_PAGE_DEBUG] Deliveries data received:', deliveriesData);
 
       setClients(clientsData.data || []);
       setCars(carsData.data || []);
@@ -99,6 +108,14 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       fetchData();
     }
   }, [isAuthenticated]);
+
+  // Refresh data when switching to delivery tab
+  useEffect(() => {
+    if (isAuthenticated && activeStatus === 'delivery') {
+      console.log('[MAIN_PAGE_DEBUG] Switching to delivery tab, refreshing data...');
+      fetchData();
+    }
+  }, [activeStatus, isAuthenticated]);
 
   // Fetch current user info for audit logging (phone)
   useEffect(() => {

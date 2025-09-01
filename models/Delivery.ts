@@ -18,6 +18,7 @@ const DeliveryDocSchema = new mongoose.Schema({
 const DeliverySchema = new mongoose.Schema({
   car: { type: mongoose.Schema.Types.ObjectId, ref: 'Car', required: true },
   salesperson: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  client: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
   status: { type: String, enum: ['active', 'completed', 'canceled'], default: 'active' },
   deliveryDate: { type: Date },
   financeBank: { type: String },

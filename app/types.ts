@@ -45,6 +45,7 @@ export interface Delivery {
   _id: string;
   car: Car | string;
   salesperson: string;
+  client?: Client | string;
   status: DeliveryStatus;
   deliveryDate?: string;
   financeBank?: string;

@@ -5,6 +5,8 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 import Car from '@/models/Car.js';
 import Picture from '@/models/Picture';
 import Session from '@/models/Session'; // Import Session model
+import Delivery from '@/models/Delivery.ts';
+import User from '@/models/User.ts';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -66,6 +68,33 @@ export async function PUT(request, { params }) {
         };
         console.log('[AUDIT_DEBUG] Status changed. Creating audit entry:', auditEntry);
         carToUpdate.auditLog.push(auditEntry);
+
+        // Auto-create delivery when status changes to 'reserved'
+        if (status === 'reserved' && userPhone) {
+          try {
+            console.log(`[AUDIT_DEBUG] Looking for user with phone: ${userPhone}`);
+            // Find user by phone to get userId
+            const user = await User.findOne({ phone: userPhone });
+            console.log(`[AUDIT_DEBUG] Found user:`, user ? `${user._id} (${user.phone})` : 'null');
+            
+            if (user) {
+              // Create or update delivery record
+              const deliveryResult = await Delivery.findOneAndUpdate(
+                { car: id, salesperson: user._id },
+                { $setOnInsert: { car: id, salesperson: user._id } },
+                { new: true, upsert: true }
+              );
+              console.log(`[AUDIT_DEBUG] Delivery creation result:`, deliveryResult ? deliveryResult._id : 'null');
+              console.log(`[AUDIT_DEBUG] Successfully created/updated delivery record for car ${id} and user ${user._id}`);
+            } else {
+              console.log(`[AUDIT_DEBUG] No user found with phone ${userPhone} - cannot create delivery`);
+            }
+          } catch (deliveryError) {
+            console.error('[AUDIT_DEBUG] Failed to create delivery record:', deliveryError);
+            console.error('[AUDIT_DEBUG] Delivery error stack:', deliveryError.stack);
+            // Don't fail the status update if delivery creation fails
+          }
+        }
       }
 
       carToUpdate.status = status;

@@ -281,7 +281,8 @@ export function Dashboard({
       {/* Main content */}
       <ScrollArea className="flex-1">
         <div className={`p-2 sm:p-4 space-y-4 max-w-4xl mx-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-4`}>
-          {/* Client list */}
+          {/* Client list */
+          }
           {showClients && (
             <div key="clients-section" className="space-y-2 sm:space-y-4">
               {clients.length === 0 ? (
@@ -318,8 +319,45 @@ export function Dashboard({
             </div>
           )}
 
+          {/* Delivery list */}
+          {showDelivery && (
+            <div key="deliveries-section" className="space-y-2 sm:space-y-4">
+              {deliveries.length === 0 ? (
+                <div key="no-deliveries-found" className="text-center py-12">
+                  <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No deliveries found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {deliveries.map((d) => {
+                    const carObj = (d.car as any) || {};
+                    const isCarPopulated = typeof d.car === 'object' && d.car !== null;
+                    const title = isCarPopulated
+                      ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
+                      : 'Vehicle';
+                    const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
+                    return (
+                      <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
+                        <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                          <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-base truncate">{title}</h3>
+                              <Badge variant="secondary" className="capitalize">{d.status}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date(d.updatedAt).toLocaleString()}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Car list */}
-          {!showClients && (
+          {isStockStatus && (
             <div key="cars-section" className="space-y-2 sm:space-y-4">
               {cars.length === 0 ? (
                 <div key="no-cars-found" className="text-center py-12">
