@@ -91,10 +91,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
     const body = await request.json()
     const { deliveryDate, financeBank, reconNotes, reconTasks, licensing, customerType, docs, status, additionalDocs } = body || {}
-    try {
-      console.log('[DELIVERY_DEBUG] PUT /api/deliveries/[id] incoming id:', id)
-      console.log('[DELIVERY_DEBUG] incoming reconTasks:', Array.isArray(reconTasks) ? reconTasks.length : reconTasks)
-    } catch {}
 
     await connectDb()
     const update: any = {}
@@ -175,9 +171,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (!Object.keys(update).length) {
       const existingItem = await Delivery.findOne({ _id: id, salesperson: userId })
       if (!existingItem) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
-      try {
-        console.log('[DELIVERY_DEBUG] saved reconTasks length:', Array.isArray((existingItem as any)?.reconTasks) ? (existingItem as any).reconTasks.length : (existingItem as any)?.reconTasks)
-      } catch {}
       return NextResponse.json({ success: true, data: existingItem })
     }
 
@@ -186,9 +179,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       update,
       { new: true }
     )
-    try {
-      console.log('[DELIVERY_DEBUG] saved reconTasks length:', Array.isArray((item as any)?.reconTasks) ? (item as any).reconTasks.length : (item as any)?.reconTasks)
-    } catch {}
     if (!item) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
     return NextResponse.json({ success: true, data: item })
   } catch (err: any) {

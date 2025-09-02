@@ -58,23 +58,13 @@ async function getUserIdFromRequest(request: Request): Promise<string | null> {
 export async function GET(request: Request) {
   try {
     const userId = await getUserIdFromRequest(request)
-    console.log('[DELIVERY_DEBUG] GET /api/deliveries - userId from JWT:', userId)
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     await connectDb()
-    
-    // Debug: Check all deliveries to see what's in the database
-    const allDeliveries = await Delivery.find({}).select('salesperson car').lean()
-    console.log('[DELIVERY_DEBUG] All deliveries in DB:', allDeliveries.map(d => ({ salesperson: d.salesperson, car: d.car })))
-    
     const items = await Delivery
       .find({ salesperson: userId })
       .populate({ path: 'car', populate: { path: 'images' } })
       .populate('client')
       .sort({ updatedAt: -1 })
-    console.log('[DELIVERY_DEBUG] Filtered deliveries for user:', items.length)
-    try {
-      console.log('[DELIVERY_DEBUG] reconTasks counts:', items.map((d:any)=>({id:d._id?.toString?.(), count: Array.isArray(d.reconTasks)? d.reconTasks.length : 0 })))
-    } catch {}
     return NextResponse.json({ success: true, data: items })
   } catch (err: any) {
     console.error('GET /api/deliveries error:', err)

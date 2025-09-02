@@ -67,18 +67,11 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('[MAIN_PAGE_DEBUG] Starting fetchData...');
       const [clientsRes, carsRes, deliveriesRes] = await Promise.all([
         fetch('/api/clients'),
         fetch('/api/cars'),
         fetch('/api/deliveries'),
       ]);
-
-      console.log('[MAIN_PAGE_DEBUG] API responses:', {
-        clients: clientsRes.ok,
-        cars: carsRes.ok,
-        deliveries: deliveriesRes.ok
-      });
 
       if (!clientsRes.ok || !carsRes.ok || !deliveriesRes.ok) {
         throw new Error('Failed to fetch data');
@@ -87,8 +80,6 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       const clientsData = await clientsRes.json();
       const carsData = await carsRes.json();
       const deliveriesData = await deliveriesRes.json();
-
-      console.log('[MAIN_PAGE_DEBUG] Deliveries data received:', deliveriesData);
 
       setClients(clientsData.data || []);
       setCars(carsData.data || []);
@@ -112,7 +103,6 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   // Refresh data when switching to delivery tab
   useEffect(() => {
     if (isAuthenticated && activeStatus === 'delivery') {
-      console.log('[MAIN_PAGE_DEBUG] Switching to delivery tab, refreshing data...');
       fetchData();
     }
   }, [activeStatus, isAuthenticated]);
@@ -206,7 +196,6 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   };
 
   const handleClientDelete = async (clientId: string) => {
-    console.log('Delete client:', clientId);
     // API call to delete client
   };
 
@@ -292,31 +281,26 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   if (selectedDelivery) {
     return <DeliveryDetail delivery={selectedDelivery} onBack={() => setSelectedDelivery(null)} onSave={async (update) => {
       try {
-        console.log('[MAIN_PAGE_DEBUG] Saving delivery update:', update);
         const res = await fetch(`/api/deliveries/${selectedDelivery._id}` , {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(update)
         });
-        console.log('[MAIN_PAGE_DEBUG] Save response status:', res.status);
         if (res.ok) {
           const { data } = await res.json();
-          console.log('[MAIN_PAGE_DEBUG] Save response data reconTasks:', Array.isArray((data as any)?.reconTasks) ? (data as any).reconTasks.length : (data as any)?.reconTasks);
           setSelectedDelivery(data);
           // refresh list
           const dRes = await fetch('/api/deliveries');
-          console.log('[MAIN_PAGE_DEBUG] Refresh deliveries status:', dRes.status);
           if (dRes.ok) {
             const dJson = await dRes.json();
-            console.log('[MAIN_PAGE_DEBUG] Refreshed deliveries reconTasks counts:', (dJson.data || []).map((d:any)=>Array.isArray(d.reconTasks)? d.reconTasks.length : 0));
             setDeliveries(dJson.data || []);
           }
         } else {
           const errText = await res.text();
-          console.error('[MAIN_PAGE_DEBUG] Save failed:', errText);
+          console.error('Save failed:', errText);
         }
       } catch (e) {
-        console.error('[MAIN_PAGE_DEBUG] Save error', e);
+        console.error('Save error', e);
       }
     }} />
   }

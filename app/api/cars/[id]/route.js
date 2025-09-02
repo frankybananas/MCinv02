@@ -15,7 +15,7 @@ export async function GET(request, { params }) {
   try {
     await connectToDatabase();
     await request.blob();
-    const { id } = params;
+    const { id } = await params;
     const car = await Car.findById(id).populate('owner').populate('images');
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
@@ -56,9 +56,6 @@ export async function PUT(request, { params }) {
 
       const oldStatus = carToUpdate.status;
 
-      console.log(`[AUDIT_DEBUG] Received status update for car ${id}. New status: ${status}, Old status: ${oldStatus}`);
-      console.log(`[AUDIT_DEBUG] User phone from header: ${userPhone}`);
-
       // Only add a log entry if the status actually changed.
       if (oldStatus !== status) {
         const auditEntry = {
@@ -66,16 +63,13 @@ export async function PUT(request, { params }) {
           details: `Status changed from '${oldStatus}' to '${status}'`,
           user: userName || userPhone || 'unknown', // Prefer name, fallback to phone
         };
-        console.log('[AUDIT_DEBUG] Status changed. Creating audit entry:', auditEntry);
         carToUpdate.auditLog.push(auditEntry);
 
         // Auto-create delivery when status changes to 'reserved'
         if (status === 'reserved' && userPhone) {
           try {
-            console.log(`[AUDIT_DEBUG] Looking for user with phone: ${userPhone}`);
             // Find user by phone to get userId
             const user = await User.findOne({ phone: userPhone });
-            console.log(`[AUDIT_DEBUG] Found user:`, user ? `${user._id} (${user.phone})` : 'null');
             
             if (user) {
               // Create or update delivery record
@@ -84,14 +78,11 @@ export async function PUT(request, { params }) {
                 { $setOnInsert: { car: id, salesperson: user._id } },
                 { new: true, upsert: true }
               );
-              console.log(`[AUDIT_DEBUG] Delivery creation result:`, deliveryResult ? deliveryResult._id : 'null');
-              console.log(`[AUDIT_DEBUG] Successfully created/updated delivery record for car ${id} and user ${user._id}`);
             } else {
-              console.log(`[AUDIT_DEBUG] No user found with phone ${userPhone} - cannot create delivery`);
+              // no-op if user not found
             }
           } catch (deliveryError) {
-            console.error('[AUDIT_DEBUG] Failed to create delivery record:', deliveryError);
-            console.error('[AUDIT_DEBUG] Delivery error stack:', deliveryError.stack);
+            console.error('Failed to create delivery record:', deliveryError);
             // Don't fail the status update if delivery creation fails
           }
         }
@@ -99,9 +90,8 @@ export async function PUT(request, { params }) {
 
       carToUpdate.status = status;
       const updatedCar = await carToUpdate.save();
-      console.log('[AUDIT_DEBUG] Car saved successfully. Current auditLog count:', updatedCar.auditLog.length);
 
-            await updatedCar.populate('images');
+      await updatedCar.populate('images');
 
       return NextResponse.json({ success: true, data: updatedCar.toObject({ virtuals: true }) });
 
