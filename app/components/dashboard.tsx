@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
 
@@ -336,6 +336,11 @@ export function Dashboard({
                       ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
                       : 'Vehicle';
                     const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
+                    const tasks = Array.isArray((d as any).reconTasks) ? ((d as any).reconTasks as any[]) : [];
+                    const doneCount = tasks.filter(t => !!t.done).length;
+                    const totalCount = tasks.length;
+                    const allDone = totalCount > 0 && doneCount === totalCount;
+                    const licensingDone = !!(d as any)?.licensing?.done;
                     return (
                       <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
                         <CardContent className="p-3 sm:p-4 flex items-center gap-3">
@@ -346,6 +351,18 @@ export function Dashboard({
                               <Badge variant="secondary" className="capitalize">{d.status}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date(d.updatedAt).toLocaleString()}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {/* Recon tasks progress */}
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${allDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                {allDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                Recon {doneCount}/{totalCount}
+                              </span>
+                              {/* Licensing done */}
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${licensingDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                {licensingDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                Licensing {licensingDone ? 'Done' : 'Pending'}
+                              </span>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
