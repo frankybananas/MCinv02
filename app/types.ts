@@ -35,7 +35,8 @@ export type DeliveryDocKind =
 
 export interface DeliveryDoc {
   kind: DeliveryDocKind;
-  url: string;
+  url?: string; // present when uploaded to server/cloud; absent when stored locally only
+  localKey?: string; // IndexedDB key when stored locally on device
   fileType: string;
   fileSize?: number;
   uploadedAt: string;
@@ -49,12 +50,20 @@ export interface Delivery {
   status: DeliveryStatus;
   deliveryDate?: string;
   financeBank?: string;
-  reconNotes?: string;
+  reconTasks?: ReconTask[];
   licensing?: { done: boolean; notes?: string };
   customerType: "natural" | "company";
   docs: DeliveryDoc[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ReconTask {
+  text: string;
+  done: boolean;
+  note?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Car {

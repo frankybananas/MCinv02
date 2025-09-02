@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Car, User } from "lucide-react";
-import type { Delivery, DeliveryDoc, DeliveryDocKind, Client, Car as CarType } from "../types";
+import { ArrowLeft, Car, User, FileText, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import type { Delivery, DeliveryDoc, DeliveryDocKind, Client, Car as CarType, ReconTask } from "../types";
+import { saveDoc as idbSaveDoc, getDoc as idbGetDoc, makeLocalKey } from "@/lib/idb-docs";
 
 interface DeliveryDetailProps {
   delivery: Delivery;
@@ -17,9 +18,20 @@ interface DeliveryDetailProps {
 }
 
 export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps) {
+  const LOCAL_ONLY = process.env.NEXT_PUBLIC_LOCAL_DOCS_ONLY === 'true';
   const [deliveryDate, setDeliveryDate] = useState<string>(delivery.deliveryDate?.slice(0,10) || "");
   const [financeBank, setFinanceBank] = useState<string>(delivery.financeBank || "");
-  const [reconNotes, setReconNotes] = useState<string>(delivery.reconNotes || "");
+  const [reconTasks, setReconTasks] = useState<ReconTask[]>(() => {
+    const tasks = (delivery as any).reconTasks as ReconTask[] | undefined;
+    if (tasks && tasks.length) return tasks;
+    const legacyNotes = (delivery as any).reconNotes as string | undefined;
+    if (legacyNotes && legacyNotes.trim().length) {
+      return [{ text: legacyNotes, done: false, note: "" }];
+    }
+    return [];
+  });
+  const [newTaskText, setNewTaskText] = useState("");
+  const [notesOpen, setNotesOpen] = useState<Record<number, boolean>>({});
   const [licensingDone, setLicensingDone] = useState<boolean>(!!delivery.licensing?.done);
   const [licensingNotes, setLicensingNotes] = useState<string>(delivery.licensing?.notes || "");
   const [customerType, setCustomerType] = useState<"natural" | "company">(delivery.customerType || "natural");
@@ -52,19 +64,32 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
   const handleUpload = async (file: File, kind: DeliveryDocKind) => {
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/uploads", { method: "POST", body: form });
-      if (!res.ok) throw new Error("Upload failed");
-      const { data } = await res.json();
-      const doc: DeliveryDoc = {
-        kind,
-        url: data.url,
-        fileType: data.fileType,
-        fileSize: data.fileSize,
-        uploadedAt: new Date().toISOString(),
-      };
-      setDocs((prev) => [...prev, doc]);
+      if (LOCAL_ONLY) {
+        const localKey = makeLocalKey(typeof delivery._id === 'string' ? delivery._id : String((delivery as any)._id), kind);
+        await idbSaveDoc(localKey, file);
+        const doc: DeliveryDoc = {
+          kind,
+          localKey,
+          fileType: file.type,
+          fileSize: file.size,
+          uploadedAt: new Date().toISOString(),
+        };
+        setDocs((prev) => [...prev, doc]);
+      } else {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/uploads", { method: "POST", body: form });
+        if (!res.ok) throw new Error("Upload failed");
+        const { data } = await res.json();
+        const doc: DeliveryDoc = {
+          kind,
+          url: data.url,
+          fileType: data.fileType,
+          fileSize: data.fileSize,
+          uploadedAt: new Date().toISOString(),
+        };
+        setDocs((prev) => [...prev, doc]);
+      }
     } catch (e) {
       console.error(e);
       alert("Upload failed");
@@ -85,11 +110,12 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
       await onSave({
         deliveryDate: deliveryDate ? new Date(deliveryDate).toISOString() : undefined,
         financeBank,
-        reconNotes,
+        reconTasks,
         licensing: { done: licensingDone, notes: licensingNotes },
         customerType,
         client: selectedClientId || undefined,
-        docs: docs.filter((d) => !delivery.docs?.some((ex) => ex.url === d.url)),
+        // Only send newly added docs; compare by url or localKey
+        docs: docs.filter((d) => !delivery.docs?.some((ex) => (ex.url && d.url && ex.url === d.url) || (ex.localKey && d.localKey && ex.localKey === d.localKey))),
       });
     } finally {
       setSaving(false);
@@ -214,14 +240,89 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
                 <Input id="financeBank" value={financeBank} onChange={(e) => setFinanceBank(e.target.value)} placeholder="ABSA, FNB, ..." />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="reconNotes">Recon Work Required</Label>
-                <Textarea 
-                  id="reconNotes" 
-                  value={reconNotes} 
-                  onChange={(e) => setReconNotes(e.target.value)} 
-                  rows={4} 
-                  placeholder="Describe what work needs to be done on the car (e.g., paint touch-up, interior cleaning, mechanical repairs, etc.)"
-                />
+                <Label>Recon Tasks</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add a task (e.g., interior valet, paint touch-up)"
+                    value={newTaskText}
+                    onChange={(e) => setNewTaskText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newTaskText.trim()) {
+                        setReconTasks((prev) => [...prev, { text: newTaskText.trim(), done: false }]);
+                        setNewTaskText("");
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (!newTaskText.trim()) return;
+                      setReconTasks((prev) => [...prev, { text: newTaskText.trim(), done: false }]);
+                      setNewTaskText("");
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {reconTasks.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No recon tasks yet. Add tasks above.</p>
+                  )}
+                  <ul className="space-y-2">
+                    {reconTasks.map((t, idx) => (
+                      <li key={idx} className="border rounded-md p-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={!!t.done}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setReconTasks((prev) => prev.map((it, i) => i === idx ? { ...it, done: checked } : it));
+                            }}
+                          />
+                          <Input
+                            value={t.text}
+                            onChange={(e) => setReconTasks((prev) => prev.map((it, i) => i === idx ? { ...it, text: e.target.value } : it))}
+                          />
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setNotesOpen((p) => ({ ...p, [idx]: !p[idx] }))}
+                            title="Task notes"
+                          >
+                            <FileText className={`w-4 h-4 ${t.note && t.note.trim().length ? 'text-blue-600' : 'text-muted-foreground'}`} />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setReconTasks((prev) => prev.filter((_, i) => i !== idx))}
+                            title="Remove task"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                        {notesOpen[idx] && (
+                          <div className="mt-2">
+                            <div className="flex items-center gap-2 mb-1 text-sm text-muted-foreground">
+                              <FileText className="w-4 h-4" />
+                              <span>Notes</span>
+                            </div>
+                            <Textarea
+                              placeholder="Optional notes for this task"
+                              value={t.note || ""}
+                              onChange={(e) => setReconTasks((prev) => prev.map((it, i) => i === idx ? { ...it, note: e.target.value } : it))}
+                              rows={3}
+                            />
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Licensing done</Label>
@@ -266,10 +367,28 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
                 <div className="space-y-2">
                   <h4 className="font-medium">Uploaded</h4>
                   <ul className="text-sm list-disc pl-5 space-y-1">
-                    {docs.map((d) => (
-                      <li key={d.url} className="break-all">
+                    {docs.map((d, idx) => (
+                      <li key={(d.url || d.localKey || String(idx))} className="break-all flex items-center gap-2">
                         <span className="uppercase text-xs bg-gray-100 px-1 py-0.5 rounded mr-2">{d.kind}</span>
-                        <a href={d.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{d.url}</a>
+                        {d.url ? (
+                          <a href={d.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{d.url}</a>
+                        ) : d.localKey ? (
+                          <button
+                            type="button"
+                            className="text-blue-600 hover:underline"
+                            onClick={async () => {
+                              const blob = await idbGetDoc(d.localKey!);
+                              if (!blob) return alert('File not found on this device');
+                              const url = URL.createObjectURL(blob);
+                              window.open(url, '_blank');
+                              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                            }}
+                          >
+                            View local file
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground">No reference</span>
+                        )}
                       </li>
                     ))}
                   </ul>

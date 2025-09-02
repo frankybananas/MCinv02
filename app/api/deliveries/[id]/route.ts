@@ -75,13 +75,18 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     await request.clone().blob()
     const { id } = params
     const body = await request.json()
-    const { deliveryDate, financeBank, reconNotes, licensing, customerType, docs, status } = body || {}
+    const { deliveryDate, financeBank, reconNotes, reconTasks, licensing, customerType, docs, status } = body || {}
+    try {
+      console.log('[DELIVERY_DEBUG] PUT /api/deliveries/[id] incoming id:', id)
+      console.log('[DELIVERY_DEBUG] incoming reconTasks:', Array.isArray(reconTasks) ? reconTasks.length : reconTasks)
+    } catch {}
 
     await connectDb()
     const update: any = {}
     if (deliveryDate !== undefined) update.deliveryDate = deliveryDate
     if (financeBank !== undefined) update.financeBank = financeBank
     if (reconNotes !== undefined) update.reconNotes = reconNotes
+    if (reconTasks !== undefined) update.reconTasks = reconTasks
     if (licensing !== undefined) update.licensing = licensing
     if (customerType !== undefined) update.customerType = customerType
     if (status !== undefined) update.status = status
@@ -95,6 +100,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       update,
       { new: true }
     )
+    try {
+      console.log('[DELIVERY_DEBUG] saved reconTasks length:', Array.isArray((item as any)?.reconTasks) ? (item as any).reconTasks.length : (item as any)?.reconTasks)
+    } catch {}
     if (!item) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
     return NextResponse.json({ success: true, data: item })
   } catch (err: any) {

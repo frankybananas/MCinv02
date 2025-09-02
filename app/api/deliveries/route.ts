@@ -65,8 +65,15 @@ export async function GET(request: Request) {
     const allDeliveries = await Delivery.find({}).select('salesperson car').lean()
     console.log('[DELIVERY_DEBUG] All deliveries in DB:', allDeliveries.map(d => ({ salesperson: d.salesperson, car: d.car })))
     
-    const items = await Delivery.find({ salesperson: userId }).populate('car').populate('client').sort({ updatedAt: -1 })
+    const items = await Delivery
+      .find({ salesperson: userId })
+      .populate({ path: 'car', populate: { path: 'images' } })
+      .populate('client')
+      .sort({ updatedAt: -1 })
     console.log('[DELIVERY_DEBUG] Filtered deliveries for user:', items.length)
+    try {
+      console.log('[DELIVERY_DEBUG] reconTasks counts:', items.map((d:any)=>({id:d._id?.toString?.(), count: Array.isArray(d.reconTasks)? d.reconTasks.length : 0 })))
+    } catch {}
     return NextResponse.json({ success: true, data: items })
   } catch (err: any) {
     console.error('GET /api/deliveries error:', err)

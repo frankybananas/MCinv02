@@ -9,10 +9,19 @@ const DeliveryDocSchema = new mongoose.Schema({
     'company_proof_of_address',
     'brnc_certificate'
   ], required: true },
-  url: { type: String, required: true },
+  url: { type: String },
+  localKey: { type: String },
   fileType: { type: String, required: true },
   fileSize: { type: Number },
   uploadedAt: { type: Date, default: Date.now },
+});
+
+const ReconTaskSchema = new mongoose.Schema({
+  text: { type: String, required: true },
+  done: { type: Boolean, default: false },
+  note: { type: String },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 const DeliverySchema = new mongoose.Schema({
@@ -23,6 +32,7 @@ const DeliverySchema = new mongoose.Schema({
   deliveryDate: { type: Date },
   financeBank: { type: String },
   reconNotes: { type: String },
+  reconTasks: { type: [ReconTaskSchema], default: [] },
   licensing: {
     done: { type: Boolean, default: false },
     notes: { type: String }

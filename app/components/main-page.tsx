@@ -291,20 +291,32 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   }
   if (selectedDelivery) {
     return <DeliveryDetail delivery={selectedDelivery} onBack={() => setSelectedDelivery(null)} onSave={async (update) => {
-      const res = await fetch(`/api/deliveries/${selectedDelivery._id}` , {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(update)
-      });
-      if (res.ok) {
-        const { data } = await res.json();
-        setSelectedDelivery(data);
-        // refresh list
-        const dRes = await fetch('/api/deliveries');
-        if (dRes.ok) {
-          const dJson = await dRes.json();
-          setDeliveries(dJson.data || []);
+      try {
+        console.log('[MAIN_PAGE_DEBUG] Saving delivery update:', update);
+        const res = await fetch(`/api/deliveries/${selectedDelivery._id}` , {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(update)
+        });
+        console.log('[MAIN_PAGE_DEBUG] Save response status:', res.status);
+        if (res.ok) {
+          const { data } = await res.json();
+          console.log('[MAIN_PAGE_DEBUG] Save response data reconTasks:', Array.isArray((data as any)?.reconTasks) ? (data as any).reconTasks.length : (data as any)?.reconTasks);
+          setSelectedDelivery(data);
+          // refresh list
+          const dRes = await fetch('/api/deliveries');
+          console.log('[MAIN_PAGE_DEBUG] Refresh deliveries status:', dRes.status);
+          if (dRes.ok) {
+            const dJson = await dRes.json();
+            console.log('[MAIN_PAGE_DEBUG] Refreshed deliveries reconTasks counts:', (dJson.data || []).map((d:any)=>Array.isArray(d.reconTasks)? d.reconTasks.length : 0));
+            setDeliveries(dJson.data || []);
+          }
+        } else {
+          const errText = await res.text();
+          console.error('[MAIN_PAGE_DEBUG] Save failed:', errText);
         }
+      } catch (e) {
+        console.error('[MAIN_PAGE_DEBUG] Save error', e);
       }
     }} />
   }
