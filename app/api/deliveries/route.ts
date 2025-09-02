@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Delivery from '@/models/Delivery'
@@ -90,9 +91,22 @@ export async function POST(request: Request) {
     const { carId } = body || {}
     if (!carId) return NextResponse.json({ success: false, error: 'carId required' }, { status: 400 })
     await connectDb()
+    const headersList = await headers()
+    const userPhone = headersList.get('x-user-phone')
+    const userName = headersList.get('x-user-name')
     const item = await Delivery.findOneAndUpdate(
       { car: carId, salesperson: userId },
-      { $setOnInsert: { car: carId, salesperson: userId } },
+      {
+        $setOnInsert: { car: carId, salesperson: userId },
+        $push: {
+          auditLog: {
+            action: 'Delivery Created/Upserted',
+            user: userName || userPhone || 'unknown',
+            timestamp: new Date(),
+            details: `Delivery record created or linked for car '${carId}'`
+          }
+        }
+      },
       { new: true, upsert: true }
     )
     return NextResponse.json({ success: true, data: item })

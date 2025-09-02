@@ -31,7 +31,10 @@ export type DeliveryDocKind =
   | "company_docs"
   | "director_id"
   | "company_proof_of_address"
-  | "brnc_certificate";
+  | "brnc_certificate"
+  | "trade_in_natis"
+  | "source_of_funds"
+  | "ubo_form";
 
 export interface DeliveryDoc {
   kind: DeliveryDocKind;
@@ -54,8 +57,14 @@ export interface Delivery {
   licensing?: { done: boolean; notes?: string };
   customerType: "natural" | "company";
   docs: DeliveryDoc[];
+  additionalDocs?: {
+    trade_in_natis?: boolean;
+    source_of_funds?: boolean;
+    ubo_form?: boolean;
+  };
   createdAt: string;
   updatedAt: string;
+  auditLog?: AuditLogEntry[];
 }
 
 export interface ReconTask {

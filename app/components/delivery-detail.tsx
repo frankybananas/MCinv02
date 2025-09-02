@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,9 +39,16 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
+  const [additionalDocs, setAdditionalDocs] = useState<{ trade_in_natis?: boolean; source_of_funds?: boolean; ubo_form?: boolean }>(delivery.additionalDocs || {});
   const [selectedClientId, setSelectedClientId] = useState<string>(
     typeof delivery.client === 'object' ? delivery.client._id : delivery.client || ""
   );
+
+  const formatDateTime = (date: string | Date) => new Date(date).toLocaleString();
+  const auditEntries = useMemo(() => {
+    const entries = [...(delivery.auditLog || [])]
+    return entries.reverse();
+  }, [delivery.auditLog]);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -114,6 +121,7 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
         licensing: { done: licensingDone, notes: licensingNotes },
         customerType,
         client: selectedClientId || undefined,
+        additionalDocs,
         // Only send newly added docs; compare by url or localKey
         docs: docs.filter((d) => !delivery.docs?.some((ex) => (ex.url && d.url && ex.url === d.url) || (ex.localKey && d.localKey && ex.localKey === d.localKey))),
       });
@@ -186,6 +194,77 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
                   <p className="font-medium text-muted-foreground">Transmission</p>
                   <p className="font-semibold capitalize">{car?.transmission}</p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional Documents Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Additional Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-2">
+                <div className="grid sm:grid-cols-2 gap-2 items-center">
+                  <Label>Trade-In Natis (photo of original)</Label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" className="h-4 w-4" checked={!!additionalDocs.trade_in_natis}
+                        onChange={(e) => setAdditionalDocs((p) => ({ ...p, trade_in_natis: e.target.checked }))}/>
+                      <span>Received</span>
+                    </label>
+                    <Input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => onFileChange(e, 'trade_in_natis')} />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2 items-center">
+                  <Label>Source of Funds (signed form)</Label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" className="h-4 w-4" checked={!!additionalDocs.source_of_funds}
+                        onChange={(e) => setAdditionalDocs((p) => ({ ...p, source_of_funds: e.target.checked }))}/>
+                      <span>Received</span>
+                    </label>
+                    <Input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => onFileChange(e, 'source_of_funds')} />
+                  </div>
+                </div>
+                {customerType === 'company' && (
+                  <div className="grid sm:grid-cols-2 gap-2 items-center">
+                    <Label>UBO Form (signed)</Label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" className="h-4 w-4" checked={!!additionalDocs.ubo_form}
+                          onChange={(e) => setAdditionalDocs((p) => ({ ...p, ubo_form: e.target.checked }))}/>
+                        <span>Received</span>
+                      </label>
+                      <Input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => onFileChange(e, 'ubo_form')} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chips for additional docs only */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Additional doc status</h4>
+                {(() => {
+                  const present = new Set(docs.map((d) => d.kind));
+                  const kinds = customerType === 'company' ? ['trade_in_natis','source_of_funds','ubo_form'] as const : ['trade_in_natis','source_of_funds'] as const;
+                  const titleize = (k: string) => k.replaceAll('_',' ').replace(/\b\w/g, c => c.toUpperCase());
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {kinds.map((k) => {
+                        const ok = present.has(k as any) || !!(additionalDocs as any)[k];
+                        return (
+                          <span key={k} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${ok ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                            {ok ? '✔' : '✖'} {titleize(k)}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -325,20 +404,6 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Licensing done</Label>
-                <Select value={licensingDone ? "yes" : "no"} onValueChange={(v) => setLicensingDone(v === "yes") }>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no">No</SelectItem>
-                    <SelectItem value="yes">Yes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="licNotes">Licensing notes</Label>
-                <Input id="licNotes" value={licensingNotes} onChange={(e) => setLicensingNotes(e.target.value)} />
-              </div>
-              <div className="space-y-2">
                 <Label>Customer type</Label>
                 <Select value={customerType} onValueChange={(v: any) => setCustomerType(v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -352,16 +417,65 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
           </Card>
 
           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Licensing & Required Documents
+              </CardTitle>
+            </CardHeader>
             <CardContent className="p-4 space-y-4">
-              <h3 className="font-semibold">Required documents</h3>
-              {currentRequired.map((kind) => (
-                <div key={kind} className="grid sm:grid-cols-2 gap-2 items-center">
-                  <Label className="capitalize">{kind.replaceAll('_',' ')}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => onFileChange(e, kind)} />
-                  </div>
+              {/* Licensing controls */}
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>Licensing done</Label>
+                  <Select value={licensingDone ? "yes" : "no"} onValueChange={(v) => setLicensingDone(v === "yes") }>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="yes">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
+                <div className="space-y-2">
+                  <Label htmlFor="licNotes">Licensing notes</Label>
+                  <Input id="licNotes" value={licensingNotes} onChange={(e) => setLicensingNotes(e.target.value)} />
+                </div>
+              </div>
+
+              {/* Required documents */}
+              <div className="space-y-2">
+                <h3 className="font-semibold">Required documents</h3>
+                {currentRequired.map((kind) => (
+                  <div key={kind} className="grid sm:grid-cols-2 gap-2 items-center">
+                    <Label className="capitalize">{kind.replaceAll('_',' ')}</Label>
+                    <div className="flex items-center gap-2">
+                      <Input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => onFileChange(e, kind)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Outstanding chips */}
+              <div className="space-y-2">
+                <h4 className="font-medium">Document status</h4>
+                {(() => {
+                  const present = new Set(docs.map((d) => d.kind));
+                  const allKinds = [...currentRequired];
+                  const titleize = (k: string) => k.replaceAll('_',' ').replace(/\b\w/g, c => c.toUpperCase());
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {allKinds.map((k) => {
+                        const ok = present.has(k as any);
+                        return (
+                          <span key={k} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${ok ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                            {ok ? '✔' : '✖'} {titleize(k)}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
 
               {docs.length > 0 && (
                 <div className="space-y-2">
@@ -394,6 +508,32 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
                   </ul>
                 </div>
               )}
+            </CardContent>
+          </Card>
+          {/* Audit Log */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Audit Log
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-48 overflow-y-auto space-y-3 pr-2">
+                {auditEntries.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No audit entries yet.</p>
+                )}
+                {auditEntries.map((entry, index) => (
+                  <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-b-0">
+                    <div className="w-2 h-2 bg-primary rounded-full mt-1.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{entry.action}</p>
+                      <p className="text-sm text-muted-foreground">{entry.details}</p>
+                      <p className="text-xs text-muted-foreground">{entry.user} • {formatDateTime(entry.timestamp as any)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>

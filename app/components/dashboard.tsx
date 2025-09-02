@@ -341,6 +341,12 @@ export function Dashboard({
                     const totalCount = tasks.length;
                     const allDone = totalCount > 0 && doneCount === totalCount;
                     const licensingDone = !!(d as any)?.licensing?.done;
+                    const customerType = (d as any)?.customerType || 'natural';
+                    const docKinds = new Set(((d as any)?.docs || []).map((x: any) => x.kind));
+                    const addl = (d as any)?.additionalDocs || {};
+                    const hasTradeIn = docKinds.has('trade_in_natis') || !!addl.trade_in_natis;
+                    const hasSof = docKinds.has('source_of_funds') || !!addl.source_of_funds;
+                    const hasUbo = docKinds.has('ubo_form') || !!addl.ubo_form;
                     return (
                       <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
                         <CardContent className="p-3 sm:p-4 flex items-center gap-3">
@@ -362,6 +368,21 @@ export function Dashboard({
                                 {licensingDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
                                 Licensing {licensingDone ? 'Done' : 'Pending'}
                               </span>
+                              {/* Additional docs */}
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasTradeIn ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                {hasTradeIn ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                Trade-In Natis
+                              </span>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasSof ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                {hasSof ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                Source of Funds
+                              </span>
+                              {customerType === 'company' && (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasUbo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                  {hasUbo ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                  UBO Form
+                                </span>
+                              )}
                             </div>
                           </div>
                         </CardContent>
