@@ -1,5 +1,7 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import Client from '@/models/Client';
+import Delivery from '@/models/Delivery';
+import User from '@/models/User';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
@@ -28,7 +30,10 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const client = await Client.findById(id).populate('cars').populate('documents');
+    const client = await Client.findById(id).populate({
+      path: 'cars',
+      populate: { path: 'images' }
+    }).populate('documents');
     
     if (!client) {
       return NextResponse.json({ success: false, message: 'Client not found' }, { status: 404 });
@@ -38,7 +43,42 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json({ success: true, data: client });
+    // Also include cars linked through Delivery records for this client
+    // Respect user isolation: for non-privileged, only their own deliveries (salesperson = current user)
+    let salespersonFilter = {};
+    if (!isPrivileged) {
+      try {
+        const u = await User.findOne({ phone }).select('_id');
+        if (u?._id) salespersonFilter = { salesperson: u._id };
+      } catch {}
+    }
+    const deliveries = await Delivery
+      .find({ client: id, ...salespersonFilter })
+      .populate({ path: 'car', populate: { path: 'images' } })
+      .select('car');
+
+    const carsFromDeliveries = deliveries
+      .map(d => d.car)
+      .filter(Boolean);
+
+    // Merge client.cars and carsFromDeliveries by _id
+    const seen = new Set();
+    const mergedCars = [];
+    const pushUnique = (car) => {
+      try {
+        const key = String(car._id);
+        if (!seen.has(key)) { seen.add(key); mergedCars.push(car); }
+      } catch {}
+    };
+    if (Array.isArray(client.cars)) client.cars.forEach(pushUnique);
+    carsFromDeliveries.forEach(pushUnique);
+
+    const payload = {
+      ...client.toObject(),
+      cars: mergedCars,
+    };
+
+    return NextResponse.json({ success: true, data: payload });
   } catch (error) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }

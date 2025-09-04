@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Delivery from '@/models/Delivery'
 import User from '@/models/User'
-import '@/models/Car'
+import Car from '@/models/Car'
 
 export const runtime = 'nodejs'
 
@@ -84,6 +84,22 @@ export async function POST(request: Request) {
     const headersList = await headers()
     const userPhone = headersList.get('x-user-phone')
     const userName = headersList.get('x-user-name')
+    // Resolve a human-friendly car label for the audit log
+    let carLabel = `car '${carId}'`
+    try {
+      const car: any = await (Car as any).findById(carId).select('make model year licensePlate vin')
+      if (car) {
+        const parts: string[] = []
+        if (car.make) parts.push(String(car.make))
+        if (car.model) parts.push(String(car.model))
+        if (car.year) parts.push(String(car.year))
+        const base = parts.join(' ')
+        const idents: string[] = []
+        if (car.licensePlate) idents.push(`plate ${car.licensePlate}`)
+        if (car.vin) idents.push(`VIN ${car.vin}`)
+        carLabel = base ? `${base}${idents.length ? ` (${idents.join(', ')})` : ''}` : carLabel
+      }
+    } catch {}
     const item = await Delivery.findOneAndUpdate(
       { car: carId, salesperson: userId },
       {
@@ -93,7 +109,7 @@ export async function POST(request: Request) {
             action: 'Delivery Created/Upserted',
             user: userName || userPhone || 'unknown',
             timestamp: new Date(),
-            details: `Delivery record created or linked for car '${carId}'`
+            details: `Delivery record created or linked for ${carLabel}`
           }
         }
       },

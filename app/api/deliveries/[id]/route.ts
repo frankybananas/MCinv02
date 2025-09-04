@@ -4,6 +4,7 @@ import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Delivery from '@/models/Delivery'
 import User from '@/models/User'
+import Client from '@/models/Client'
 import '@/models/Car'
 
 export const runtime = 'nodejs'
@@ -112,6 +113,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // Build human-readable audit entry like Car audit log
     const changes: string[] = []
+    const titleize = (k: string) => k.replaceAll('_',' ').replace(/\b\w/g, c => c.toUpperCase())
     const addFieldChange = (label: string, oldVal: any, newVal: any) => {
       const oldIsEmpty = oldVal == null || oldVal === ''
       const newIsEmpty = newVal == null || newVal === ''
@@ -127,11 +129,56 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (typeof financeBank !== 'undefined') addFieldChange('financeBank', existing.financeBank, financeBank)
     if (typeof reconNotes !== 'undefined') addFieldChange('reconNotes', existing.reconNotes, reconNotes)
     if (typeof reconTasks !== 'undefined') {
-      const same = (() => { try { return JSON.stringify(existing.reconTasks) === JSON.stringify(reconTasks) } catch { return false } })()
-      if (!same) {
-        const oldLen = Array.isArray(existing.reconTasks) ? existing.reconTasks.length : 0
-        const newLen = Array.isArray(reconTasks) ? reconTasks.length : 0
-        changes.push(`reconTasks were updated (count: ${oldLen} -> ${newLen})`)
+      const oldArr: any[] = Array.isArray(existing.reconTasks) ? existing.reconTasks : []
+      const newArr: any[] = Array.isArray(reconTasks) ? reconTasks : []
+      const preview = (s: string) => {
+        if (!s) return 'Untitled task'
+        const words = String(s).trim().split(/\s+/).slice(0, 3)
+        return words.join(' ')
+      }
+      const idOf = (t: any) => (t && (t._id || t.id)) ? String(t._id || t.id) : ''
+
+      const oldById = new Map<string, any>()
+      const newById = new Map<string, any>()
+      const oldNoId: any[] = []
+      const newNoId: any[] = []
+      for (const t of oldArr) {
+        const id = idOf(t)
+        if (id) oldById.set(id, t); else oldNoId.push(t)
+      }
+      for (const t of newArr) {
+        const id = idOf(t)
+        if (id) newById.set(id, t); else newNoId.push(t)
+      }
+
+      // Toggled/updated tasks by ID
+      for (const [id, oldT] of oldById) {
+        const nt = newById.get(id)
+        if (!nt) continue // removal handled below
+        if (Boolean(oldT.done) !== Boolean(nt.done)) {
+          changes.push(`reconTask '${preview(nt.text ?? oldT.text)}' ${nt.done ? 'marked' : 'unmarked'}`)
+        }
+        // Detect text change (optional)
+        if ((oldT.text || '') !== (nt.text || '')) {
+          // Keep concise by previewing
+          changes.push(`reconTask text updated: '${preview(oldT.text)}' -> '${preview(nt.text)}'`)
+        }
+      }
+
+      // Added tasks: prefer those without IDs or new IDs not present before
+      for (const t of newArr) {
+        const id = idOf(t)
+        if (id ? !oldById.has(id) : !oldNoId.some(o => (o.text || '') === (t.text || ''))) {
+          changes.push(`reconTask added: '${preview(t.text)}'${t.done ? ' (marked)' : ''}`)
+        }
+      }
+
+      // Removed tasks
+      for (const t of oldArr) {
+        const id = idOf(t)
+        if (id ? !newById.has(id) : !newNoId.some(n => (n.text || '') === (t.text || ''))) {
+          changes.push(`reconTask removed: '${preview(t.text)}'`)
+        }
       }
     }
     if (typeof licensing !== 'undefined') {
@@ -140,7 +187,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
     if (typeof customerType !== 'undefined') addFieldChange('customerType', existing.customerType, customerType)
     if (typeof status !== 'undefined') addFieldChange('status', existing.status, status)
-    if (typeof body.client !== 'undefined') addFieldChange('client', existing.client, body.client)
     if (typeof additionalDocs !== 'undefined') {
       const prev = existing.additionalDocs || {}
       const curr = additionalDocs || {}
@@ -149,12 +195,32 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       for (const k of keys) {
         const a = !!(prev as any)[k]
         const b = !!(curr as any)[k]
-        if (a !== b) local.push(`'${k}' from '${a ? 'Yes' : 'No'}' to '${b ? 'Yes' : 'No'}'`)
+        if (a !== b) local.push(`'${titleize(k)}' from '${a ? 'Yes' : 'No'}' to '${b ? 'Yes' : 'No'}'`)
       }
       if (local.length) changes.push(`additionalDocs: ${local.join(', ')}`)
     }
     if (Array.isArray(docs) && docs.length) {
-      changes.push(`docs were added: ${docs.map((d: any) => d.kind).join(', ')}`)
+      changes.push(`docs were added: ${docs.map((d: any) => titleize(String(d.kind))).join(', ')}`)
+    }
+    // Resolve client names/phones if client changed
+    if (typeof body.client !== 'undefined') {
+      try {
+        const prevId = existing.client ? String(existing.client) : ''
+        const nextId = body.client ? String(body.client) : ''
+        const [prevClient, nextClient] = await Promise.all([
+          prevId ? (Client as any).findById(prevId).select('firstName lastName phone') : null,
+          nextId ? (Client as any).findById(nextId).select('firstName lastName phone') : null,
+        ])
+        const fmt = (c: any) => !c ? 'N/A' : `${(c.firstName||'').toString()} ${(c.lastName||'').toString()}`.trim() + (c.phone ? ` (${c.phone})` : '')
+        if ((prevId || nextId) && (prevId !== nextId)) {
+          changes.push(`'client' from '${fmt(prevClient)}' to '${fmt(nextClient)}'`)
+        }
+      } catch {
+        // Fallback to generic if resolution fails
+        const oldVal = existing.client ? String(existing.client) : 'N/A'
+        const newVal = body.client ? String(body.client) : 'N/A'
+        if (oldVal !== newVal) changes.push(`'client' from '${oldVal}' to '${newVal}'`)
+      }
     }
     if (changes.length > 0) {
       const details = `Updated fields: ${changes.join(', ')}`

@@ -10,6 +10,28 @@ const nextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ["mongoose"],
+  // Performance optimizations
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
+  // Enable compression
+  compress: true,
+  webpack: (config, { dev, isServer }) => {
+    config.experiments = {
+      ...config.experiments,
+      topLevelAwait: true,
+    };
+
+    // Disable chunk splitting in development to prevent ChunkLoadError
+    if (dev) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: false,
+      };
+    }
+
+    return config;
+  },
   async headers() {
     return [
       {

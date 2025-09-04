@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Dashboard } from './dashboard';
-import { DeliveryDetail } from './delivery-detail';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { LoginForm } from './login-form';
-import { CarDetail } from './car-detail';
-import { ClientDetail } from './client-detail';
-import { AddEditCar } from './add-edit-car';
-import { AddEditClient } from './add-edit-client';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery } from '../types';
+
+// Lazy load heavy components to reduce initial bundle size
+const Dashboard = lazy(() => import('./dashboard').then(module => ({ default: module.Dashboard })));
+const DeliveryDetail = lazy(() => import('./delivery-detail').then(module => ({ default: module.DeliveryDetail })));
+const CarDetail = lazy(() => import('./car-detail').then(module => ({ default: module.CarDetail })));
+const ClientDetail = lazy(() => import('./client-detail').then(module => ({ default: module.ClientDetail })));
+const AddEditCar = lazy(() => import('./add-edit-car').then(module => ({ default: module.AddEditCar })));
+const AddEditClient = lazy(() => import('./add-edit-client').then(module => ({ default: module.AddEditClient })));
+
+// Loading component
+const ComponentLoader = () => (
+  <div className="flex items-center justify-center h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+);
 
 interface MainPageProps {
   initialIsAuthenticated: boolean;
@@ -16,7 +25,8 @@ interface MainPageProps {
 }
 
 export default function MainPage({ initialIsAuthenticated, userRole }: MainPageProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(initialIsAuthenticated);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
@@ -67,22 +77,27 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [clientsRes, carsRes, deliveriesRes] = await Promise.all([
+      
+      // Fetch cars first as they're most commonly needed
+      const carsRes = await fetch('/api/cars');
+      if (!carsRes.ok) throw new Error('Failed to fetch cars');
+      const carsData = await carsRes.json();
+      setCars(carsData.data || []);
+      
+      // Then fetch other data in parallel
+      const [clientsRes, deliveriesRes] = await Promise.all([
         fetch('/api/clients'),
-        fetch('/api/cars'),
         fetch('/api/deliveries'),
       ]);
 
-      if (!clientsRes.ok || !carsRes.ok || !deliveriesRes.ok) {
-        throw new Error('Failed to fetch data');
+      if (!clientsRes.ok || !deliveriesRes.ok) {
+        throw new Error('Failed to fetch additional data');
       }
 
       const clientsData = await clientsRes.json();
-      const carsData = await carsRes.json();
       const deliveriesData = await deliveriesRes.json();
 
       setClients(clientsData.data || []);
-      setCars(carsData.data || []);
       setDeliveries(deliveriesData.data || []);
       setError(null);
     } catch (err) {
@@ -107,29 +122,60 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   }, [activeStatus, isAuthenticated]);
 
-  // Fetch current user info for audit logging (phone)
+  // Check authentication status and fetch current user info
   useEffect(() => {
     let mounted = true;
-    const run = async () => {
+    const checkAuth = async () => {
       try {
         const res = await fetch('/api/auth/me');
-        if (!res.ok) return;
-        const j = await res.json();
-        const data = j?.data as { phone?: string; firstName?: string; lastName?: string } | undefined;
-        const phone = data?.phone as string | undefined;
-        const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
-        if (mounted) {
-          if (phone) setCurrentUserPhone(phone);
-          if (name) setCurrentUserName(name);
+        if (res.ok) {
+          const j = await res.json();
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string } | undefined;
+          const phone = data?.phone as string | undefined;
+          const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
+          if (mounted) {
+            setIsAuthenticated(true);
+            if (phone) setCurrentUserPhone(phone);
+            if (name) setCurrentUserName(name);
+            setAuthChecked(true);
+          }
+        } else {
+          if (mounted) {
+            setIsAuthenticated(false);
+            setAuthChecked(true);
+          }
         }
-      } catch {}
+      } catch {
+        if (mounted) {
+          setIsAuthenticated(false);
+          setAuthChecked(true);
+        }
+      }
     };
-    run();
+    checkAuth();
     return () => { mounted = false; };
   }, []);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
+    setAuthChecked(true);
+    // Re-fetch user data after successful login
+    const fetchUserData = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const j = await res.json();
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string } | undefined;
+          const phone = data?.phone as string | undefined;
+          const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
+          if (phone) setCurrentUserPhone(phone);
+          if (name) setCurrentUserName(name);
+        }
+      } catch (error) {
+        console.error('Error fetching user data after login:', error);
+      }
+    };
+    fetchUserData();
   };
 
   const handleCarSelect = (car: Car) => {
@@ -268,62 +314,114 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       ? []
       : cars.filter(car => car.status === activeStatus);
 
+  // Show loading spinner until auth check completes
+  if (!authChecked) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+  
   if (!isAuthenticated) return <LoginForm onLoginSuccess={handleLoginSuccess} />;
   if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
   if (error) return <div className="flex items-center justify-center h-screen text-red-500">Error: {error}</div>;
 
-  if (editingCar) return <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />;
-    if (editingClient) return <AddEditClient client={editingClient} onSave={handleSaveClient as (clientData: Partial<Client>) => void} onCancel={handleBack} onAddInteraction={handleAddInteraction} />;
+  if (editingCar) {
+    return (
+      <Suspense fallback={<ComponentLoader />}>
+        <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />
+      </Suspense>
+    );
+  }
   
-      if (selectedCar) {
-    return <CarDetail car={selectedCar} onBack={handleBack} onEdit={handleEditCar} onStatusChange={(status) => handleStatusChange(selectedCar._id, status)} onReserve={handleReserveCar} />;
+  if (editingClient) {
+    return (
+      <Suspense fallback={<ComponentLoader />}>
+        <AddEditClient 
+          client={editingClient} 
+          onSave={handleSaveClient as (clientData: Partial<Client>) => void} 
+          onCancel={handleBack} 
+          onAddInteraction={handleAddInteraction} 
+        />
+      </Suspense>
+    );
   }
+  
+  if (selectedCar) {
+    return (
+      <Suspense fallback={<ComponentLoader />}>
+        <CarDetail 
+          car={selectedCar} 
+          onBack={handleBack} 
+          onEdit={handleEditCar} 
+          onStatusChange={(status) => handleStatusChange(selectedCar._id, status)} 
+          onReserve={handleReserveCar} 
+        />
+      </Suspense>
+    );
+  }
+  
   if (selectedDelivery) {
-    return <DeliveryDetail delivery={selectedDelivery} onBack={() => setSelectedDelivery(null)} onSave={async (update) => {
-      try {
-        const res = await fetch(`/api/deliveries/${selectedDelivery._id}` , {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(update)
-        });
-        if (res.ok) {
-          const { data } = await res.json();
-          setSelectedDelivery(data);
-          // refresh list
-          const dRes = await fetch('/api/deliveries');
-          if (dRes.ok) {
-            const dJson = await dRes.json();
-            setDeliveries(dJson.data || []);
-          }
-        } else {
-          const errText = await res.text();
-          console.error('Save failed:', errText);
-        }
-      } catch (e) {
-        console.error('Save error', e);
-      }
-    }} />
+    return (
+      <Suspense fallback={<ComponentLoader />}>
+        <DeliveryDetail 
+          delivery={selectedDelivery} 
+          onBack={() => setSelectedDelivery(null)} 
+          onSave={async (update) => {
+            try {
+              const res = await fetch(`/api/deliveries/${selectedDelivery._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(update)
+              });
+              if (res.ok) {
+                const { data } = await res.json();
+                setSelectedDelivery(data);
+                // refresh list
+                const dRes = await fetch('/api/deliveries');
+                if (dRes.ok) {
+                  const dJson = await dRes.json();
+                  setDeliveries(dJson.data || []);
+                }
+              } else {
+                const errText = await res.text();
+                console.error('Save failed:', errText);
+              }
+            } catch (e) {
+              console.error('Save error', e);
+            }
+          }} 
+        />
+      </Suspense>
+    );
   }
+  
   if (selectedClient) {
-    return <ClientDetail client={selectedClient} onBack={handleBack} onEdit={handleEditClient} onSelectCar={handleCarSelect} />;
+    return (
+      <Suspense fallback={<ComponentLoader />}>
+        <ClientDetail 
+          client={selectedClient} 
+          onBack={handleBack} 
+          onEdit={handleEditClient} 
+          onSelectCar={handleCarSelect} 
+        />
+      </Suspense>
+    );
   }
 
   return (
-    <Dashboard
-      cars={filteredCars}
-      clients={clients}
-      activeStatus={activeStatus}
-      onStatusFilterChange={setActiveStatus}
-      onCarSelect={handleCarSelect}
-      onAddCar={handleAddCar}
-      onAddClient={handleAddClient}
-      onStatusChange={handleStatusChange as (carId: string, status: CarState) => void}
-      onClientSelect={handleClientSelect}
-      onClientDelete={handleClientDelete}
-      onLogout={handleLogout}
-      userRole={userRole}
-      deliveries={deliveries}
-      onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
-    />
+    <Suspense fallback={<ComponentLoader />}>
+      <Dashboard
+        cars={filteredCars}
+        clients={clients}
+        activeStatus={activeStatus}
+        onStatusFilterChange={setActiveStatus}
+        onCarSelect={handleCarSelect}
+        onAddCar={handleAddCar}
+        onAddClient={handleAddClient}
+        onStatusChange={handleStatusChange as (carId: string, status: CarState) => void}
+        onClientSelect={handleClientSelect}
+        onClientDelete={handleClientDelete}
+        onLogout={handleLogout}
+        userRole={userRole}
+        deliveries={deliveries}
+        onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
+      />
+    </Suspense>
   );
 }
