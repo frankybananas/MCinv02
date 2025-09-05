@@ -54,6 +54,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     transmission: car?.transmission ?? 'automatic',
     vin: car?.vin ?? '',
     notes: car?.notes ?? '',
+    demo: car?.demo ?? false,
   });
 
   // MRU suggestions for Make/Model
@@ -457,6 +458,19 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                         rows={3}
                         className="text-sm sm:text-base"
                       />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="demo"
+                        checked={formData.demo}
+                        onChange={(e) => handleInputChange("demo", e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="demo" className="text-xs sm:text-sm font-medium text-gray-900">
+                        Dealership Demo Vehicle
+                      </label>
                     </div>
                   </CardContent>
                 </Card>

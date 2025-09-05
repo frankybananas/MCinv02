@@ -64,7 +64,7 @@ export function Dashboard({
 
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
-  const isStockStatus = ['all','in-stock','coming','reserved','sold'].includes(activeStatus)
+  const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
     const getStatusColor = (status: CarState) => {
     switch (status) {
@@ -223,6 +223,7 @@ export function Dashboard({
                     { id: 'coming', label: 'Coming' },
                     { id: 'reserved', label: 'Reserved' },
                     { id: 'sold', label: 'Sold' },
+                    { id: 'demo', label: 'Demo' },
                   ] as {id: DashboardTab; label: string}[]).map((s) => (
                     <Button
                       key={s.id}
@@ -259,6 +260,7 @@ export function Dashboard({
                     { id: 'coming', label: 'Coming' },
                     { id: 'reserved', label: 'Reserved' },
                     { id: 'sold', label: 'Sold' },
+                    { id: 'demo', label: 'Demo' },
                   ] as {id: DashboardTab; label: string}[]).map((s) => (
                     <Button
                       key={s.id}
@@ -462,9 +464,16 @@ export function Dashboard({
                           <div className="bg-white/20 backdrop-blur-sm border border-white/10 rounded-md p-2.5 shadow-lg">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <h3 className="font-semibold text-base truncate text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
-                                  {car.year} {car.make} {car.model}
-                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-base truncate text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
+                                    {car.year} {car.make} {car.model}
+                                  </h3>
+                                  {car.demo && (
+                                    <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                      DEMO
+                                    </Badge>
+                                  )}
+                                </div>
                                 <p className="text-2xl font-extrabold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">{formatPrice(car.price)}</p>
                               </div>
                               <DropdownMenu>
@@ -515,9 +524,16 @@ export function Dashboard({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-base sm:text-lg truncate text-foreground">
-                                {car.year} {car.make} {car.model}
-                              </h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-base sm:text-lg truncate text-foreground">
+                                  {car.year} {car.make} {car.model}
+                                </h3>
+                                {car.demo && (
+                                  <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                    DEMO
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-2xl font-bold text-orange-500">{formatPrice(car.price)}</p>
                             </div>
                             <DropdownMenu>

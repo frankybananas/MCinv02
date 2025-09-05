@@ -54,6 +54,10 @@ const CarSchema = new mongoose.Schema({
     default: 'coming',
     required: true,
   },
+  demo: {
+    type: Boolean,
+    default: false,
+  },
   serviceHistory: [{
     date: Date,
     description: String,

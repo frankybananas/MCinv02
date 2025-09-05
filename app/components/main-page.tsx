@@ -312,7 +312,9 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     ? cars
     : activeStatus === 'clients'
       ? []
-      : cars.filter(car => car.status === activeStatus);
+      : activeStatus === 'demo'
+        ? cars.filter(car => car.demo === true)
+        : cars.filter(car => car.status === activeStatus);
 
   // Show loading spinner until auth check completes
   if (!authChecked) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
