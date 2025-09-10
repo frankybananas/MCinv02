@@ -66,6 +66,18 @@ export function Dashboard({
     if (delta < -30) setMenuOpen(false)
     touchStartYRef.current = null
   }
+
+  // Close menu on any page scroll or touch-move (outside the menu) and on outside click
+  React.useEffect(() => {
+    const onWheel = () => setMenuOpen(false)
+    const onTouchMove = () => setMenuOpen(false)
+    window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [])
   // header moved to Root layout
   // Top-level tabs: Stock (car area), Clients, Delivery, and Admin (if role)
   const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
@@ -160,18 +172,29 @@ export function Dashboard({
       {/* Top-level Tabs (hidden whenever viewing Stock) */}
       {!isStockStatus && (
         <>
+          {/* Click-outside overlay to hide menu */}
+          {menuOpen && (
+            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+          )}
           {/* Mobile/Tablet: floating bottom navbar for top-level tabs */}
           <div
-            className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/80 backdrop-blur-xl border-t border-gray-200/50 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[80%]'} `}
+            className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[66%]'} `}
             onTouchStart={handleMenuTouchStart}
             onTouchEnd={handleMenuTouchEnd}
           >
-            <div className="flex items-center justify-center pt-2 pb-1">
-              <button aria-label="Expand menu" className="h-1.5 w-10 rounded-full bg-gray-300" onClick={() => setMenuOpen(v=>!v)} />
-            </div>
+            {/* Minimal strip shown when hidden */}
+            {!menuOpen && (
+              <button
+                className="w-full flex items-center justify-center py-2 text-xs font-semibold text-blue-700 tracking-wide select-none"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Swipe up to open"
+              >
+                Swipe up
+              </button>
+            )}
             <ScrollArea className="w-full">
-              <div className="flex justify-start p-2 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-                <div className="flex gap-2 flex-nowrap items-center overflow-x-auto whitespace-nowrap px-2 pr-24">
+              <div className="flex justify-start p-2 sm:p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap px-3 pr-24">
                   {tabs.map((tab) => (
                     <Button
                       key={tab.id}
@@ -226,27 +249,28 @@ export function Dashboard({
       {/* Secondary navbar for Stock status filters */}
       {isStockStatus && (
         <>
+          {/* Click-outside overlay to hide menu */}
+          {menuOpen && (
+            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+          )}
           {/* Mobile/Tablet: floating bottom navbar */}
           <div
-            className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/80 backdrop-blur-xl border-t border-gray-200/50 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[70%]'} `}
+            className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[66%]'} `}
             onTouchStart={handleMenuTouchStart}
             onTouchEnd={handleMenuTouchEnd}
           >
-            <div className="flex items-center justify-center pt-2 pb-1">
-              <button aria-label="Expand menu" className="h-1.5 w-10 rounded-full bg-gray-300" onClick={() => setMenuOpen(v=>!v)} />
-            </div>
+            {!menuOpen && (
+              <button
+                className="w-full flex items-center justify-center py-2 text-xs font-semibold text-blue-700 tracking-wide select-none"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Swipe up to open"
+              >
+                Swipe up
+              </button>
+            )}
             <ScrollArea className="w-full">
-              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-                {/* Back arrow to show top-level dashboard */}
-                <button
-                  aria-label="Back to dashboard"
-                  className="absolute left-3 sm:left-4 inline-flex items-center gap-2 text-sm bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-md rounded-full p-2"
-                  onClick={() => onStatusFilterChange('delivery')}
-                >
-                  <ArrowLeft className="h-6 w-6 sm:h-7 sm:w-7" />
-                  <span className="hidden sm:inline font-medium">Back</span>
-                </button>
-                <div className="flex gap-2 flex-nowrap items-center overflow-x-auto whitespace-nowrap pl-16 pr-24 w-full">
+              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap pl-3 pr-24 w-full">
                   {([
                     { id: 'all', label: 'All' },
                     { id: 'in-stock', label: 'In-Stock' },
@@ -311,7 +335,7 @@ export function Dashboard({
 
 
       {/* Main content */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" onWheel={() => setMenuOpen(false)} onTouchMove={() => setMenuOpen(false)}>
         <div className={`p-2 sm:p-4 space-y-4 max-w-4xl mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
           {/* Client list */
           }
@@ -612,8 +636,17 @@ export function Dashboard({
         </div>
       </ScrollArea>
 
+      {/* Bottom-left Back button (mobile/tablet) */}
+      <button
+        aria-label="Back to dashboard"
+        className={`lg:hidden fixed left-4 z-40 inline-flex items-center justify-center rounded-full bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-md w-12 h-12 ${menuOpen ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(3.75rem+env(safe-area-inset-bottom))]'}`}
+        onClick={() => onStatusFilterChange('delivery')}
+      >
+        <ArrowLeft className="h-6 w-6" />
+      </button>
+
       {/* Floating Action Button with Menu */}
-      <div className={`fixed right-4 sm:right-6 z-50 ${menuOpen ? 'bottom-[calc(12rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(3.25rem+env(safe-area-inset-bottom))]'} lg:bottom-6 flex flex-col items-center pointer-events-auto`}>
+      <div className={`fixed right-4 sm:right-6 z-50 ${menuOpen ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(3.25rem+env(safe-area-inset-bottom))]'} lg:bottom-6 flex flex-col items-center pointer-events-auto`}>
         {/* Menu Items */}
         <div className={`flex flex-col items-center gap-3 mb-3 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <div className="flex items-center gap-3">
