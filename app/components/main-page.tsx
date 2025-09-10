@@ -325,14 +325,20 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       } else if (activeStatus !== 'all') {
         setActiveStatus('all');
       } else {
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+        try {
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        } catch {}
       }
     };
     return (
       <button
         aria-label="Back"
         onClick={onBackClick}
-        className="fixed left-4 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:left-6 md:bottom-6 z-50 inline-flex items-center justify-center rounded-full bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-md w-12 h-12"
+        className="fixed left-4 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:left-6 md:bottom-6 z-[60] inline-flex items-center justify-center rounded-full bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-lg w-14 h-14 active:scale-95 transition-transform pointer-events-auto"
       >
         <ArrowLeft className="h-6 w-6" />
       </button>

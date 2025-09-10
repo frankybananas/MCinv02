@@ -193,7 +193,7 @@ export function Dashboard({
               </button>
             )}
             <ScrollArea className="w-full">
-              <div className="flex justify-start p-2 sm:p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <div className="flex justify-start p-2 sm:p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                 <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap px-3 pr-24">
                   {tabs.map((tab) => (
                     <Button
@@ -269,7 +269,7 @@ export function Dashboard({
               </button>
             )}
             <ScrollArea className="w-full">
-              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                 <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap pl-3 pr-24 w-full">
                   {([
                     { id: 'all', label: 'All' },
