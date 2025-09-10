@@ -7,15 +7,26 @@ import { connect } from '@/lib/mongodb';
 import User from '@/models/User';
 import Session from '@/models/Session';
 import { getTestOtp } from '@/lib/test-accounts';
-import Otp from '@/models/Otp';
+import { Twilio } from 'twilio';
 
 export async function POST(request: Request) {
   const jwtSecret = process.env.JWT_SECRET;
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-  if (!jwtSecret) {
-    console.error('JWT_SECRET is not configured.');
-    return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+  if (!jwtSecret || !accountSid || !authToken || !verifyServiceSid) {
+    const missing: string[] = [];
+    if (!jwtSecret) missing.push('JWT_SECRET');
+    if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
+    if (!authToken) missing.push('TWILIO_AUTH_TOKEN');
+    if (!verifyServiceSid) missing.push('TWILIO_VERIFY_SERVICE_SID');
+    const detail = !process.env.NODE_ENV || process.env.NODE_ENV !== 'production' ? `Missing ${missing.join(', ')}` : undefined;
+    console.error('OTP verify configuration missing.', detail || '');
+    return NextResponse.json({ error: 'Server configuration error.', detail }, { status: 500 });
   }
+
+  const client = new Twilio(accountSid, authToken);
 
   try {
     const { phone: rawPhone, code } = await request.json();
@@ -42,30 +53,20 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'Invalid test OTP.' }, { status: 400 });
       }
     } else {
-      // For real users, verify against our stored OTP
-      await connect();
-      const record = await Otp.findOne({ phone });
-      if (!record) {
-        return NextResponse.json({ success: false, error: 'No OTP found. Please request a new code.' }, { status: 400 });
-      }
-      // Increment attempts
-      record.attempts = (record.attempts || 0) + 1;
-      await record.save();
-
-      if (record.expiresAt < new Date()) {
-        return NextResponse.json({ success: false, error: 'OTP expired. Please request a new code.' }, { status: 400 });
-      }
-      if (record.code !== code) {
+      // For real users, verify using Twilio Verify
+      const verificationCheck = await client.verify.v2.services(verifyServiceSid)
+        .verificationChecks
+        .create({ to: phone, code });
+      if (verificationCheck.status === 'approved') {
+        isApproved = true;
+      } else {
         return NextResponse.json({ success: false, error: 'Invalid OTP.' }, { status: 400 });
       }
-      isApproved = true;
     }
 
     // 2. If approved, proceed with session creation
     if (isApproved) {
       await connect();
-      // Invalidate OTP on success
-      try { await Otp.deleteOne({ phone }); } catch {}
 
       // 3. Find user and enforce device limits
       const user = await User.findOne({ phone });
