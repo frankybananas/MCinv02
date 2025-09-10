@@ -636,15 +636,6 @@ export function Dashboard({
         </div>
       </ScrollArea>
 
-      {/* Bottom-left Back button (mobile/tablet) */}
-      <button
-        aria-label="Back to dashboard"
-        className={`lg:hidden fixed left-4 z-40 inline-flex items-center justify-center rounded-full bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-md w-12 h-12 ${menuOpen ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(3.75rem+env(safe-area-inset-bottom))]'}`}
-        onClick={() => onStatusFilterChange('delivery')}
-      >
-        <ArrowLeft className="h-6 w-6" />
-      </button>
-
       {/* Floating Action Button with Menu */}
       <div className={`fixed right-4 sm:right-6 z-50 ${menuOpen ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(3.25rem+env(safe-area-inset-bottom))]'} lg:bottom-6 flex flex-col items-center pointer-events-auto`}>
         {/* Menu Items */}

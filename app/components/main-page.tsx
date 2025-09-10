@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { LoginForm } from './login-form';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery } from '../types';
 
@@ -316,6 +317,28 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         ? cars.filter(car => car.demo === true)
         : cars.filter(car => car.status === activeStatus);
 
+  const renderBackButton = () => {
+    const hasDetailOpen = !!(selectedCar || selectedClient || selectedDelivery || editingCar || editingClient);
+    const onBackClick = () => {
+      if (hasDetailOpen) {
+        handleBack();
+      } else if (activeStatus !== 'all') {
+        setActiveStatus('all');
+      } else {
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+      }
+    };
+    return (
+      <button
+        aria-label="Back"
+        onClick={onBackClick}
+        className="fixed left-4 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:left-6 md:bottom-6 z-50 inline-flex items-center justify-center rounded-full bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-md w-12 h-12"
+      >
+        <ArrowLeft className="h-6 w-6" />
+      </button>
+    );
+  };
+
   // Show loading spinner until auth check completes
   if (!authChecked) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
   
@@ -325,105 +348,123 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
 
   if (editingCar) {
     return (
-      <Suspense fallback={<ComponentLoader />}>
-        <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />
-      </Suspense>
+      <>
+        <Suspense fallback={<ComponentLoader />}>
+          <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />
+        </Suspense>
+        {renderBackButton()}
+      </>
     );
   }
   
   if (editingClient) {
     return (
-      <Suspense fallback={<ComponentLoader />}>
-        <AddEditClient 
-          client={editingClient} 
-          onSave={handleSaveClient as (clientData: Partial<Client>) => void} 
-          onCancel={handleBack} 
-          onAddInteraction={handleAddInteraction} 
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<ComponentLoader />}>
+          <AddEditClient 
+            client={editingClient} 
+            onSave={handleSaveClient as (clientData: Partial<Client>) => void} 
+            onCancel={handleBack} 
+            onAddInteraction={handleAddInteraction} 
+          />
+        </Suspense>
+        {renderBackButton()}
+      </>
     );
   }
   
   if (selectedCar) {
     return (
-      <Suspense fallback={<ComponentLoader />}>
-        <CarDetail 
-          car={selectedCar} 
-          onBack={handleBack} 
-          onEdit={handleEditCar} 
-          onStatusChange={(status) => handleStatusChange(selectedCar._id, status)} 
-          onReserve={handleReserveCar} 
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<ComponentLoader />}>
+          <CarDetail 
+            car={selectedCar} 
+            onBack={handleBack} 
+            onEdit={handleEditCar} 
+            onStatusChange={(status) => handleStatusChange(selectedCar._id, status)} 
+            onReserve={handleReserveCar} 
+          />
+        </Suspense>
+        {renderBackButton()}
+      </>
     );
   }
   
   if (selectedDelivery) {
     return (
-      <Suspense fallback={<ComponentLoader />}>
-        <DeliveryDetail 
-          delivery={selectedDelivery} 
-          onBack={() => setSelectedDelivery(null)} 
-          onSave={async (update) => {
-            try {
-              const res = await fetch(`/api/deliveries/${selectedDelivery._id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(update)
-              });
-              if (res.ok) {
-                const { data } = await res.json();
-                setSelectedDelivery(data);
-                // refresh list
-                const dRes = await fetch('/api/deliveries');
-                if (dRes.ok) {
-                  const dJson = await dRes.json();
-                  setDeliveries(dJson.data || []);
+      <>
+        <Suspense fallback={<ComponentLoader />}>
+          <DeliveryDetail 
+            delivery={selectedDelivery} 
+            onBack={() => setSelectedDelivery(null)} 
+            onSave={async (update) => {
+              try {
+                const res = await fetch(`/api/deliveries/${selectedDelivery._id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(update)
+                });
+                if (res.ok) {
+                  const { data } = await res.json();
+                  setSelectedDelivery(data);
+                  // refresh list
+                  const dRes = await fetch('/api/deliveries');
+                  if (dRes.ok) {
+                    const dJson = await dRes.json();
+                    setDeliveries(dJson.data || []);
+                  }
+                } else {
+                  const errText = await res.text();
+                  console.error('Save failed:', errText);
                 }
-              } else {
-                const errText = await res.text();
-                console.error('Save failed:', errText);
+              } catch (e) {
+                console.error('Save error', e);
               }
-            } catch (e) {
-              console.error('Save error', e);
-            }
-          }} 
-        />
-      </Suspense>
+            }} 
+          />
+        </Suspense>
+        {renderBackButton()}
+      </>
     );
   }
   
   if (selectedClient) {
     return (
-      <Suspense fallback={<ComponentLoader />}>
-        <ClientDetail 
-          client={selectedClient} 
-          onBack={handleBack} 
-          onEdit={handleEditClient} 
-          onSelectCar={handleCarSelect} 
-        />
-      </Suspense>
+      <>
+        <Suspense fallback={<ComponentLoader />}>
+          <ClientDetail 
+            client={selectedClient} 
+            onBack={handleBack} 
+            onEdit={handleEditClient} 
+            onSelectCar={handleCarSelect} 
+          />
+        </Suspense>
+        {renderBackButton()}
+      </>
     );
   }
 
   return (
-    <Suspense fallback={<ComponentLoader />}>
-      <Dashboard
-        cars={filteredCars}
-        clients={clients}
-        activeStatus={activeStatus}
-        onStatusFilterChange={setActiveStatus}
-        onCarSelect={handleCarSelect}
-        onAddCar={handleAddCar}
-        onAddClient={handleAddClient}
-        onStatusChange={handleStatusChange as (carId: string, status: CarState) => void}
-        onClientSelect={handleClientSelect}
-        onClientDelete={handleClientDelete}
-        onLogout={handleLogout}
-        userRole={userRole}
-        deliveries={deliveries}
-        onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
-      />
-    </Suspense>
+    <>
+      <Suspense fallback={<ComponentLoader />}>
+        <Dashboard
+          cars={filteredCars}
+          clients={clients}
+          activeStatus={activeStatus}
+          onStatusFilterChange={setActiveStatus}
+          onCarSelect={handleCarSelect}
+          onAddCar={handleAddCar}
+          onAddClient={handleAddClient}
+          onStatusChange={handleStatusChange as (carId: string, status: CarState) => void}
+          onClientSelect={handleClientSelect}
+          onClientDelete={handleClientDelete}
+          onLogout={handleLogout}
+          userRole={userRole}
+          deliveries={deliveries}
+          onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
+        />
+      </Suspense>
+      {renderBackButton()}
+    </>
   );
 }
