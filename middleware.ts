@@ -40,9 +40,13 @@ export async function middleware(request: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
 
     // Enforce daily OTP: if the token's otpDay is not today (ZA timezone), force re-auth
-    const nowUtc = new Date();
-    const zaNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
-    const todayZa = zaNow.toISOString().slice(0, 10);
+    // Use Intl.DateTimeFormat to avoid parsing localized strings back into Date objects
+    const todayZa = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Johannesburg',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date()); // en-CA yields YYYY-MM-DD
     const tokenOtpDay = (payload as any).otpDay as string | undefined;
     if (!tokenOtpDay || tokenOtpDay !== todayZa) {
       // Clear cookie and redirect to login for fresh OTP
@@ -93,5 +97,5 @@ function redirectToLogin(request: NextRequest) {
 
 export const config = {
   // Run on all paths; PUBLIC_PATHS above will early-return for assets and auth
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)|manifest.json|docs).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\.(?:png|jpg|jpeg|svg|gif|webp|ico)|manifest.json|docs).*)'],
 };

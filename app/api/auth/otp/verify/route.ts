@@ -103,9 +103,13 @@ export async function POST(request: Request) {
       const secret = new TextEncoder().encode(jwtSecret);
 
       // Compute the current day in the primary usage timezone (Africa/Johannesburg)
-      const nowUtc = new Date();
-      const zaNow = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
-      const otpDay = zaNow.toISOString().slice(0, 10); // YYYY-MM-DD in ZA tz
+      // Use Intl.DateTimeFormat to reliably get YYYY-MM-DD without reparsing
+      const otpDay = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Johannesburg',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()); // en-CA yields YYYY-MM-DD
 
       const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role, otpDay })
         .setProtectedHeader({ alg: 'HS256' })
