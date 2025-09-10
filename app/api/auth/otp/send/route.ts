@@ -4,12 +4,9 @@ import parsePhoneNumber from 'libphonenumber-js';
 import User from '@/models/User';
 import { connect } from '@/lib/mongodb';
 import { createTestUser, getTestOtp } from '@/lib/test-accounts';
-
-const twilioClient = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+import Otp from '@/models/Otp';
 
 export async function POST(req: Request) {
-  console.log('[otp/send/route.ts] typeof connect:', typeof connect);
-  console.log('[otp/send/route.ts] connect:', connect);
   try {
     await connect();
     const { phone: rawPhone } = await req.json();
@@ -41,16 +38,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This phone number is not authorized.' }, { status: 403 });
     }
 
-    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-    if (!verifyServiceSid) {
-      console.error('Twilio Verify Service SID is not configured.');
+    // Generate a 6-digit numeric OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const ttlMinutes = parseInt(process.env.OTP_TTL_MINUTES || '5', 10);
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+
+    // Upsert OTP record for this phone
+    await Otp.findOneAndUpdate(
+      { phone },
+      { code, expiresAt, attempts: 0, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    // Compose WebOTP-compliant SMS
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
+    const domain = host.replace(/^https?:\/\//, '');
+    const prefix = '<#>'; // Helpful for Android SMS Retriever; harmless otherwise
+    const body = `${prefix} Your verification code is ${code}\n@${domain} #${code}`;
+
+    // Send via Twilio Messaging
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+    const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+    if (!accountSid || !authToken) {
+      console.error('Twilio credentials are not configured.');
+      return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+    }
+    if (!messagingServiceSid && !fromNumber) {
+      console.error('Either TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM_NUMBER must be configured.');
       return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
     }
 
-    // Send the OTP using Twilio Verify
-    await twilioClient.verify.v2.services(verifyServiceSid)
-      .verifications
-      .create({ to: phone, channel: 'sms' });
+    const twilioClient = new Twilio(accountSid, authToken);
+    await twilioClient.messages.create({
+      to: phone,
+      body,
+      ...(messagingServiceSid ? { messagingServiceSid } : { from: fromNumber as string }),
+    });
 
     return NextResponse.json({ success: true, message: 'OTP sent successfully.' });
 

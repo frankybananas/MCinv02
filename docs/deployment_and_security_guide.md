@@ -190,7 +190,7 @@ Script: `scripts/backup-mongo.sh`
    - Build: `pnpm install --frozen-lockfile && pnpm run build`
    - Start: `pnpm run start`
    - Port: 3000
-   - Env vars: add everything from “Environment Variables” section
+   - Environment variables: In the Coolify application configuration, navigate to the "Environment Variables" section and add each environment variable as a key-value pair (e.g., `JWT_SECRET=your_secret`). Refer to the “Environment Variables (Production)” section above for the required variables.
 3) Attach domain: `https://inventory.example.com`
 4) Point DNS A record to VPS IP; wait for propagation
 5) Set up MongoDB allow‑list for VPS IP and validate `MONGODB_URI`

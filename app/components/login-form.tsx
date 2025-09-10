@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,6 +16,44 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const otpAbortRef = useRef<AbortController | null>(null);
+
+  // Start WebOTP listening after OTP is sent
+  const startWebOtpListener = () => {
+    try {
+      // Ensure browser support and secure context
+      if (typeof window === 'undefined') return;
+      if (!('OTPCredential' in window) || !(navigator as any).credentials?.get) return;
+
+      // Abort any prior listener
+      otpAbortRef.current?.abort();
+      const ac = new AbortController();
+      otpAbortRef.current = ac;
+
+      // Request the OTP via WebOTP API
+      (navigator as any).credentials
+        .get({ otp: { transport: ['sms'] }, signal: ac.signal })
+        .then((cred: any) => {
+          if (!cred) return;
+          const received = cred.code || cred?.otp || '';
+          if (received) {
+            setCode(received);
+          }
+        })
+        .catch(() => {
+          // Silently ignore errors (user may type code manually or browser unsupported)
+        });
+    } catch {
+      // No-op; fallback to manual entry
+    }
+  };
+
+  // Abort WebOTP on unmount
+  useEffect(() => {
+    return () => {
+      otpAbortRef.current?.abort();
+    };
+  }, []);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +74,9 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       }
 
       setOtpSent(true);
+      // Attempt to start WebOTP right after the user gesture that triggered send
+      // This increases the likelihood that browsers allow the API call
+      startWebOtpListener();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {
@@ -110,6 +151,11 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   onChange={(e) => setCode(e.target.value)}
                   required
                   disabled={isLoading}
+                  // Hints for browser/SMS OTP autofill
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  pattern="\\d*"
+                  name="one-time-code"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,38 @@ export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+  const otpAbortRef = useRef<AbortController | null>(null);
+
+  // Start WebOTP listening after OTP is sent
+  const startWebOtpListener = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      if (!('OTPCredential' in window) || !(navigator as any).credentials?.get) return;
+
+      // Abort any existing listener
+      otpAbortRef.current?.abort();
+      const ac = new AbortController();
+      otpAbortRef.current = ac;
+
+      (navigator as any).credentials
+        .get({ otp: { transport: ['sms'] }, signal: ac.signal })
+        .then((cred: any) => {
+          if (!cred) return;
+          const received = cred.code || cred?.otp || '';
+          if (received) setOtp(received);
+        })
+        .catch(() => {
+          // Ignore; user can type manually or browser unsupported
+        });
+    } catch {}
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      otpAbortRef.current?.abort();
+    };
+  }, []);
 
   // Persist phone number locally so users don't have to retype it
   useEffect(() => {
@@ -71,6 +103,8 @@ export default function LoginPage() {
       if (response.ok) {
         setSuccess('OTP sent successfully');
         setStep('otp');
+        // Start WebOTP immediately after user gesture
+        startWebOtpListener();
         if (data.testOtp) {
           setOtp(data.testOtp);
         }
@@ -189,6 +223,9 @@ export default function LoginPage() {
                 <Input
                   id="otp"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
+                  name="one-time-code"
+                  pattern="\\d*"
                   placeholder="123456"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
