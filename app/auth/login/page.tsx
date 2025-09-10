@@ -222,10 +222,10 @@ export default function LoginPage() {
                 <Label htmlFor="otp">Verification Code</Label>
                 <Input
                   id="otp"
+                  type="tel"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   name="one-time-code"
-                  pattern="\\d*"
                   placeholder="123456"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}

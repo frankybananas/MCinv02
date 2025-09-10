@@ -145,7 +145,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 <label htmlFor="code" className="sr-only">OTP Code</label>
                 <Input
                   id="code"
-                  type="text"
+                  type="tel"
                   placeholder="Enter the code from SMS"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
@@ -154,7 +154,6 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   // Hints for browser/SMS OTP autofill
                   autoComplete="one-time-code"
                   inputMode="numeric"
-                  pattern="\\d*"
                   name="one-time-code"
                 />
               </div>

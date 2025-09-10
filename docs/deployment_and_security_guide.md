@@ -74,6 +74,65 @@ You can deploy with any process manager, but Coolify (Docker + Traefik) on Conta
 - Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`.
 
 
+## Using Twilio Verify (Coolify setup)
+
+This app uses Twilio Verify for OTP. Follow this checklist when deploying with Coolify.
+
+### Environment variables to set (Coolify → Application → Environment Variables)
+
+- `TWILIO_ACCOUNT_SID` (required)
+- `TWILIO_AUTH_TOKEN` (required)
+- `TWILIO_VERIFY_SERVICE_SID` (required)
+- `JWT_SECRET` (required)
+- `MONGODB_URI` (required)
+- `NODE_ENV=production` (recommended)
+- `NEXT_TELEMETRY_DISABLED=1` (optional)
+
+Do not set the Messaging Service variables (`TWILIO_MESSAGING_SERVICE_SID`, `TWILIO_FROM_NUMBER`) for Verify. They are not needed.
+
+### Where to set in Coolify
+
+1. Open your app in Coolify.
+2. Go to `Environment` → `Environment Variables`.
+3. Add each key/value exactly as above (one per row).
+4. Save and redeploy.
+
+### Testing steps (production URL over HTTPS)
+
+1. Navigate to your production domain (e.g., `https://inventory.example.com`). Ensure the browser shows a lock icon (no red cross).  
+2. Enter an authorized phone number (must exist in your `User` collection; stored and used in E.164 format like `+27721234567`).  
+3. You should receive an SMS from Twilio Verify with a code.  
+4. Enter the code on the OTP screen and verify.  
+
+Notes:
+- Twilio Verify composes the SMS; it may not be origin-bound, so WebOTP autofill usually will not trigger. Manual entry remains supported.  
+- The WebOTP hints remain in the UI but are best‑effort only with Verify.
+
+### Troubleshooting
+
+- __Server configuration error on Send OTP__  
+  Check that `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_VERIFY_SERVICE_SID` are present. In non‑production, the API may return which variable is missing in the `detail` field; otherwise inspect server logs in Coolify.
+
+- __No SMS or Verify errors in Twilio Console__  
+  - Ensure the Verify Service is active and the destination country is allowed.  
+  - Confirm Twilio’s geo permissions for SMS to the target region.  
+  - Ensure your Twilio account has sufficient balance/credit.
+
+- __Login page shows a red cross / Not Secure__  
+  - The app must be served over valid HTTPS. Attach a real domain and let Coolify/Traefik issue a Let’s Encrypt certificate.  
+  - Avoid using raw IPs; certificates don’t validate against bare IPs.  
+  - Eliminate mixed content (all assets must load over HTTPS).  
+  - WebOTP requires a secure context; without a proper lock icon, OTP autofill and some features may not work.
+
+- __“Invalid phone number”__  
+  - The app validates with `libphonenumber-js` (defaults ZA). Enter in international format or with a leading `+` and country code.  
+  - Ensure the same normalized E.164 number exists in `User`.
+
+- __Verify approves but login still fails__  
+  - Check server logs for JWT creation errors and confirm `JWT_SECRET` is set.  
+  - Confirm cookies are allowed; the app sets `session_token` (HttpOnly, Secure in production).
+
+
 ## Build and Run Commands (pnpm)
 
 - Install dependencies: `pnpm install`
@@ -94,6 +153,67 @@ If using Coolify:
 - Attach your domain (e.g., https://inventory.example.com) to the app.
 - If using Coolify/Traefik, automatic Let’s Encrypt TLS is configured.
 - Production app requires HTTPS for best mobile Web Share behavior.
+
+### Domain and HTTPS (Cloudflare + Coolify)
+
+Follow these steps to get a valid lock icon and stable HTTPS when using Cloudflare in front of Coolify/Traefik.
+
+1) Add your domain to Cloudflare and point nameservers
+- Add `yourdomain.tld` to Cloudflare.
+- At your registrar, change nameservers to the two Cloudflare nameservers Cloudflare provides.
+- Wait for Cloudflare to show the domain as Active.
+
+2) Create DNS records (start as DNS-only, gray cloud)
+- A record for your app host:
+  - Name: `app` (serves `https://app.yourdomain.tld`)
+  - Type: `A`
+  - Value: Your VPS IPv4
+  - Proxy status: DNS only (gray)
+- Optional root + www:
+  - `@` → A → VPS IPv4 (DNS only)
+  - `www` → CNAME → `@` (DNS only)
+
+3) Configure the domain in Coolify
+- In your application → Domains: add the host you’ll use (e.g., `app.yourdomain.tld`).
+- Enable “Force HTTPS”.
+- Redeploy. Traefik should obtain a Let’s Encrypt certificate via HTTP‑01 because records are DNS‑only.
+
+4) Verify the HTTPS lock
+- Visit `https://app.yourdomain.tld` on desktop and mobile.
+- You should see a proper lock icon. If not:
+  - Ensure ports 80/443 are open on the VPS/firewall.
+  - Keep Cloudflare DNS records as DNS only (gray) until Let’s Encrypt is issued.
+  - Check DevTools Console for Mixed Content warnings; all assets must be loaded over HTTPS.
+
+5) (Optional) Enable Cloudflare proxy after cert issuance
+- Turn the orange cloud (Proxy) on for the A/CNAME you want proxied.
+- Cloudflare → SSL/TLS → set SSL mode to “Full (strict)”.
+- Re‑verify the site is secure with a lock icon.
+
+Cloudflare settings checklist
+- SSL/TLS
+  - Mode: Full (strict) when proxying.
+  - Always Use HTTPS: On (optional; Traefik already redirects).
+  - HSTS: Optional; enable only after HTTPS is fully working.
+- Caching
+  - Avoid caching HTML. Default “Standard” is fine.
+- Speed
+  - Auto Minify: optional.
+  - Rocket Loader: recommend Off for React/Next.js.
+- Security
+  - WAF/Bot settings: start conservative; tighten later if needed.
+  - Disable features like Email Obfuscation for the app host.
+
+DNSSEC
+- Optional. Not required for HTTPS/WebOTP.
+- If enabled, Cloudflare will show a DS record to paste at your registrar.
+
+Mixed content notes
+- Certificates must match the domain; avoid raw IPs.
+- Every asset (images, fonts, scripts) must be requested via `https://`.
+
+Optional app environment variable
+- Consider adding `APP_URL=https://app.yourdomain.tld` in Coolify to standardize absolute URLs if you introduce emails or external links later.
 
 
 ## Authentication and Sessions
