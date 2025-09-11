@@ -4,6 +4,8 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { LoginForm } from './login-form';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery } from '../types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 // Lazy load heavy components to reduce initial bundle size
 const Dashboard = lazy(() => import('./dashboard').then(module => ({ default: module.Dashboard })));
@@ -41,6 +43,10 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
   const [currentUserName, setCurrentUserName] = useState<string>('');
+
+  // Reserve flow: prompt for client linking
+  const [reserveCarId, setReserveCarId] = useState<string | null>(null);
+  const [selectedClientIdForReserve, setSelectedClientIdForReserve] = useState<string | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -190,6 +196,12 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
 
   const handleStatusChange = async (carId: string, status: CarState) => {
     try {
+      // For "reserved", require linking to a client first
+      if (status === 'reserved') {
+        setReserveCarId(carId);
+        return;
+      }
+
       const response = await fetch(`/api/cars/${carId}`,
         {
           method: 'PUT',
@@ -197,6 +209,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
             'Content-Type': 'application/json',
             'x-user-name': currentUserName || 'unknown',
             'x-user-phone': currentUserPhone || 'unknown',
+            'x-user-role': userRole || 'user',
           },
           body: JSON.stringify({ status }),
         });
@@ -480,6 +493,67 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         />
       </Suspense>
       {renderBackButton()}
+
+      {/* Client selection dialog for reserving a car */}
+      <Dialog open={!!reserveCarId} onOpenChange={(open) => { if (!open) { setReserveCarId(null); setSelectedClientIdForReserve(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link a Client to reserve this car</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Select one of your clients to link to this reservation.</p>
+            <div className="max-h-64 overflow-auto border rounded-md divide-y">
+              {clients
+                .filter(c => !currentUserPhone || c.createdByPhone === currentUserPhone)
+                .map(c => (
+                  <button
+                    key={c._id}
+                    className={`w-full text-left px-3 py-2 hover:bg-accent ${selectedClientIdForReserve === c._id ? 'bg-accent' : ''}`}
+                    onClick={() => setSelectedClientIdForReserve(c._id as unknown as string)}
+                  >
+                    <div className="font-medium">{c.firstName} {c.lastName}</div>
+                    <div className="text-xs text-muted-foreground">{c.phone || c.email}</div>
+                  </button>
+                ))}
+              {clients.filter(c => !currentUserPhone || c.createdByPhone === currentUserPhone).length === 0 && (
+                <div className="p-3 text-sm text-muted-foreground">You have no clients yet. Create a client first.</div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => { setReserveCarId(null); setSelectedClientIdForReserve(null); }}>Cancel</Button>
+              <Button
+                disabled={!selectedClientIdForReserve || !reserveCarId}
+                onClick={async () => {
+                  if (!reserveCarId || !selectedClientIdForReserve) return;
+                  try {
+                    const res = await fetch(`/api/cars/${reserveCarId}`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-name': currentUserName || 'unknown',
+                        'x-user-phone': currentUserPhone || 'unknown',
+                        'x-user-role': userRole || 'user',
+                      },
+                      body: JSON.stringify({ status: 'reserved', clientId: selectedClientIdForReserve }),
+                    });
+                    if (res.ok) {
+                      await fetchData();
+                      setReserveCarId(null);
+                      setSelectedClientIdForReserve(null);
+                    } else {
+                      console.error('Reserve failed', await res.text());
+                    }
+                  } catch (e) {
+                    console.error('Reserve error', e);
+                  }
+                }}
+              >
+                Link Client & Reserve
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

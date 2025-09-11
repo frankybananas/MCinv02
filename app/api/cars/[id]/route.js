@@ -6,6 +6,7 @@ import Car from '@/models/Car.js';
 import Picture from '@/models/Picture';
 import Session from '@/models/Session'; // Import Session model
 import Delivery from '@/models/Delivery.ts';
+import Client from '@/models/Client.js';
 import User from '@/models/User.ts';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +35,7 @@ export async function PUT(request, { params }) {
   const headersList = await headers();
   const userPhone = headersList.get('x-user-phone');
   const userName = headersList.get('x-user-name');
+  const userRole = headersList.get('x-user-role');
 
   const { id } = await params;
 
@@ -42,7 +44,7 @@ export async function PUT(request, { params }) {
 
     if (contentType.includes('application/json')) {
       // Handle JSON for status update
-      const { status } = await request.json();
+      const { status, clientId } = await request.json();
 
       if (!status || !['in-stock', 'coming', 'reserved', 'sold'].includes(status)) {
         return NextResponse.json({ success: false, message: 'Invalid status provided' }, { status: 400 });
@@ -65,19 +67,44 @@ export async function PUT(request, { params }) {
         };
         carToUpdate.auditLog.push(auditEntry);
 
-        // Auto-create delivery when status changes to 'reserved'
+        // Handle reservation side-effects
         if (status === 'reserved' && userPhone) {
           try {
             // Find user by phone to get userId
             const user = await User.findOne({ phone: userPhone });
-            
+
             if (user) {
-              // Create or update delivery record
+              // Optionally link client if provided and allowed
+              let linkedClientId = null;
+              if (clientId && mongoose.Types.ObjectId.isValid(clientId)) {
+                let canLink = false;
+                if (userRole === 'admin' || userRole === 'manager') {
+                  canLink = true;
+                } else {
+                  const owned = await Client.findOne({ _id: clientId, createdByPhone: userPhone });
+                  canLink = !!owned;
+                }
+                if (canLink) {
+                  linkedClientId = clientId;
+                  // Set car owner and add car to client's list if not present
+                  carToUpdate.owner = clientId;
+                  await Client.updateOne(
+                    { _id: clientId },
+                    { $addToSet: { cars: id } }
+                  );
+                }
+              }
+
+              // Create or update delivery record and attach client
               const deliveryResult = await Delivery.findOneAndUpdate(
                 { car: id, salesperson: user._id },
-                { $setOnInsert: { car: id, salesperson: user._id } },
+                { $setOnInsert: { car: id, salesperson: user._id }, ...(linkedClientId ? { client: linkedClientId } : {}) },
                 { new: true, upsert: true }
               );
+              if (linkedClientId && deliveryResult && (!deliveryResult.client || String(deliveryResult.client) !== String(linkedClientId))) {
+                deliveryResult.client = linkedClientId;
+                await deliveryResult.save();
+              }
             } else {
               // no-op if user not found
             }
