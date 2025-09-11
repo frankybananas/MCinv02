@@ -6,6 +6,7 @@ import { LoginForm } from './login-form';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 // Lazy load heavy components to reduce initial bundle size
 const Dashboard = lazy(() => import('./dashboard').then(module => ({ default: module.Dashboard })));
@@ -47,6 +48,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   // Reserve flow: prompt for client linking
   const [reserveCarId, setReserveCarId] = useState<string | null>(null);
   const [selectedClientIdForReserve, setSelectedClientIdForReserve] = useState<string | null>(null);
+  // If user chooses to create a client from the reserve dialog, remember the car to offer "Reserve now" after save
+  const [pendingReserveCarId, setPendingReserveCarId] = useState<string | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -315,8 +318,26 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         body: JSON.stringify(clientData),
       });
       if (!response.ok) throw new Error('Failed to save client');
+      const json = await response.json();
+      const savedClient = json?.data as any;
       await fetchData();
       handleBack();
+      // If this client was created from a reserve intent, offer to jump back to reservation
+      if (pendingReserveCarId && savedClient?._id) {
+        const carId = pendingReserveCarId;
+        setPendingReserveCarId(null);
+        toast.success('Client created', {
+          description: 'Link this client to reserve the car now.',
+          action: {
+            label: 'Reserve now',
+            onClick: () => {
+              // Re-open the reserve dialog and preselect this client
+              setSelectedClientIdForReserve(String(savedClient._id));
+              setReserveCarId(carId);
+            }
+          }
+        });
+      }
     } catch (error) {
       console.error('Error saving client:', error);
     }
@@ -506,6 +527,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                   // Close dialog and open create-client flow
                   setReserveCarId(null);
                   setSelectedClientIdForReserve(null);
+                  setPendingReserveCarId(reserveCarId);
                   setEditingClient({} as Client);
                 }}
               >
@@ -536,6 +558,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                     onClick={() => {
                       setReserveCarId(null);
                       setSelectedClientIdForReserve(null);
+                      setPendingReserveCarId(reserveCarId);
                       setEditingClient({} as Client);
                     }}
                   >
