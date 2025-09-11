@@ -498,7 +498,20 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       <Dialog open={!!reserveCarId} onOpenChange={(open) => { if (!open) { setReserveCarId(null); setSelectedClientIdForReserve(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Link a Client to reserve this car</DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle>Link a Client to reserve this car</DialogTitle>
+              <Button
+                size="sm"
+                onClick={() => {
+                  // Close dialog and open create-client flow
+                  setReserveCarId(null);
+                  setSelectedClientIdForReserve(null);
+                  setEditingClient({} as Client);
+                }}
+              >
+                Create client
+              </Button>
+            </div>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">Select one of your clients to link to this reservation.</p>
@@ -516,7 +529,19 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                   </button>
                 ))}
               {clients.filter(c => !currentUserPhone || c.createdByPhone === currentUserPhone).length === 0 && (
-                <div className="p-3 text-sm text-muted-foreground">You have no clients yet. Create a client first.</div>
+                <div className="p-3 text-sm text-muted-foreground flex items-center justify-between gap-3">
+                  <span>You have no clients yet.</span>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setReserveCarId(null);
+                      setSelectedClientIdForReserve(null);
+                      setEditingClient({} as Client);
+                    }}
+                  >
+                    Create client
+                  </Button>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2 pt-2">
