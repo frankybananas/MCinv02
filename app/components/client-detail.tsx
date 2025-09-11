@@ -49,23 +49,39 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
         <h2 className="text-xl font-semibold mt-6 mb-4">Associated Cars</h2>
         {client.cars && client.cars.length > 0 ? (
           <div className="space-y-4">
-                        {client.cars.map((car: Car) => (
-              <Card key={car._id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onSelectCar(car)}>
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center gap-4">
-                    <img 
-                      src={car.images?.[0]?.imageUrl || '/placeholder.svg'} 
-                      alt={`${car.year} ${car.make} ${car.model}`}
-                      className="w-20 h-20 object-contain rounded-lg"
-                    />
-                    <div>
-                      <h3 className="font-semibold">{car.year} {car.make} {car.model}</h3>
-                      <p className="text-sm text-muted-foreground">{car.status}</p>
+            {client.cars
+              .filter((c: any) => typeof c === 'object' && c?.status === 'reserved')
+              .map((car: any, idx: number) => {
+              const carObj = typeof car === 'string' ? null : (car as Car | null);
+              const key = carObj?.
+                _id ? String(carObj._id) : (typeof car === 'string' ? car : String(idx));
+              const imageUrl = carObj?.images?.[0]?.imageUrl || '/placeholder.svg';
+              const title = `${carObj?.year ?? ''} ${carObj?.make ?? ''} ${carObj?.model ?? ''}`.trim() || 'Vehicle';
+              const status = carObj?.status ?? '';
+              return (
+                <Card
+                  key={key}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => { if (carObj?._id) onSelectCar(carObj as Car); }}
+                >
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={imageUrl}
+                        alt={title}
+                        className="w-20 h-20 object-contain rounded-lg"
+                      />
+                      <div>
+                        <h3 className="font-semibold">{title}</h3>
+                        {status && (
+                          <p className="text-sm text-muted-foreground">{status}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-8">
@@ -77,3 +93,4 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
     </div>
   )
 }
+

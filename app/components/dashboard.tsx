@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
+import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 
 import type { Client } from "../types"
 
@@ -103,21 +104,6 @@ export function Dashboard({
       setMenuOpen(false)
     }
   }, [isStockStatus])
-
-    const getStatusColor = (status: CarState) => {
-    switch (status) {
-      case "in-stock":
-        return "bg-green-100 text-green-800"
-      case "coming":
-        return "bg-blue-100 text-blue-800"
-      case "reserved":
-        return "bg-yellow-100 text-yellow-800"
-      case "sold":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
 
   const formatPrice = (price?: number | null) => {
     const validPrice = typeof price === 'number' ? price : 0;
@@ -512,7 +498,7 @@ export function Dashboard({
                   {sortedCars.map((car) => (
                   <Card
                     key={car._id}
-                    className="cursor-pointer overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"
+                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"
                     onClick={() => onCarSelect(car)}
                   >
                     <CardContent className="p-0 sm:p-4">
@@ -546,11 +532,11 @@ export function Dashboard({
                                     className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+                                    {formatStatusLabel(car.status)}
                                   </Badge>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {(['in-stock', 'coming', 'reserved', 'sold'] as CarState[]).map((statusOption) => (
+                                  {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
                                     <DropdownMenuItem
                                       key={statusOption}
                                       onClick={(e: React.MouseEvent) => {
@@ -560,7 +546,7 @@ export function Dashboard({
                                         }
                                       }}
                                     >
-                                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
+                                      {formatStatusLabel(statusOption)}
                                     </DropdownMenuItem>
                                   ))}
                                 </DropdownMenuContent>
@@ -606,11 +592,11 @@ export function Dashboard({
                                   className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
+                                  {formatStatusLabel(car.status)}
                                 </Badge>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {(['in-stock', 'coming', 'reserved', 'sold'] as CarState[]).map((statusOption) => (
+                                {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
                                   <DropdownMenuItem
                                     key={statusOption}
                                     onClick={(e: React.MouseEvent) => {
@@ -620,7 +606,7 @@ export function Dashboard({
                                       }
                                     }}
                                   >
-                                    {statusOption.charAt(0).toUpperCase() + statusOption.slice(1).replace("-", " ")}
+                                    {formatStatusLabel(statusOption)}
                                   </DropdownMenuItem>
                                 ))}
                               </DropdownMenuContent>

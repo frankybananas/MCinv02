@@ -113,6 +113,29 @@ export async function PUT(request, { params }) {
             // Don't fail the status update if delivery creation fails
           }
         }
+
+        // If moving away from 'reserved', remove any delivery records for this car
+        if (oldStatus === 'reserved' && status !== 'reserved') {
+          try {
+            await Delivery.deleteMany({ car: id });
+          } catch (cleanupErr) {
+            console.error('Failed to remove deliveries after status change:', cleanupErr);
+            // Do not block the status update
+          }
+          // Also unlink the vehicle from any client association
+          try {
+            if (carToUpdate.owner) {
+              const ownerId = carToUpdate.owner;
+              await Client.updateOne(
+                { _id: ownerId },
+                { $pull: { cars: id } }
+              );
+            }
+            carToUpdate.owner = undefined;
+          } catch (unlinkErr) {
+            console.error('Failed to unlink car from client after leaving reserved:', unlinkErr);
+          }
+        }
       }
 
       carToUpdate.status = status;

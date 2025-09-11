@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
     await request.blob();
-    const { id } = params;
+    const { id } = await params;
     // Verify user
     const cookieStore = await cookies();
     const token = cookieStore.get('session_token')?.value;
@@ -67,7 +67,11 @@ export async function GET(request, { params }) {
     const pushUnique = (car) => {
       try {
         const key = String(car._id);
-        if (!seen.has(key)) { seen.add(key); mergedCars.push(car); }
+        // Only include currently reserved cars as "associated"
+        if (!seen.has(key) && String(car.status) === 'reserved') {
+          seen.add(key);
+          mergedCars.push(car);
+        }
       } catch {}
     };
     if (Array.isArray(client.cars)) client.cars.forEach(pushUnique);
@@ -90,7 +94,7 @@ export async function PUT(request, { params }) {
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
     await request.blob();
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     // Verify user
     const cookieStore = await cookies();
@@ -143,7 +147,7 @@ export async function DELETE(request, { params }) {
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
     await request.blob();
-    const { id } = params;
+    const { id } = await params;
     // Verify user
     const cookieStore = await cookies();
     const token = cookieStore.get('session_token')?.value;

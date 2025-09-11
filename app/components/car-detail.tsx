@@ -9,6 +9,7 @@ import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
+import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 
 interface CarDetailProps {
   car: Car
@@ -166,20 +167,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     }).format(price)
   }
 
-  const getStatusColor = (status: CarStatus) => {
-    switch (status) {
-      case "in-stock":
-        return "bg-green-100 text-green-800"
-      case "coming":
-        return "bg-blue-100 text-blue-800"
-      case "reserved":
-        return "bg-yellow-100 text-yellow-800"
-      case "sold":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
@@ -215,15 +203,21 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <div className={`px-3 py-1 rounded-md text-sm font-medium ${getStatusColor(car.status)} cursor-pointer`}>
-                {car.status.charAt(0).toUpperCase() + car.status.slice(1).replace("-", " ")}
-              </div>
+              <Badge
+                className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
+              >
+                {formatStatusLabel(car.status)}
+              </Badge>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onStatusChange("in-stock")}>Mark as In Stock</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange("coming")}>Mark as Coming</DropdownMenuItem>
-              <DropdownMenuItem onClick={onReserve}>Reserve Car</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onStatusChange("sold")}>Mark as Sold</DropdownMenuItem>
+              {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
+                <DropdownMenuItem
+                  key={statusOption}
+                  onClick={() => onStatusChange(statusOption)}
+                >
+                  {formatStatusLabel(statusOption)}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="secondary" size="sm" className="h-8" onClick={onShare}>
