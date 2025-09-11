@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { User, LogOut } from "lucide-react"
+import { User, LogOut, Users } from "lucide-react"
 
 function clean(v?: string) {
   return v ? v.trim().replace(/^"|"$/g, "") : undefined
@@ -13,7 +13,7 @@ function clean(v?: string) {
 export default function HeaderBar() {
   // Use the supplied Halfway logo explicitly, removing the previous placeholder/ACME logo
   const logoPath = "/halfway-logo.png"
-  const [profile, setProfile] = useState<{ firstName: string; lastName: string; email: string; phone: string; avatar?: string } | null>(null)
+  const [profile, setProfile] = useState<{ firstName: string; lastName: string; email: string; phone: string; avatar?: string; role?: string } | null>(null)
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -61,6 +61,12 @@ export default function HeaderBar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {profile?.role === 'admin' && (
+              <DropdownMenuItem onClick={() => { window.location.href = '/admin' }}>
+                <Users className="mr-2 h-4 w-4" />
+                Manage Users
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => { window.location.href = '/profile' }}>Profile</DropdownMenuItem>
             <DropdownMenuItem onClick={logout} className="text-red-600">
               <LogOut className="mr-2 h-4 w-4" />

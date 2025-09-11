@@ -61,6 +61,7 @@ export async function PUT(request: Request) {
       lastName: profile.lastName || '',
       email: profile.email || '',
       avatar: profile.avatar || '',
+      role: user.role,
     }
 
     return NextResponse.json({ success: true, data, requireReauth })
@@ -98,6 +99,7 @@ export async function GET(request: Request) {
       lastName: profile.lastName || '',
       email: profile.email || '',
       avatar: profile.avatar || '',
+      role: user.role,
     }
 
     return NextResponse.json({ success: true, data })
