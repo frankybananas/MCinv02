@@ -319,25 +319,34 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
 
   const renderBackButton = () => {
     const hasDetailOpen = !!(selectedCar || selectedClient || selectedDelivery || editingCar || editingClient);
-    const onBackClick = () => {
+    const onBackClick = (e?: React.MouseEvent<HTMLButtonElement>) => {
+      // Avoid any default or bubbling behavior that could trigger unwanted navigation
+      try {
+        e?.preventDefault?.();
+        e?.stopPropagation?.();
+      } catch {}
       if (hasDetailOpen) {
+        // Close any open detail/editor views first
         handleBack();
-      } else if (activeStatus !== 'all') {
-        setActiveStatus('all');
+        return;
+      }
+
+      // Determine whether we're currently in a Stock view or a non-Stock (Clients/Delivery) view
+      const isStockStatus = ['all', 'in-stock', 'coming', 'reserved', 'sold', 'demo'].includes(activeStatus as string);
+
+      if (isStockStatus) {
+        // From Stock, go to a non-Stock tab to reveal the other menu (Clients, Deliveries, etc.)
+        setActiveStatus('delivery');
       } else {
-        try {
-          if (window.history.length > 1) {
-            window.history.back();
-          } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        } catch {}
+        // From non-Stock tabs, go back to Stock (All)
+        setActiveStatus('all');
       }
     };
     return (
       <button
         aria-label="Back"
         onClick={onBackClick}
+        type="button"
         className="fixed left-4 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] md:left-6 md:bottom-6 z-[60] inline-flex items-center justify-center rounded-full bg-white text-blue-700 hover:text-blue-800 ring-1 ring-blue-200 shadow-lg w-14 h-14 active:scale-95 transition-transform pointer-events-auto"
       >
         <ArrowLeft className="h-6 w-6" />

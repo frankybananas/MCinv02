@@ -94,6 +94,16 @@ export function Dashboard({
   const showDelivery = activeStatus === "delivery"
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
+  // When entering a non-Stock tab (Clients/Delivery), auto-open the bottom menu on mobile/tablet
+  React.useEffect(() => {
+    if (!isStockStatus) {
+      setMenuOpen(true)
+    } else {
+      // Returning to Stock closes the other menu
+      setMenuOpen(false)
+    }
+  }, [isStockStatus])
+
     const getStatusColor = (status: CarState) => {
     switch (status) {
       case "in-stock":
