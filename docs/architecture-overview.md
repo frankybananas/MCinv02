@@ -17,6 +17,16 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 - __Middleware__: `middleware.ts` enforces JWT presence and OTP-day freshness, injects user headers, and handles admin gating and redirects.
 - __Client-first dashboard__: Root route (`app/page.tsx`) renders `MainPage` which controls authentication checks and lazy-loads heavy components (`Dashboard`, `CarDetail`, `ClientDetail`, `DeliveryDetail`, editors).
   - The Reserve client selection dialog is owned and rendered by `MainPage` in every view branch (Dashboard, Car Detail, Client Detail, Delivery Detail, Editors). Selecting `Reserved` from either the Dashboard list or the Car Detail page triggers this dialog immediately.
+
+### Mobile Dashboard: FAB vs. Scroll
+- The main Stock list scrolls within a viewport that also hosts a floating “Add” FAB near the bottom-right.
+- To ensure the area under/around the FAB remains scrollable on mobile:
+  - The FAB’s immediate wrapper/container should use `pointer-events: none;` so it does not intercept scroll/touch events.
+  - The actionable element (the button itself) should use `pointer-events: auto;` so taps on the button still work. This lets the rest of the area beneath remain scrollable.
+  - Provide bottom padding on the scroll container at least equal to the FAB’s diameter plus spacing, e.g. `padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));` to prevent the FAB from visually overlapping and blocking the last items.
+  - Keep the FAB’s z-index above content for visibility, but do not wrap it in other positioned elements that capture gestures.
+  - Respect safe-area insets on iOS using `env(safe-area-inset-bottom)` so neither the FAB nor the padding collides with system UI.
+- This pattern preserves the FAB’s click/tap behavior while keeping the list beneath fully scrollable.
 - __Data layer__: MongoDB models in `models/` (`Car`, `Client`, `Delivery`, `User`, etc.) via a cached `mongoose` connection (`lib/mongodb.ts`).
 - __API__: Next.js route handlers in `app/api/...` implement CRUD and domain workflows (cars, clients, deliveries, auth, users, uploads, cron).
 - __User isolation__: Implemented in API routes based on JWT claims and role. Clients are filtered by `createdByPhone`; deliveries are filtered by `salesperson` (current user id).
