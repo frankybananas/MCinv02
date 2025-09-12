@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Shield } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
@@ -52,8 +52,10 @@ export function Dashboard({
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   // Bottom menu open/close (mobile/tablet)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(true)
   const touchStartYRef = React.useRef<number | null>(null)
+  const navScrollRef = React.useRef<HTMLDivElement | null>(null)
+  const activeChipId = `nav-chip-${activeStatus}`
   const handleMenuTouchStart = (e: React.TouchEvent) => {
     touchStartYRef.current = e.touches[0]?.clientY ?? null
   }
@@ -62,11 +64,20 @@ export function Dashboard({
     if (start == null) return
     const endY = e.changedTouches[0]?.clientY ?? start
     const delta = start - endY
-    // Swipe up opens, swipe down closes
-    if (delta > 30) setMenuOpen(true)
+    // Only allow pull-to-hide on the handle: swipe down closes
     if (delta < -30) setMenuOpen(false)
     touchStartYRef.current = null
   }
+
+  // Keep the selected chip in view when activeStatus changes
+  React.useEffect(() => {
+    try {
+      const el = typeof document !== 'undefined' ? document.getElementById(activeChipId) : null;
+      if (el && navScrollRef.current) {
+        el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    } catch {}
+  }, [activeChipId, activeStatus])
 
   // Outside click overlay handles closing; do not auto-close on touchmove/wheel.
   // header moved to Root layout
@@ -84,16 +95,6 @@ export function Dashboard({
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
-
-  // When entering a non-Stock tab (Clients/Delivery), auto-open the bottom menu on mobile/tablet
-  React.useEffect(() => {
-    if (!isStockStatus) {
-      setMenuOpen(true)
-    } else {
-      // Returning to Stock closes the other menu
-      setMenuOpen(false)
-    }
-  }, [isStockStatus])
 
   const formatPrice = (price?: number | null) => {
     const validPrice = typeof price === 'number' ? price : 0;
@@ -158,25 +159,18 @@ export function Dashboard({
       {/* Unified Mobile/Tablet Bottom Navbar (always present) */}
       {(
         <>
-          {/* Click-outside overlay to hide menu */}
-          {menuOpen && (
-            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-          )}
           <div
             className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[66%]'} `}
-            onTouchStart={handleMenuTouchStart}
-            onTouchEnd={handleMenuTouchEnd}
           >
-            {!menuOpen && (
-              <button
-                className="w-full flex items-center justify-center py-2 text-xs font-semibold text-blue-700 tracking-wide select-none"
-                onClick={() => setMenuOpen(true)}
-                aria-label="Swipe up to open"
-              >
-                Swipe up
-              </button>
-            )}
-            <div className="w-full overflow-x-auto">
+            {/* Pull-to-hide handle (only element that closes the menu) */}
+            <div
+              className="w-full flex items-center justify-center pt-2 pb-1"
+              onTouchStart={handleMenuTouchStart}
+              onTouchEnd={handleMenuTouchEnd}
+            >
+              <div className="h-1.5 w-12 rounded-full bg-gray-300/80" />
+            </div>
+            <div className="w-full overflow-x-auto" ref={navScrollRef}>
               <div className="relative flex items-center justify-start p-3 sm:p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                 <div className="flex gap-3 flex-nowrap items-center whitespace-nowrap px-4 sm:px-6 pr-28 w-full">
                   {([
@@ -189,10 +183,13 @@ export function Dashboard({
                     { id: 'clients', label: 'Clients' },
                     { id: 'delivery', label: 'Delivery' },
                     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin' }] : []),
-                  ] as { id: DashboardTab | 'admin'; label: string }[]).map((item) => (
+                  ] as { id: DashboardTab | 'admin'; label: string }[]).map((item) => {
+                    const isActive = item.id !== 'admin' && activeStatus === (item.id as DashboardTab)
+                    return (
                     <Button
                       key={item.id}
-                      variant={activeStatus === item.id ? 'default' : 'ghost'}
+                      id={`nav-chip-${item.id}`}
+                      variant={'ghost'}
                       size="sm"
                       onClick={() => {
                         if (item.id === 'admin') {
@@ -201,11 +198,47 @@ export function Dashboard({
                           onStatusFilterChange(item.id as DashboardTab)
                         }
                       }}
-                      className="h-9 rounded-md px-4 text-xs sm:text-sm shrink-0"
+                      type="button"
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`h-9 px-4 text-xs sm:text-sm shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60
+                        ${isActive
+                          ? 'bg-blue-600 text-white border-blue-400/40 shadow-sm'
+                          : 'bg-white/10 text-foreground/90 border-white/25 hover:bg-white/20 backdrop-blur-sm'}
+                      `}
                     >
-                      {item.label}
+                      <span className="inline-flex items-center gap-1.5">
+                        {/* Icons per tab */}
+                        {item.id === 'all' && (
+                          <CarIcon className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'in-stock' && (
+                          <CheckCircle className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'coming' && (
+                          <Clock className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'reserved' && (
+                          <BookmarkCheck className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'sold' && (
+                          <Tag className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'demo' && (
+                          <Wand2 className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'clients' && (
+                          <Users className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'delivery' && (
+                          <Truck className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'admin' && (
+                          <Shield className={`text-foreground/70 w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.label}
+                      </span>
                     </Button>
-                  ))}
+                  )})}
                 </div>
               </div>
             </div>

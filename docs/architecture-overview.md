@@ -25,6 +25,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
 - The bar’s wrapper uses `pointer-events: none` while chips/buttons use `pointer-events: auto`, so content beneath remains scrollable.
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
+ - Chips include subtle icons per section/filter (car, check, clock, bookmark, tag, wand, users, truck, admin shield). Active state uses a solid highlight; inactive uses a light glass outline.
 
 ### Mobile Dashboard: FAB vs. Scroll
 - The main Stock list scrolls within a viewport that also hosts a floating “Add” FAB near the bottom-right.
@@ -393,3 +394,5 @@ Record changes to architecture here when updating:
 - 2025-09-11: Client selection now fetches populated client (merged associated cars). `ClientDetail` list keys made robust and string-ID guards added.
 - 2025-09-11: When a car leaves Reserved, all Delivery records for that car are deleted and the car is unlinked from the client (removed from client's `cars`).
  - 2025-09-11: Reserve dialog is now rendered in all views via `MainPage`, so reserving from Car Detail opens the client selection dialog immediately.
+ - 2025-09-12: Unified mobile bottom bar with pull-to-hide handle; added scroll-into-view for selected chip; refined chip styling with subtle icons.
+ - 2025-09-12: Updated PWA manifest to reference `public/app-icon.png`, `public/app-icon-512.png`, and `public/app-icon-maskable.png` as the app icons.
