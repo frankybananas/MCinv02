@@ -31,6 +31,7 @@ async function main() {
   const out512 = path.join(pub, 'app-icon-512.png');
   const out192 = path.join(pub, 'app-icon.png'); // 192x192
   const outMask = path.join(pub, 'app-icon-maskable.png');
+  const appleTouch = path.join(pub, 'apple-touch-icon.png');
   const fav16 = path.join(pub, 'favicon-16.png');
   const fav32 = path.join(pub, 'favicon-32.png');
   const fav48 = path.join(pub, 'favicon-48.png');
@@ -44,6 +45,9 @@ async function main() {
 
   // 192x192 app icon
   await base.clone().resize(192, 192, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } }).toFile(out192);
+
+  // 180x180 Apple touch icon
+  await base.clone().resize(180, 180, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } }).toFile(appleTouch);
 
   // Maskable: add 12% padding inside a 512 canvas to respect mask safe area
   const PAD = Math.round(512 * 0.12);
@@ -64,6 +68,7 @@ async function main() {
   console.log('Icons generated:');
   console.log('-', path.relative(root, out512));
   console.log('-', path.relative(root, out192));
+  console.log('-', path.relative(root, appleTouch));
   console.log('-', path.relative(root, outMask));
   console.log('-', path.relative(root, favIco));
 }
