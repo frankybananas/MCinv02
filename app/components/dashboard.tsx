@@ -186,9 +186,9 @@ export function Dashboard({
                 Swipe up
               </button>
             )}
-            <ScrollArea className="w-full">
+            <div className="w-full overflow-x-auto">
               <div className="relative flex items-center justify-start p-3 sm:p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap px-4 sm:px-6 pr-28 w-full">
+                <div className="flex gap-3 flex-nowrap items-center whitespace-nowrap px-4 sm:px-6 pr-28 w-full">
                   {([
                     { id: 'all', label: 'All' },
                     { id: 'in-stock', label: 'In-Stock' },
@@ -218,7 +218,7 @@ export function Dashboard({
                   ))}
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </>
       )}

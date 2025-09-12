@@ -493,28 +493,16 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
 
   const renderBackButton = () => {
     const hasDetailOpen = !!(selectedCar || selectedClient || selectedDelivery || editingCar || editingClient);
+    if (!hasDetailOpen) return null;
     const onBackClick = (e?: React.MouseEvent<HTMLButtonElement>) => {
       // Avoid any default or bubbling behavior that could trigger unwanted navigation
       try {
         e?.preventDefault?.();
         e?.stopPropagation?.();
       } catch {}
-      if (hasDetailOpen) {
-        // Close any open detail/editor views first
-        handleBack();
-        return;
-      }
-
-      // Determine whether we're currently in a Stock view or a non-Stock (Clients/Delivery) view
-      const isStockStatus = ['all', 'in-stock', 'coming', 'reserved', 'sold', 'demo'].includes(activeStatus as string);
-
-      if (isStockStatus) {
-        // From Stock, go to a non-Stock tab to reveal the other menu (Clients, Deliveries, etc.)
-        setActiveStatus('delivery');
-      } else {
-        // From non-Stock tabs, go back to Stock (All)
-        setActiveStatus('all');
-      }
+      // Close any open detail/editor views first
+      handleBack();
+      return;
     };
     return (
       <button
