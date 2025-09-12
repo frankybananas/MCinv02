@@ -68,17 +68,7 @@ export function Dashboard({
     touchStartYRef.current = null
   }
 
-  // Close menu on any page scroll or touch-move (outside the menu) and on outside click
-  React.useEffect(() => {
-    const onWheel = () => setMenuOpen(false)
-    const onTouchMove = () => setMenuOpen(false)
-    window.addEventListener('wheel', onWheel, { passive: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: true })
-    return () => {
-      window.removeEventListener('wheel', onWheel)
-      window.removeEventListener('touchmove', onTouchMove)
-    }
-  }, [])
+  // Outside click overlay handles closing; do not auto-close on touchmove/wheel.
   // header moved to Root layout
   // Top-level tabs: Stock (car area), Clients, Delivery, and Admin (if role)
   const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
@@ -273,7 +263,7 @@ export function Dashboard({
 
 
       {/* Main content */}
-      <ScrollArea className="flex-1" onWheel={() => setMenuOpen(false)} onTouchMove={() => setMenuOpen(false)}>
+      <ScrollArea className="flex-1">
         <div className={`p-2 sm:p-4 space-y-4 max-w-4xl mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
           {/* Client list */
           }
