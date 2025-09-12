@@ -165,20 +165,18 @@ export function Dashboard({
   return (
     <div className="flex flex-col h-screen bg-background">
 
-      {/* Top-level Tabs (hidden whenever viewing Stock) */}
-      {!isStockStatus && (
+      {/* Unified Mobile/Tablet Bottom Navbar (always present) */}
+      {(
         <>
           {/* Click-outside overlay to hide menu */}
           {menuOpen && (
             <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
           )}
-          {/* Mobile/Tablet: floating bottom navbar for top-level tabs */}
           <div
             className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[66%]'} `}
             onTouchStart={handleMenuTouchStart}
             onTouchEnd={handleMenuTouchEnd}
           >
-            {/* Minimal strip shown when hidden */}
             {!menuOpen && (
               <button
                 className="w-full flex items-center justify-center py-2 text-xs font-semibold text-blue-700 tracking-wide select-none"
@@ -189,50 +187,33 @@ export function Dashboard({
               </button>
             )}
             <ScrollArea className="w-full">
-              <div className="flex justify-start p-2 sm:p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap px-3 pr-24">
-                  {tabs.map((tab) => (
+              <div className="relative flex items-center justify-start p-3 sm:p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap px-4 sm:px-6 pr-28 w-full">
+                  {([
+                    { id: 'all', label: 'All' },
+                    { id: 'in-stock', label: 'In-Stock' },
+                    { id: 'coming', label: 'Coming' },
+                    { id: 'reserved', label: 'Reserved' },
+                    { id: 'sold', label: 'Sold' },
+                    { id: 'demo', label: 'Demo' },
+                    { id: 'clients', label: 'Clients' },
+                    { id: 'delivery', label: 'Delivery' },
+                    ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin' }] : []),
+                  ] as { id: DashboardTab | 'admin'; label: string }[]).map((item) => (
                     <Button
-                      key={tab.id}
-                      variant={activeStatus === tab.id ? "default" : "ghost"}
+                      key={item.id}
+                      variant={activeStatus === item.id ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => {
-                        if (tab.id === 'admin') {
+                        if (item.id === 'admin') {
                           window.location.href = '/admin';
                         } else {
-                          onStatusFilterChange(tab.id as DashboardTab)
+                          onStatusFilterChange(item.id as DashboardTab)
                         }
                       }}
-                      className="h-9 rounded-md px-3 text-xs sm:text-sm"
+                      className="h-9 rounded-md px-4 text-xs sm:text-sm shrink-0"
                     >
-                      {tab.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </ScrollArea>
-          </div>
-
-          {/* Desktop: top sticky navbar for top-level tabs */}
-          <div className="hidden lg:block bg-white border-b sticky top-[56px] z-10">
-            <ScrollArea className="w-full">
-              <div className="flex justify-center p-2 sm:p-4">
-                <div className="flex gap-1 flex-wrap justify-center">
-                  {tabs.map((tab) => (
-                    <Button
-                      key={tab.id}
-                      variant={activeStatus === tab.id ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        if (tab.id === 'admin') {
-                          window.location.href = '/admin';
-                        } else {
-                          onStatusFilterChange(tab.id as DashboardTab)
-                        }
-                      }}
-                      className="h-9 rounded-md px-3 text-xs sm:text-sm"
-                    >
-                      {tab.label}
+                      {item.label}
                     </Button>
                   ))}
                 </div>
@@ -249,46 +230,7 @@ export function Dashboard({
           {menuOpen && (
             <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
           )}
-          {/* Mobile/Tablet: floating bottom navbar */}
-          <div
-            className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[66%]'} `}
-            onTouchStart={handleMenuTouchStart}
-            onTouchEnd={handleMenuTouchEnd}
-          >
-            {!menuOpen && (
-              <button
-                className="w-full flex items-center justify-center py-2 text-xs font-semibold text-blue-700 tracking-wide select-none"
-                onClick={() => setMenuOpen(true)}
-                aria-label="Swipe up to open"
-              >
-                Swipe up
-              </button>
-            )}
-            <ScrollArea className="w-full">
-              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                <div className="flex gap-3 flex-nowrap items-center overflow-x-auto whitespace-nowrap pl-3 pr-24 w-full">
-                  {([
-                    { id: 'all', label: 'All' },
-                    { id: 'in-stock', label: 'In-Stock' },
-                    { id: 'coming', label: 'Coming' },
-                    { id: 'reserved', label: 'Reserved' },
-                    { id: 'sold', label: 'Sold' },
-                    { id: 'demo', label: 'Demo' },
-                  ] as {id: DashboardTab; label: string}[]).map((s) => (
-                    <Button
-                      key={s.id}
-                      variant={activeStatus === s.id ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => onStatusFilterChange(s.id)}
-                      className="h-9 rounded-md px-3 text-xs sm:text-sm shrink-0"
-                    >
-                      {s.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </ScrollArea>
-          </div>
+          {/* Desktop top sticky navbar remains unchanged below */}
 
           {/* Desktop: top sticky navbar */}
           <div className="hidden lg:block bg-white border-b sticky top-[56px] z-10">
