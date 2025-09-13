@@ -11,8 +11,7 @@
     "test:all": "jest --config=jest.config.new.js",
     "test:watch": "jest --watch --config=jest.config.new.js",
     "test:coverage": "jest --coverage --config=jest.config.new.js",
-    "test:ci": "jest --ci --coverage --config=jest.config.new.js",
-    "icons:gen": "node scripts/generate-icons.mjs"
+    "test:ci": "jest --ci --coverage --config=jest.config.new.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.839.0",
