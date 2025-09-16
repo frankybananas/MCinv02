@@ -55,6 +55,12 @@ const ClientSchema = new mongoose.Schema({
       default: Date.now,
     },
   }],
+  // Whether the client is currently active. Defaults to true.
+  active: {
+    type: Boolean,
+    default: true,
+    index: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

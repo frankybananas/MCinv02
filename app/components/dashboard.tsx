@@ -142,6 +142,29 @@ export function Dashboard({
     return arr
   }, [cars, sortKey, sortDir])
 
+  // Clients: Active first, then inactive; within each group, sort by most recent interaction (fallback to createdAt)
+  const sortedClients = React.useMemo(() => {
+    const getLatestTs = (c: any): number => {
+      const interactions = Array.isArray(c?.interactionHistory) ? c.interactionHistory : []
+      const latestInteraction = interactions.reduce((max: number, it: any) => {
+        const t = new Date(it?.timestamp ?? 0).getTime()
+        return t > max ? t : max
+      }, 0)
+      const created = new Date((c as any)?.createdAt ?? 0).getTime()
+      return Math.max(latestInteraction, created)
+    }
+    const arr = [...clients]
+    arr.sort((a: any, b: any) => {
+      const aActive = (a?.active ?? true) === true
+      const bActive = (b?.active ?? true) === true
+      if (aActive !== bActive) return aActive ? -1 : 1
+      const at = getLatestTs(a)
+      const bt = getLatestTs(b)
+      return bt - at // newest first
+    })
+    return arr
+  }, [clients])
+
   const currentSortLabel =
     sortKey === 'recent'
       ? 'Recent'
@@ -309,7 +332,7 @@ export function Dashboard({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {clients.map((client) => (
+                  {sortedClients.map((client) => (
                     <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onClientSelect(client)}>
                       <CardContent className="p-3 sm:p-4 flex justify-between items-center">
                         <div>

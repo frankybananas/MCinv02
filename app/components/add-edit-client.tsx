@@ -7,6 +7,7 @@ import { Textarea } from "../../components/ui/textarea"
 import { Label } from "../../components/ui/label"
 import { ArrowLeft } from "lucide-react"
 import type { Client } from "../types"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 
 interface AddEditClientProps {
   client?: Client
@@ -30,6 +31,7 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
     email: client?.email || "",
     phone: client?.phone || "",
     notes: client?.notes || "",
+    active: client?.active ?? true,
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [interactionNote, setInteractionNote] = useState("");
@@ -136,6 +138,25 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
               className={errors.phone ? "border-red-500" : ""}
             />
             {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={(formData.active ?? true) ? "active" : "inactive"}
+              onValueChange={(val) =>
+                setFormData((prev) => ({ ...prev, active: val === "active" }))
+              }
+            >
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

@@ -115,6 +115,8 @@ export interface Client {
   createdAt?: string;
   // Phone number of the user who created/owns this client
   createdByPhone?: string;
+  // Whether the client is currently active (default true on server)
+  active?: boolean;
 }
 
 export interface AuditLogEntry {
