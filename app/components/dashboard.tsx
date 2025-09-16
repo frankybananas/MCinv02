@@ -336,7 +336,12 @@ export function Dashboard({
                     <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onClientSelect(client)}>
                       <CardContent className="p-3 sm:p-4 flex justify-between items-center">
                         <div>
-                          <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
+                            {(client.active === false) && (
+                              <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground">{client.email}</p>
                           <p className="text-sm text-muted-foreground">{client.phone}</p>
                           {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
