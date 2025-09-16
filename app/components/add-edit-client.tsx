@@ -7,7 +7,6 @@ import { Textarea } from "../../components/ui/textarea"
 import { Label } from "../../components/ui/label"
 import { ArrowLeft } from "lucide-react"
 import type { Client } from "../types"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 
 interface AddEditClientProps {
   client?: Client
@@ -140,23 +139,20 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
             {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
           </div>
 
-          {/* Status */}
+          {/* Active toggle */}
           <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={(formData.active ?? true) ? "active" : "inactive"}
-              onValueChange={(val) =>
-                setFormData((prev) => ({ ...prev, active: val === "active" }))
-              }
-            >
-              <SelectTrigger id="status">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="active" className="inline-flex items-center gap-2">
+              <input
+                id="active"
+                name="active"
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300"
+                checked={formData.active ?? true}
+                onChange={(e) => setFormData((prev) => ({ ...prev, active: e.target.checked }))}
+              />
+              Active
+            </Label>
+            <p className="text-xs text-muted-foreground">Uncheck to mark this client as inactive.</p>
           </div>
 
           <div className="space-y-2">

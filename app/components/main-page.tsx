@@ -461,6 +461,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       const json = await response.json();
       const savedClient = json?.data as any;
       await fetchData();
+      // After saving, go back to Clients list
+      setActiveStatus('clients');
       handleBack();
       // If this client was created from a reserve intent, offer to jump back to reservation
       if (pendingReserveCarId && savedClient?._id) {
@@ -542,7 +544,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           <AddEditClient 
             client={editingClient} 
             onSave={handleSaveClient as (clientData: Partial<Client>) => void} 
-            onCancel={handleBack} 
+            onCancel={() => { setActiveStatus('clients'); handleBack(); }} 
             onAddInteraction={handleAddInteraction} 
           />
         </Suspense>
