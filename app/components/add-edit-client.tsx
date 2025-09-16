@@ -34,6 +34,7 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [interactionNote, setInteractionNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -58,14 +59,19 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
     return newErrors;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-    onSave(formData);
+    try {
+      setIsSaving(true);
+      await Promise.resolve(onSave(formData));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddInteraction = () => {
@@ -170,8 +176,8 @@ export function AddEditClient({ client, onSave, onCancel, onDelete, onAddInterac
             <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
-              Save Client
+            <Button type="submit" className="flex-1" disabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save Client'}
             </Button>
           </div>
           

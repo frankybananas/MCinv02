@@ -460,10 +460,12 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       if (!response.ok) throw new Error('Failed to save client');
       const json = await response.json();
       const savedClient = json?.data as any;
-      await fetchData();
-      // After saving, go back to Clients list
+      // After saving, go back to Clients list immediately
       setActiveStatus('clients');
       handleBack();
+      toast.success('Client saved');
+      // Refresh in background (no await so UI isn't blocked)
+      void fetchData();
       // If this client was created from a reserve intent, offer to jump back to reservation
       if (pendingReserveCarId && savedClient?._id) {
         const carId = pendingReserveCarId;
@@ -482,6 +484,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       }
     } catch (error) {
       console.error('Error saving client:', error);
+      toast.error('Failed to save client');
     }
   };
 
