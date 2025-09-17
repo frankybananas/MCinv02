@@ -11,7 +11,8 @@ export async function GET(request, { params }) {
   try {
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
-    await request.blob();
+    // Use clone() because we also need to read the JSON body later.
+    await request.clone().blob();
     const { id } = await params;
     // Verify user
     const cookieStore = await cookies();
@@ -93,7 +94,7 @@ export async function PUT(request, { params }) {
   try {
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
-    await request.blob();
+    await request.clone().blob();
     const { id } = await params;
     const body = await request.json();
     // Verify user
@@ -113,21 +114,39 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    // Format phone number if provided
-    if (body.phone) {
-      let phoneNumber = body.phone.trim();
+    // Build $set and $unset updates; ignore immutable/owner fields
+    const set = {};
+    const unset = {};
+    const optionalUnsettable = new Set(['email','lastName','notes']);
+    for (const [key, value] of Object.entries(body || {})) {
+      if (key === 'createdByPhone' || key === '_id' || key === 'createdAt' || key === 'updatedAt') continue;
+      if (value === '' || value === null) {
+        if (optionalUnsettable.has(key)) unset[key] = '';
+        // skip setting empty values
+        continue;
+      }
+      set[key] = value;
+    }
+    // Format phone number if provided in the effective set
+    if (set.phone) {
+      let phoneNumber = String(set.phone).trim();
       if (phoneNumber.startsWith('0')) {
         phoneNumber = `+27${phoneNumber.substring(1)}`;
       }
-      body.phone = phoneNumber;
+      set.phone = phoneNumber;
     }
+
     // Enforce ownership for non-privileged users
     const isPrivileged = role === 'admin' || role === 'manager';
     const filter = isPrivileged ? { _id: id } : { _id: id, createdByPhone: phone };
 
+    const update = {};
+    if (Object.keys(set).length) update.$set = set;
+    if (Object.keys(unset).length) update.$unset = unset;
+
     const client = await Client.findOneAndUpdate(
       filter,
-      { $set: body },
+      update,
       { new: true, runValidators: true }
     );
     
