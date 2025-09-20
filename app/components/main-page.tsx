@@ -1,10 +1,10 @@
 "use client";
 
 import React from 'react';
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { LoginForm } from './login-form';
-import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery } from '../types';
+import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -45,6 +45,18 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
   const [currentUserName, setCurrentUserName] = useState<string>('');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLastSeenAt, setNotificationsLastSeenAt] = useState<string | null>(null);
+  const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
+
+  // Compute unread count consistently on every render (top-level hook)
+  const unreadNotificationsCount = useMemo(() => {
+    const since = notificationsLastSeenAt ? new Date(notificationsLastSeenAt).getTime() : 0;
+    return notifications.filter(n => {
+      const t = new Date(n.createdAt).getTime();
+      return Number.isFinite(t) && t > since;
+    }).length;
+  }, [notifications, notificationsLastSeenAt]);
 
   // Reserve flow: prompt for client linking
   const [reserveCarId, setReserveCarId] = useState<string | null>(null);
@@ -77,6 +89,40 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       }
     } catch (err) {
       console.error('An error occurred during logout:', err);
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      // Fetch cars first as they're most commonly needed
+      const carsRes = await fetch('/api/cars');
+      if (!carsRes.ok) throw new Error('Failed to fetch cars');
+      const carsData = await carsRes.json();
+      setCars(carsData.data || []);
+
+      // Then fetch other data in parallel
+      const [clientsRes, deliveriesRes] = await Promise.all([
+        fetch('/api/clients'),
+        fetch('/api/deliveries'),
+      ]);
+
+      if (!clientsRes.ok || !deliveriesRes.ok) {
+        throw new Error('Failed to fetch additional data');
+      }
+
+      const clientsData = await clientsRes.json();
+      const deliveriesData = await deliveriesRes.json();
+
+      setClients(clientsData.data || []);
+      setDeliveries(deliveriesData.data || []);
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      console.error('Fetch error:', errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -197,70 +243,20 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   };
 
-  const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
-
-  // Ensure that when a client is opened, we have the fully populated record
-  // including associated cars merged from both Client.cars and Delivery links.
-  React.useEffect(() => {
-    const id = selectedClient?._id;
-    if (!id) return;
-    // If cars are already populated objects (not just string IDs), skip fetch
-    const cars = (selectedClient as any)?.cars;
-    const hasPopulatedCars = Array.isArray(cars) && cars.some((c: any) => c && typeof c === 'object' && !!c._id);
-    if (hasPopulatedCars) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/clients/${id}`);
-        if (!res.ok) return;
-        const json = await res.json();
-        const detailed = json?.data as Client | undefined;
-        if (!cancelled && detailed?._id) {
-          setSelectedClient(detailed);
-        }
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [selectedClient?._id]);
-
-  const fetchData = async () => {
+  const fetchNotifications = async () => {
     try {
-      setLoading(true);
-      
-      // Fetch cars first as they're most commonly needed
-      const carsRes = await fetch('/api/cars');
-      if (!carsRes.ok) throw new Error('Failed to fetch cars');
-      const carsData = await carsRes.json();
-      setCars(carsData.data || []);
-      
-      // Then fetch other data in parallel
-      const [clientsRes, deliveriesRes] = await Promise.all([
-        fetch('/api/clients'),
-        fetch('/api/deliveries'),
-      ]);
-
-      if (!clientsRes.ok || !deliveriesRes.ok) {
-        throw new Error('Failed to fetch additional data');
-      }
-
-      const clientsData = await clientsRes.json();
-      const deliveriesData = await deliveriesRes.json();
-
-      setClients(clientsData.data || []);
-      setDeliveries(deliveriesData.data || []);
-      setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-      setError(errorMessage);
-      console.error("Fetch error:", errorMessage);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch('/api/notifications');
+      if (!res.ok) return;
+      const j = await res.json();
+      setNotifications(Array.isArray(j?.data) ? j.data : []);
+    } catch {}
   };
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchData();
+      // Preload notifications in the background
+      void fetchNotifications();
     }
   }, [isAuthenticated]);
 
@@ -268,6 +264,31 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   useEffect(() => {
     if (isAuthenticated && activeStatus === 'delivery') {
       fetchData();
+    }
+  }, [activeStatus, isAuthenticated]);
+
+  // Refresh notifications when switching to notifications tab
+  useEffect(() => {
+    if (isAuthenticated && activeStatus === 'notifications') {
+      fetchNotifications();
+      // Mark as read when user opens the Notifications tab
+      const nowIso = new Date().toISOString();
+      setNotificationsLastSeenAt(nowIso);
+      // Persist last seen to server (fire-and-forget)
+      (async () => {
+        try {
+          const res = await fetch('/api/notifications/seen', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timestamp: nowIso }),
+          });
+          if (res.ok) {
+            const j = await res.json();
+            const serverTs = j?.data?.notificationsLastSeenAt as string | undefined;
+            if (serverTs) setNotificationsLastSeenAt(serverTs);
+          }
+        } catch {}
+      })();
     }
   }, [activeStatus, isAuthenticated]);
 
@@ -279,13 +300,14 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (mounted) {
             setIsAuthenticated(true);
             if (phone) setCurrentUserPhone(phone);
             if (name) setCurrentUserName(name);
+            if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
             setAuthChecked(true);
           }
         } else {
@@ -314,11 +336,12 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (phone) setCurrentUserPhone(phone);
           if (name) setCurrentUserName(name);
+          if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
         }
       } catch (error) {
         console.error('Error fetching user data after login:', error);
@@ -492,6 +515,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     ? cars
     : activeStatus === 'clients'
       ? []
+      : activeStatus === 'notifications'
+        ? []
       : activeStatus === 'demo'
         ? cars.filter(car => car.demo === true)
         : cars.filter(car => car.status === activeStatus);
@@ -649,6 +674,46 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           userRole={userRole}
           deliveries={deliveries}
           onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
+          notifications={notifications}
+          unreadNotificationsCount={unreadNotificationsCount}
+          onNotificationSelect={async (n) => {
+            try {
+              if (n?.data?.deliveryId) {
+                const id = n.data.deliveryId;
+                let found = deliveries.find(d => String(d._id) === String(id));
+                if (!found) {
+                  const res = await fetch(`/api/deliveries/${id}`);
+                  if (res.ok) {
+                    const j = await res.json();
+                    found = j?.data as Delivery;
+                  }
+                }
+                if (found) {
+                  setSelectedDelivery(found);
+                  setSelectedCar(null);
+                  setSelectedClient(null);
+                  return;
+                }
+              }
+              if (n?.data?.carId) {
+                const id = n.data.carId;
+                let found = cars.find(c => String(c._id) === String(id));
+                if (!found) {
+                  const res = await fetch(`/api/cars/${id}`);
+                  if (res.ok) {
+                    const j = await res.json();
+                    found = j?.data as Car;
+                  }
+                }
+                if (found) {
+                  setSelectedCar(found);
+                  setSelectedClient(null);
+                  setSelectedDelivery(null);
+                  return;
+                }
+              }
+            } catch {}
+          }}
         />
       </Suspense>
       {renderBackButton()}

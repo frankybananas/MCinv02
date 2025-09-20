@@ -13,6 +13,7 @@ export interface IUser extends Document {
     avatar?: string;
   };
   lastLogin?: Date;
+  notificationsLastSeenAt?: Date;
   otpSecret?: string;
   otpExpiry?: Date;
   isTestAccount: boolean;
@@ -34,6 +35,7 @@ const UserSchema = new Schema<IUser>({
     avatar: String,
   },
   lastLogin: { type: Date },
+  notificationsLastSeenAt: { type: Date },
   otpSecret: { type: String },
   otpExpiry: { type: Date },
   isTestAccount: { type: Boolean, default: false },

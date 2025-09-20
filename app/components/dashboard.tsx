@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Shield } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Shield, Bell } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
-import type { Car, CarStatus, CarState, DashboardTab, Delivery } from "../types"
+import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 
 import type { Client } from "../types"
@@ -28,6 +28,9 @@ interface DashboardProps {
   userRole: string | null;
   deliveries?: Delivery[];
   onDeliverySelect?: (delivery: Delivery) => void;
+  notifications?: NotificationItem[];
+  onNotificationSelect?: (item: NotificationItem) => void;
+  unreadNotificationsCount?: number;
 }
 
 //
@@ -46,7 +49,10 @@ export function Dashboard({
   onLogout,
   userRole,
   deliveries = [],
-  onDeliverySelect
+  onDeliverySelect,
+  notifications = [],
+  onNotificationSelect,
+  unreadNotificationsCount = 0
 }: DashboardProps) {
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
@@ -94,6 +100,7 @@ export function Dashboard({
 
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
+  const showNotifications = activeStatus === "notifications"
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
   const formatPrice = (price?: number | null) => {
@@ -205,6 +212,7 @@ export function Dashboard({
                     { id: 'demo', label: 'Demo' },
                     { id: 'clients', label: 'Clients' },
                     { id: 'delivery', label: 'Delivery' },
+                    { id: 'notifications', label: 'Notifications' },
                     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin' }] : []),
                   ] as { id: DashboardTab | 'admin'; label: string }[]).map((item) => {
                     const isActive = item.id !== 'admin' && activeStatus === (item.id as DashboardTab)
@@ -255,10 +263,18 @@ export function Dashboard({
                         {item.id === 'delivery' && (
                           <Truck className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
                         )}
+                        {item.id === 'notifications' && (
+                          <Bell className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
                         {item.id === 'admin' && (
                           <Shield className={`text-foreground/70 w-4 h-4`} aria-hidden="true" />
                         )}
                         {item.label}
+                        {item.id === 'notifications' && ((unreadNotificationsCount ?? 0) > 0) && (
+                          <span className={`ml-1 inline-flex items-center justify-center px-1.5 min-w-[18px] h-[18px] rounded-full text-[10px] font-semibold ${isActive ? 'bg-white text-blue-700' : 'bg-blue-600 text-white'}`}>
+                            {Math.min(unreadNotificationsCount, 99)}
+                          </span>
+                        )}
                       </span>
                     </Button>
                   )})}
@@ -321,6 +337,48 @@ export function Dashboard({
       {/* Main content */}
       <ScrollArea className="flex-1">
         <div className={`p-2 sm:p-4 space-y-4 max-w-4xl mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
+          {/* Notifications list */}
+          {showNotifications && (
+            <div key="notifications-section" className="space-y-2 sm:space-y-4">
+              {notifications.length === 0 ? (
+                <div key="no-notifications-found" className="text-center py-12">
+                  <Bell className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No notifications</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {notifications.map((n) => {
+                    const created = new Date(n.createdAt).toLocaleString()
+                    return (
+                      <Card key={n._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onNotificationSelect?.(n)}>
+                        <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-md bg-accent/30 flex items-center justify-center flex-shrink-0">
+                            {n.type === 'car_new' && <CarIcon className="w-5 h-5 text-foreground/80" />}
+                            {n.type === 'car_reserved' && <BookmarkCheck className="w-5 h-5 text-foreground/80" />}
+                            {n.type === 'car_sold' && <Tag className="w-5 h-5 text-foreground/80" />}
+                            {n.type === 'delivery_due_soon' && <Clock className="w-5 h-5 text-foreground/80" />}
+                            {n.type === 'delivery_completed' && <CheckCircle className="w-5 h-5 text-foreground/80" />}
+                            {n.type === 'delivery_update' && <Truck className="w-5 h-5 text-foreground/80" />}
+                            {!(
+                              n.type === 'car_new' || n.type === 'car_reserved' || n.type === 'car_sold' ||
+                              n.type === 'delivery_due_soon' || n.type === 'delivery_completed' || n.type === 'delivery_update'
+                            ) && <Bell className="w-5 h-5 text-foreground/80" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-semibold text-base truncate">{n.title}</h3>
+                            </div>
+                            {n.description && <p className="text-sm text-muted-foreground mt-1 truncate">{n.description}</p>}
+                            <p className="text-xs text-muted-foreground mt-1">{created}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {/* Client list */
           }
           {showClients && (

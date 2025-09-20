@@ -1,6 +1,6 @@
 export type CarState = "in-stock" | "coming" | "reserved" | "sold";
 export type CarStatus = "all" | CarState | "demo";
-export type DashboardTab = CarStatus | "clients" | "delivery";
+export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications";
 
 export interface Picture {
   _id?: string;
@@ -65,6 +65,30 @@ export interface Delivery {
   createdAt: string;
   updatedAt: string;
   auditLog?: AuditLogEntry[];
+}
+
+// Notifications
+export type NotificationType =
+  | "car_new"
+  | "car_reserved"
+  | "car_sold"
+  | "delivery_update"
+  | "delivery_due_soon"
+  | "delivery_completed";
+
+export interface NotificationItem {
+  _id: string; // unique per item (can be a composite)
+  type: NotificationType;
+  title: string;
+  description?: string;
+  createdAt: string; // ISO
+  // Optional linkage data for navigation
+  data?: {
+    carId?: string;
+    deliveryId?: string;
+    imageUrl?: string;
+  };
+  read?: boolean;
 }
 
 export interface ReconTask {

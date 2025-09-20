@@ -62,6 +62,7 @@ export async function PUT(request: Request) {
       email: profile.email || '',
       avatar: profile.avatar || '',
       role: user.role,
+      notificationsLastSeenAt: user.notificationsLastSeenAt || null,
     }
 
     return NextResponse.json({ success: true, data, requireReauth })
@@ -100,6 +101,7 @@ export async function GET(request: Request) {
       email: profile.email || '',
       avatar: profile.avatar || '',
       role: user.role,
+      notificationsLastSeenAt: (user as any).notificationsLastSeenAt || null,
     }
 
     return NextResponse.json({ success: true, data })
