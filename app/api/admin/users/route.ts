@@ -68,3 +68,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  const requestHeaders = request.headers;
+  const userRole = requestHeaders.get('x-user-role');
+  if (userRole !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
+  }
+
+  try {
+    await dbConnect();
+    const body = await request.json();
+    const { userId, matchingEnabled } = body || {};
+    if (!userId || typeof matchingEnabled !== 'boolean') {
+      return NextResponse.json({ error: 'userId and matchingEnabled are required' }, { status: 400 });
+    }
+
+    const updated = await User.findByIdAndUpdate(userId, { $set: { matchingEnabled } }, { new: true });
+    if (!updated) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, user: updated });
+  } catch (error) {
+    console.error('Error updating user matchingEnabled:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

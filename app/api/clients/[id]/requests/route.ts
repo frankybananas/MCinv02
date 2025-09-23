@@ -5,6 +5,7 @@ import Client from '@/models/Client'
 import ClientRequest from '@/models/ClientRequest'
 import Car from '@/models/Car'
 import Match from '@/models/Match'
+import User from '@/models/User'
 import { buildRequestText, embedText, explainMatchShort } from '@/lib/embeddings'
 import { upsertRequestVector, searchCarsByVector } from '@/lib/vector-store'
 
@@ -78,12 +79,18 @@ export async function POST(request: Request, ctx: { params: { id: string } }) {
     const body = await request.json()
     const { title, freeText, filters } = body || {}
 
+    // Check if matching is allowed for this user (non-privileged users can be disabled)
+    const currentUser = await User.findOne({ phone })
+    const matchingAllowed = (role === 'admin' || role === 'manager') || (currentUser?.matchingEnabled !== false)
+
     const requestText = buildRequestText({ freeText, filters })
     let vector: number[] | null = null
-    try {
-      vector = await embedText(requestText)
-    } catch (e) {
-      console.error('Embedding failed for client request', { clientId, err: (e as any)?.message })
+    if (matchingAllowed) {
+      try {
+        vector = await embedText(requestText)
+      } catch (e) {
+        console.error('Embedding failed for client request', { clientId, err: (e as any)?.message })
+      }
     }
 
     const doc = await ClientRequest.create({

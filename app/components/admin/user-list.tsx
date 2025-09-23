@@ -11,6 +11,7 @@ interface User {
   };
   department: string;
   role: string;
+  matchingEnabled?: boolean;
   createdAt: string;
 }
 
@@ -19,15 +20,17 @@ export default function UserList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const reload = async () => {
+    const res = await fetch('/api/admin/users');
+    if (!res.ok) throw new Error('Failed to fetch users');
+    const data = await res.json();
+    setUsers(data.data);
+  };
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch('/api/admin/users');
-        if (!res.ok) {
-          throw new Error('Failed to fetch users');
-        }
-        const data = await res.json();
-        setUsers(data.data);
+        await reload();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
@@ -37,6 +40,23 @@ export default function UserList() {
 
     fetchUsers();
   }, []);
+
+  const toggleMatching = async (userId: string, next: boolean) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, matchingEnabled: next }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || 'Failed to update user');
+      }
+      await reload();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  };
 
   if (loading) return <p>Loading users...</p>;
   if (error) return <p>Error: {error}</p>;
@@ -52,6 +72,7 @@ export default function UserList() {
               <th className="p-3">Phone</th>
               <th className="p-3">Department</th>
               <th className="p-3">Role</th>
+              <th className="p-3">Matching</th>
               <th className="p-3">Created At</th>
             </tr>
           </thead>
@@ -62,6 +83,16 @@ export default function UserList() {
                 <td className="p-3">{user.phone}</td>
                 <td className="p-3">{user.department}</td>
                 <td className="p-3">{user.role}</td>
+                <td className="p-3">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={user.matchingEnabled !== false}
+                      onChange={(e) => toggleMatching(user._id, e.target.checked)}
+                    />
+                    <span>{user.matchingEnabled !== false ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                </td>
                 <td className="p-3">{new Date(user.createdAt).toLocaleDateString()}</td>
               </tr>
             ))}

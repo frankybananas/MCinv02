@@ -3,6 +3,7 @@ import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Client from '@/models/Client'
 import Match from '@/models/Match'
+import User from '@/models/User'
 
 function parseCookie(header: string | null, name: string): string | null {
   if (!header) return null
@@ -45,6 +46,14 @@ export async function GET(request: Request, ctx: { params: { id: string } }) {
     const isPrivileged = role === 'admin' || role === 'manager'
     if (!isPrivileged && String(client.createdByPhone) !== String(phone)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
+    // If matching is disabled for this user (and not privileged), return empty list
+    if (!isPrivileged) {
+      const currentUser = await User.findOne({ phone })
+      if (currentUser && currentUser.matchingEnabled === false) {
+        return NextResponse.json({ success: true, data: [] })
+      }
     }
 
     const query: any = { client: clientId }
