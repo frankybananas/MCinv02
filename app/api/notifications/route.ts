@@ -4,6 +4,7 @@ import { connect as connectDb } from '@/lib/mongodb'
 import User from '@/models/User'
 import Car from '@/models/Car'
 import Delivery from '@/models/Delivery'
+import Match from '@/models/Match'
 
 function parseCookie(header: string | null, name: string): string | null {
   if (!header) return null
@@ -196,6 +197,32 @@ export async function GET(request: Request) {
       } catch (e) {
         console.warn('Notifications: delivery aggregation failed', (e as any)?.message)
       }
+    }
+
+    // 4) New matches for this salesperson since last login/seen
+    try {
+      const phoneStr = String(phone)
+      const matches: any[] = await (Match as any)
+        .find({ createdByPhone: phoneStr, createdAt: { $gt: since }, status: { $in: ['new', 'notified'] } })
+        .select('car client score explanation createdAt')
+        .sort({ createdAt: -1 })
+        .populate({ path: 'car', select: 'make model year images', populate: { path: 'images' } })
+
+      for (const m of matches) {
+        const car = (m as any).car || {}
+        const title = `${car.year ?? ''} ${car.make ?? ''} ${car.model ?? ''}`.trim() || 'Vehicle match'
+        const imageUrl = Array.isArray(car.images) && car.images[0]?.imageUrl ? car.images[0].imageUrl : undefined
+        notifications.push({
+          _id: `client_match:${String(m._id)}`,
+          type: 'client_match' as any,
+          title: `New match: ${title}`,
+          description: (m as any).explanation || undefined,
+          createdAt: new Date(m.createdAt || Date.now()).toISOString(),
+          data: { carId: String(car?._id || ''), clientId: String((m as any).client || ''), matchId: String(m._id), imageUrl },
+        })
+      }
+    } catch (e) {
+      console.warn('Notifications: matches aggregation failed', (e as any)?.message)
     }
 
     // Sort DESC by createdAt and limit

@@ -74,7 +74,8 @@ export type NotificationType =
   | "car_sold"
   | "delivery_update"
   | "delivery_due_soon"
-  | "delivery_completed";
+  | "delivery_completed"
+  | "client_match";
 
 export interface NotificationItem {
   _id: string; // unique per item (can be a composite)
@@ -87,6 +88,8 @@ export interface NotificationItem {
     carId?: string;
     deliveryId?: string;
     imageUrl?: string;
+    clientId?: string;
+    matchId?: string;
   };
   read?: boolean;
 }
@@ -141,6 +144,60 @@ export interface Client {
   createdByPhone?: string;
   // Whether the client is currently active (default true on server)
   active?: boolean;
+}
+
+export interface ClientRequest {
+  _id: string;
+  client: string;
+  createdByPhone: string;
+  title?: string;
+  freeText?: string;
+  status: 'active' | 'paused' | 'completed';
+  filters: {
+    makes?: string[];
+    models?: string[];
+    minYear?: number;
+    maxYear?: number;
+    maxMileageKm?: number;
+    minBudgetZar?: number;
+    maxBudgetZar?: number;
+    seats?: number;
+    fuelTypes?: string[];
+    transmissions?: string[];
+    bodyTypes?: string[];
+    colors?: string[];
+    mustHave?: string[];
+    niceToHave?: string[];
+    excludeTerms?: string[];
+  };
+  requestText?: string;
+  embeddingVector?: number[];
+  embeddingModel?: string;
+  lastEmbeddedAt?: string;
+  source?: 'notes' | 'manual' | 'imported';
+  priority?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Matches (frontend types)
+export type MatchStatus = 'new' | 'notified' | 'viewed' | 'dismissed' | 'converted';
+
+export interface MatchItem {
+  _id: string;
+  request?: string;
+  car: Car | string;
+  client: string;
+  createdByPhone?: string;
+  score: number;
+  explanation?: string;
+  status: MatchStatus;
+  notifiedAt?: string;
+  viewedAt?: string;
+  dismissedAt?: string;
+  contactedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuditLogEntry {

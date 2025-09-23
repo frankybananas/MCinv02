@@ -33,6 +33,9 @@ const CarSchema = new mongoose.Schema({
     enum: ['manual', 'automatic', 'cvt'],
     default: 'automatic',
   },
+  seats: {
+    type: Number,
+  },
   description: {
     type: String,
     trim: true,
@@ -41,6 +44,11 @@ const CarSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // --- Vector search support fields (optional) ---
+  searchText: { type: String },
+  embeddingVector: { type: [Number] },
+  embeddingModel: { type: String },
+  lastEmbeddedAt: { type: Date },
   price: {
     type: Number,
     required: [true, 'Please provide the car price'],

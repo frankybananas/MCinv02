@@ -2,6 +2,10 @@ import { connectToDatabase } from '@/lib/mongodb';
 import Car from '@/models/Car.js';
 import Client from '@/models/Client';
 import Picture from '@/models/Picture';
+import ClientRequest from '@/models/ClientRequest';
+import Match from '@/models/Match';
+import { buildCarSearchText, embedText, explainMatchShort } from '@/lib/embeddings';
+import { upsertCarVector, searchRequestsByVector } from '@/lib/vector-store';
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
@@ -111,6 +115,72 @@ export async function POST(request) {
     // Ensure audit entry persists even when there are no images uploaded
     if (!files || files.length === 0) {
       await newCar.save();
+    }
+
+    // --- Build embedding and index the new car ---
+    try {
+      const carDoc = await Car.findById(newCar._id)
+      if (carDoc) {
+        const searchText = buildCarSearchText(carDoc)
+        const vector = await embedText(searchText)
+        carDoc.searchText = searchText
+        carDoc.embeddingVector = vector
+        carDoc.embeddingModel = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small'
+        carDoc.lastEmbeddedAt = new Date()
+        await carDoc.save()
+
+        await upsertCarVector(String(carDoc._id), vector, {
+          carId: String(carDoc._id),
+          status: carDoc.status,
+          priceZar: typeof carDoc.price === 'number' ? carDoc.price : undefined,
+          mileageKm: typeof carDoc.kilometers === 'number' ? carDoc.kilometers : undefined,
+          seats: typeof carDoc.seats === 'number' ? carDoc.seats : undefined,
+          make: carDoc.make,
+          model: carDoc.model,
+          year: carDoc.year,
+          imageUrl: undefined,
+        })
+
+        // Search active client requests team-wide and create matches
+        const results = await searchRequestsByVector(vector, {
+          topK: 60,
+          threshold: 0.78,
+          requireMaxBudgetGte: typeof carDoc.price === 'number' ? carDoc.price : undefined,
+          requireMaxMileageGte: typeof carDoc.kilometers === 'number' ? carDoc.kilometers : undefined,
+          requireSeatsLte: typeof carDoc.seats === 'number' ? carDoc.seats : undefined,
+        })
+        const top = (results || []).slice(0, 10)
+        for (const r of top) {
+          const requestId = r.id || r.point?.id || r.payload?.requestId
+          const clientId = r.payload?.clientId
+          const ownerPhone = r.payload?.createdByPhone
+          if (!requestId || !clientId) continue
+          try {
+            const explanation = await explainMatchShort(carDoc, { freeText: '', filters: {} })
+            await Match.updateOne(
+              { request: requestId, car: carDoc._id },
+              {
+                $setOnInsert: {
+                  request: requestId,
+                  car: carDoc._id,
+                  client: clientId,
+                  createdByPhone: ownerPhone || 'unknown',
+                  status: 'new',
+                  createdAt: new Date(),
+                },
+                $set: {
+                  score: typeof r.score === 'number' ? r.score : 0,
+                  explanation,
+                  updatedAt: new Date(),
+                },
+              },
+              { upsert: true }
+            )
+          } catch {}
+        }
+      }
+    } catch (e) {
+      console.warn('Car embedding/matching failed:', e?.message || e)
     }
 
     const populatedCar = await Car.findById(newCar._id).populate('owner').populate('images');

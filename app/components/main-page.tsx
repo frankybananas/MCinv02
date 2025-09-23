@@ -712,6 +712,26 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                   return;
                 }
               }
+              // Fallback: open client if present (e.g., client_match notification)
+              if (n?.data?.clientId) {
+                const id = n.data.clientId;
+                let foundClient = clients.find(c => String(c._id) === String(id));
+                if (!foundClient) {
+                  const res = await fetch(`/api/clients`);
+                  if (res.ok) {
+                    const j = await res.json();
+                    const list = Array.isArray(j?.data) ? j.data as Client[] : [];
+                    setClients(list);
+                    foundClient = list.find(c => String(c._id) === String(id));
+                  }
+                }
+                if (foundClient) {
+                  setSelectedClient(foundClient);
+                  setSelectedCar(null);
+                  setSelectedDelivery(null);
+                  return;
+                }
+              }
             } catch {}
           }}
         />

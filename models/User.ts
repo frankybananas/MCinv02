@@ -6,6 +6,7 @@ export interface IUser extends Document {
   role: 'admin' | 'user' | 'manager';
   position?: string;
   department: 'new' | 'used';
+  matchingEnabled?: boolean;
   profile?: {
     firstName?: string;
     lastName?: string;
@@ -28,6 +29,7 @@ const UserSchema = new Schema<IUser>({
   role: { type: String, enum: ['admin', 'user', 'manager'], default: 'user' },
   position: { type: String, trim: true },
   department: { type: String, enum: ['new', 'used'], required: true },
+  matchingEnabled: { type: Boolean, default: true },
   profile: {
     firstName: { type: String, trim: true },
     lastName: { type: String, trim: true },
