@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Car Inventory Management",
-    short_name: "CarInventory",
-    description: "Mobile car inventory management application",
+    name: "LotLynx Inventory",
+    short_name: "LotLynx",
+    description: "LotLynx mobile car inventory management application",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
@@ -12,9 +12,22 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     icons: [
       {
-        src: "/placeholder-logo.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/app-icon.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/app-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/app-icon-maskable.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
     categories: ["business", "productivity"],
