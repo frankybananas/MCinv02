@@ -57,23 +57,8 @@ export function Dashboard({
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  // Bottom menu open/close (mobile/tablet)
-  const [menuOpen, setMenuOpen] = useState(true)
-  const touchStartYRef = React.useRef<number | null>(null)
   const navScrollRef = React.useRef<HTMLDivElement | null>(null)
   const activeChipId = `nav-chip-${activeStatus}`
-  const handleMenuTouchStart = (e: React.TouchEvent) => {
-    touchStartYRef.current = e.touches[0]?.clientY ?? null
-  }
-  const handleMenuTouchEnd = (e: React.TouchEvent) => {
-    const start = touchStartYRef.current
-    if (start == null) return
-    const endY = e.changedTouches[0]?.clientY ?? start
-    const delta = start - endY
-    // Only allow pull-to-hide on the handle: swipe down closes
-    if (delta < -30) setMenuOpen(false)
-    touchStartYRef.current = null
-  }
 
   // Keep the selected chip in view when activeStatus changes
   React.useEffect(() => {
@@ -190,13 +175,12 @@ export function Dashboard({
       {(
         <>
           <div
-            className={`lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl transform transition-transform duration-300 ${menuOpen ? 'translate-y-0' : 'translate-y-[66%]'} `}
+            className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl"
+            data-testid="mobile-bottom-nav"
           >
             {/* Pull-to-hide handle (only element that closes the menu) */}
             <div
               className="w-full flex items-center justify-center pt-2 pb-1"
-              onTouchStart={handleMenuTouchStart}
-              onTouchEnd={handleMenuTouchEnd}
             >
               <div className="h-1.5 w-12 rounded-full bg-gray-300/80" />
             </div>
@@ -288,15 +272,6 @@ export function Dashboard({
       {/* Secondary navbar for Stock status filters */}
       {isStockStatus && (
         <>
-          {/* Click-outside overlay to hide menu */}
-          {menuOpen && (
-            <div
-              className="fixed inset-0 z-20 lg:hidden"
-              onPointerDown={() => setMenuOpen(false)}
-              data-testid="mobile-overlay"
-              aria-hidden="true"
-            />
-          )}
           {/* Desktop top sticky navbar remains unchanged below */}
 
           {/* Desktop: top sticky navbar */}
@@ -556,6 +531,7 @@ export function Dashboard({
                     key={car._id}
                     className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"
                     onClick={() => onCarSelect(car)}
+                    data-testid="dashboard-car-card"
                   >
                     <CardContent className="p-0 sm:p-4">
                       {/* Mobile layout: background image with bottom glass overlay */}
@@ -689,7 +665,7 @@ export function Dashboard({
       </ScrollArea>
 
       {/* Floating Action Button with Menu */}
-      <div className={`fixed right-4 sm:right-6 z-50 ${menuOpen ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(3.25rem+env(safe-area-inset-bottom))]'} lg:bottom-6 flex flex-col items-center pointer-events-none`}>
+      <div className="fixed right-4 sm:right-6 z-50 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] lg:bottom-6 flex flex-col items-center pointer-events-none">
         {/* Menu Items */}
         <div className={`flex flex-col items-center gap-3 mb-3 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
           <div className="flex items-center gap-3">
