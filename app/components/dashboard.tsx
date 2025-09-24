@@ -290,7 +290,12 @@ export function Dashboard({
         <>
           {/* Click-outside overlay to hide menu */}
           {menuOpen && (
-            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+            <div
+              className="fixed inset-0 z-20 lg:hidden"
+              onPointerDown={() => setMenuOpen(false)}
+              data-testid="mobile-overlay"
+              aria-hidden="true"
+            />
           )}
           {/* Desktop top sticky navbar remains unchanged below */}
 
