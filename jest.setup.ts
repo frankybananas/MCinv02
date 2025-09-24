@@ -28,6 +28,22 @@ Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
   value: jest.fn(),
 });
 
+if (typeof URL.createObjectURL !== 'function') {
+  Object.defineProperty(global.URL, 'createObjectURL', {
+    configurable: true,
+    writable: true,
+    value: jest.fn(() => 'blob:mock-url'),
+  });
+}
+
+if (typeof URL.revokeObjectURL !== 'function') {
+  Object.defineProperty(global.URL, 'revokeObjectURL', {
+    configurable: true,
+    writable: true,
+    value: jest.fn(),
+  });
+}
+
 class ResizeObserverMock {
   observe() {}
   unobserve() {}

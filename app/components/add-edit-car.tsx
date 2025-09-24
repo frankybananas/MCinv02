@@ -144,8 +144,10 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // DnD support for reordering images (first image becomes cover)
+  // Pointer-based reordering support (works on mouse & touch)
   const dragFromIndex = useRef<number | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const isPointerDraggingRef = useRef(false);
 
   useEffect(() => {
     const initialImages = car?.images?.map(img => ({
@@ -194,30 +196,70 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     setDisplayedImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
-  const handleDragStart = (index: number) => {
-    dragFromIndex.current = index;
+  const finalizePointerDrag = () => {
+    dragFromIndex.current = null;
+    activePointerIdRef.current = null;
+    isPointerDraggingRef.current = false;
   };
 
-  const handleDropOnIndex = (toIndex: number) => {
+  const handleTilePointerDown = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    dragFromIndex.current = index;
+    activePointerIdRef.current = event.pointerId;
+    isPointerDraggingRef.current = true;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+    event.preventDefault();
+  };
+
+  const reorderImages = (toIndex: number) => {
     const fromIndex = dragFromIndex.current;
     if (fromIndex === null) return;
-    if (fromIndex === toIndex) {
-      dragFromIndex.current = null;
-      return;
-    }
     setDisplayedImages(prev => {
-      const arr = [...prev];
-      const [moved] = arr.splice(fromIndex, 1);
-      // Clamp to end if target index is beyond bounds
-      const target = Math.min(Math.max(toIndex, 0), arr.length);
-      arr.splice(target, 0, moved);
-      return arr;
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const boundedFrom = Math.min(Math.max(fromIndex, 0), next.length - 1);
+      const [moved] = next.splice(boundedFrom, 1);
+      const insertionIndex = Math.min(Math.max(Math.trunc(toIndex), 0), next.length);
+      next.splice(insertionIndex, 0, moved);
+      dragFromIndex.current = Math.min(insertionIndex, next.length - 1);
+      return next;
     });
-    dragFromIndex.current = null;
   };
 
-  const handleDragEnd = () => {
-    dragFromIndex.current = null;
+  const handleTilePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
+    if (typeof document === 'undefined') return;
+    const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    const tile = element?.closest('[data-image-index]') as HTMLElement | null;
+    if (!tile) return;
+    const toIndexRaw = Number(tile.dataset.imageIndex ?? '-1');
+    if (Number.isNaN(toIndexRaw)) return;
+    reorderImages(toIndexRaw);
+  };
+
+  const handleTilePointerEnter = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
+    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
+    event.preventDefault();
+    reorderImages(index);
+  };
+
+  const handleTilePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {}
+    event.preventDefault();
+    finalizePointerDrag();
+  };
+
+  const handleTilePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {}
+    finalizePointerDrag();
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -312,18 +354,23 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       {displayedImages.map((img, idx) => (
                         <div
                           key={img.id}
-                          className="relative group aspect-square cursor-move"
-                          draggable
-                          onDragStart={() => handleDragStart(idx)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={() => handleDropOnIndex(idx)}
-                          onDragEnd={handleDragEnd}
+                          className="relative group aspect-square cursor-grab"
+                          data-testid="car-image-tile"
+                          data-image-index={idx}
+                          data-image-id={img.id}
+                          style={{ touchAction: 'none' }}
+                          onPointerDown={(event) => handleTilePointerDown(event, idx)}
+                          onPointerMove={handleTilePointerMove}
+                          onPointerEnter={(event) => handleTilePointerEnter(event, idx)}
+                          onPointerUp={handleTilePointerUp}
+                          onPointerCancel={handleTilePointerCancel}
                         >
 
                           <img
                             src={img.url}
                             alt="Car image"
                             className="w-full h-full object-cover rounded-md"
+                            data-testid="car-image-img"
                           />
                           {idx === 0 && (
                             <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
@@ -333,7 +380,10 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                             variant="destructive"
                             size="icon"
                             className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Remove image"
                             onClick={() => handleRemoveImage(img.id)}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onPointerUp={(event) => event.stopPropagation()}
                           >
                             <X className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
@@ -342,8 +392,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       <div
                         className="aspect-square border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
                         onClick={() => fileInputRef.current?.click()}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleDropOnIndex(displayedImages.length)}
+                        data-image-index={displayedImages.length}
                       >
                         <span className="text-gray-500 text-2xl">+</span>
                       </div>
@@ -353,6 +402,8 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       ref={fileInputRef}
                       onChange={handleFileChange}
                       className="hidden"
+                      aria-label="Upload car images"
+                      data-testid="car-image-file-input"
                       multiple
                       accept="image/*"
                     />
