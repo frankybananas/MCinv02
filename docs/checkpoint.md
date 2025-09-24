@@ -1,16 +1,23 @@
-# Project Checkpoint & Next Steps
+# MCinv02 Checkpoint — 2025-09-24
 
-**Date:** 2025-06-26
+This section consolidates the latest state so a new LLM/dev can continue seamlessly. The older historical checkpoint is preserved below for context.
 
-## 1. Project Overview
+## High-level status
 
-This project is a Next.js 15.2.4 application integrated with MongoDB Atlas for data storage. It uses phone number-based authentication with a manual user addition and mock OTP verification flow. The app starts directly at the phone login page (`/auth/login`), then OTP verification, then access to the main dashboard.
+- App (Next.js 15.2.4): https://htg.lotlynx.app
+- Qdrant: Coolify Service (internal only)
+- Diagnostics endpoint: `/api/diagnostics/qdrant` verifies readyz, collections, and a round-trip upsert/search
+- Admin toggle to enable/disable Matching per user implemented and enforced
 
-## 2. Completed Tasks
+## Recent changes (files)
 
-### Environment & Configuration
-- Reset local repo to match GitHub
-- Installed dependencies with pnpm
+- `app/components/client-request-quick.tsx`: quick input examples popover; SA brand/model/color/body-type parsing; summary shows colors and body types
+- `app/api/clients/[id]/requests/route.ts`: resilient save (embeddings/vector ops wrapped); gated by user `matchingEnabled`
+- `app/api/clients/[id]/matches/route.ts`: returns empty for non-privileged users with matching disabled
+- `app/api/diagnostics/qdrant/route.ts`: Qdrant health + round-trip
+- `app/api/admin/users/route.ts`: added `PATCH` to update `matchingEnabled` (admin-only)
+- `app/components/admin/user-list.tsx`: Matching checkbox column wired to PATCH
+- `lib/embeddings.ts`, `lib/vector-store.ts`: embed/search helpers and Qdrant collections
 - Started Next.js dev server
 - Added MongoDB connection string to .env.local
 - Installed MongoDB Node.js driver and mongoose
