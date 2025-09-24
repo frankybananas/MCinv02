@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Shield, Bell } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Shield, Bell, Calendar } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
+import { Todo } from './todo'
 
 import type { Client } from "../types"
 
@@ -31,6 +32,7 @@ interface DashboardProps {
   notifications?: NotificationItem[];
   onNotificationSelect?: (item: NotificationItem) => void;
   unreadNotificationsCount?: number;
+  todoEnabled?: boolean;
 }
 
 //
@@ -52,7 +54,8 @@ export function Dashboard({
   onDeliverySelect,
   notifications = [],
   onNotificationSelect,
-  unreadNotificationsCount = 0
+  unreadNotificationsCount = 0,
+  todoEnabled = false
 }: DashboardProps) {
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
@@ -86,6 +89,7 @@ export function Dashboard({
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
   const showNotifications = activeStatus === "notifications"
+  const showTodo = activeStatus === "todo"
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
   const formatPrice = (price?: number | null) => {
@@ -178,14 +182,8 @@ export function Dashboard({
             className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl"
             data-testid="mobile-bottom-nav"
           >
-            {/* Pull-to-hide handle (only element that closes the menu) */}
-            <div
-              className="w-full flex items-center justify-center pt-2 pb-1"
-            >
-              <div className="h-1.5 w-12 rounded-full bg-gray-300/80" />
-            </div>
             <div className="w-full overflow-x-auto" ref={navScrollRef}>
-              <div className="relative flex items-center justify-start p-3 sm:p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                 <div className="flex gap-3 flex-nowrap items-center whitespace-nowrap px-4 sm:px-6 pr-28 w-full">
                   {([
                     { id: 'all', label: 'All' },
@@ -197,6 +195,7 @@ export function Dashboard({
                     { id: 'clients', label: 'Clients' },
                     { id: 'delivery', label: 'Delivery' },
                     { id: 'notifications', label: 'Notifications' },
+                    ...(todoEnabled ? [{ id: 'todo', label: 'TODO' }] : []),
                     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin' }] : []),
                   ] as { id: DashboardTab | 'admin'; label: string }[]).map((item) => {
                     const isActive = item.id !== 'admin' && activeStatus === (item.id as DashboardTab)
@@ -249,6 +248,9 @@ export function Dashboard({
                         )}
                         {item.id === 'notifications' && (
                           <Bell className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
+                        )}
+                        {item.id === 'todo' && (
+                          <Calendar className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
                         )}
                         {item.id === 'admin' && (
                           <Shield className={`text-foreground/70 w-4 h-4`} aria-hidden="true" />
@@ -357,6 +359,12 @@ export function Dashboard({
                   })}
                 </div>
               )}
+            </div>
+          )}
+          {/* TODO list */}
+          {showTodo && (
+            <div key="todo-section" className="space-y-2 sm:space-y-4">
+              <Todo />
             </div>
           )}
           {/* Client list */

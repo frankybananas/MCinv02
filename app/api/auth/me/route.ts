@@ -63,6 +63,7 @@ export async function PUT(request: Request) {
       avatar: profile.avatar || '',
       role: user.role,
       notificationsLastSeenAt: user.notificationsLastSeenAt || null,
+      todoEnabled: (user as any).todoEnabled === true,
     }
 
     return NextResponse.json({ success: true, data, requireReauth })
@@ -102,6 +103,7 @@ export async function GET(request: Request) {
       avatar: profile.avatar || '',
       role: user.role,
       notificationsLastSeenAt: (user as any).notificationsLastSeenAt || null,
+      todoEnabled: (user as any).todoEnabled === true,
     }
 
     return NextResponse.json({ success: true, data })

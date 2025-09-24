@@ -48,6 +48,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLastSeenAt, setNotificationsLastSeenAt] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
+  const [todoEnabled, setTodoEnabled] = useState<boolean>(false);
 
   // Compute unread count consistently on every render (top-level hook)
   const unreadNotificationsCount = useMemo(() => {
@@ -300,7 +301,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (mounted) {
@@ -308,6 +309,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
             if (phone) setCurrentUserPhone(phone);
             if (name) setCurrentUserName(name);
             if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
+            setTodoEnabled(data?.todoEnabled === true);
             setAuthChecked(true);
           }
         } else {
@@ -336,12 +338,13 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (phone) setCurrentUserPhone(phone);
           if (name) setCurrentUserName(name);
           if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
+          setTodoEnabled(data?.todoEnabled === true);
         }
       } catch (error) {
         console.error('Error fetching user data after login:', error);
@@ -517,6 +520,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       ? []
       : activeStatus === 'notifications'
         ? []
+      : activeStatus === 'todo'
+        ? []
       : activeStatus === 'demo'
         ? cars.filter(car => car.demo === true)
         : cars.filter(car => car.status === activeStatus);
@@ -676,6 +681,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
           notifications={notifications}
           unreadNotificationsCount={unreadNotificationsCount}
+          todoEnabled={todoEnabled}
           onNotificationSelect={async (n) => {
             try {
               if (n?.data?.deliveryId) {

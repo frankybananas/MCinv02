@@ -1,3 +1,8 @@
+### 6.8 TODOs (user isolation)
+- List/Create: `GET/POST /api/todos` require auth, infer current user id from JWT, and operate only on that user’s records.
+- Update/Delete: `PUT/DELETE /api/todos/[id]` enforce ownership (filter by `{ _id, user }`).
+- Admins do not get cross-user access here by default; this is strictly per-user.
+
 # MCinv02 – Architecture & Wiring Overview
 
 This document provides a complete architectural map of the MCinv02 Next.js mobile web app. It explains how the application is structured, how pages and components interact, how data flows through API routes and models, and what dependencies are used. Use this as the source of truth when making changes, so that updates in one area don’t unintentionally break others.
@@ -21,11 +26,12 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 ### Mobile Navigation Model (Unified)
 - A single, scrollable bottom bar is used on mobile/tablet. It contains:
   - Stock filters first: `All`, `In-Stock`, `Coming`, `Reserved`, `Sold`, `Demo`.
-  - Global sections after filters: `Clients`, `Delivery`, and `Admin` (if role).
+  - Global sections after filters: `Clients`, `Delivery`, `Notifications`, `TODO` (if enabled for the user), and `Admin` (if role).
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
 - The bar’s wrapper uses `pointer-events: none` while chips/buttons use `pointer-events: auto`, so content beneath remains scrollable.
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
- - Chips include subtle icons per section/filter (car, check, clock, bookmark, tag, wand, users, truck, admin shield). Active state uses a solid highlight; inactive uses a light glass outline.
+- The bottom drawer pull handle has been removed and the bottom bar padding reduced to increase content height.
+ - Chips include subtle icons per section/filter (car, check, clock, bookmark, tag, wand, users, truck, bell, calendar, admin shield). Active state uses a solid highlight; inactive uses a light glass outline.
 
 ### Mobile Dashboard: FAB vs. Scroll
 - The main Stock list scrolls within a viewport that also hosts a floating “Add” FAB near the bottom-right.
@@ -71,6 +77,9 @@ API routes (selected):
 - Users
   - `app/api/admin/users/route.ts` (admin list/create)
   - `app/api/users/route.js`, `app/api/users/[id]/route.js` (legacy/general)
+- TODOs
+  - `app/api/todos/route.ts` (GET my todos filtered by date, POST create)
+  - `app/api/todos/[id]/route.ts` (PUT update, DELETE) — all routes enforce ownership via JWT user id
 - Misc
   - `app/api/uploads/route.ts` (file uploads)
   - Test/health routes under `app/api/test*/`
@@ -96,6 +105,7 @@ Top-level components:
   - Top-level tabs: Stock, Clients, Delivery (+ Admin toggle).
   - Secondary tabs for Stock: all/in-stock/coming/reserved/sold/demo.
   - Lists cars/clients/deliveries with status badges and quick actions.
+  - Also renders Notifications and a basic TODO calendar (if enabled per user).
 - `app/components/car-detail.tsx` — gallery, status change, share flow, audit insights.
 - `app/components/delivery-detail.tsx` — delivery prep, client linking, recon tasks, licensing, doc checklist and uploads (local IndexedDB or R2 uploads).
 - `app/components/add-edit-car.tsx`, `app/components/add-edit-client.tsx` — editors (FormData for car, JSON for client). 
@@ -114,6 +124,7 @@ Interaction highlights:
 - `models/User.ts`
   - Fields: `phone`, `role` (`admin|user|manager`), `isAuthorized`, `department`, `profile{firstName,lastName,email,avatar}`, OTP fields, timestamps.
   - Methods: `isTestNumber()`.
+  - Feature flags: `matchingEnabled` and `todoEnabled` (per-user access to TODO tab).
 - `models/Car.ts/js`
   - Typical fields: `make, model, year, price, kilometers, color, transmission, licensePlate, vin, images[] -> Picture, owner -> Client, status ('in-stock'|'coming'|'reserved'|'sold'|'demo'), auditLog[]`.
   - Index handling in `app/api/cars/route.js` ensures partial unique index for `licensePlate`.
@@ -122,6 +133,9 @@ Interaction highlights:
 - `models/Delivery.ts`
   - Fields: `car -> Car, client -> Client, salesperson -> User, deliveryDate, financeBank, licensing{done,notes}, reconTasks[], additionalDocs{trade_in_natis, source_of_funds, ubo_form}, docs[], status, auditLog[]`.
 - Others: `models/Picture.js`, `models/Document.js`, `models/Session.ts`, `models/Phone.js`.
+
+- `models/Todo.ts`
+  - Fields: `user -> User`, `date` (day-level), `title`, timestamps. All queries are user-isolated.
 
 DB connection:
 - `lib/mongodb.ts` exposes `connect()` with a cached connection across hot reloads.
@@ -146,6 +160,7 @@ DB connection:
     - Creates a JWT with `phone`, `userId`, `role`, `otpDay` and sets `session_token` httpOnly cookie.
     - Creates/rotates a `Session` document with `deviceType` and activity tracking.
 - Me/Profile: `GET/PUT /api/auth/me` reads cookie, verifies JWT, loads/saves profile fields. If phone is changed, client is instructed to re-auth.
+  - Response includes `todoEnabled` which governs whether the TODO tab is shown.
 - Logout: `POST /api/auth/logout` to clear session client-side usages, UI redirects to `/auth/login`.
 
 Middleware `middleware.ts` effects:
@@ -268,6 +283,7 @@ Package manager: pnpm (per workspace preference).
   - Role-based admin access (`/admin`).
   - Propagates `x-user-phone` and `x-user-role` to APIs for auditing and business logic.
 - API routes additionally verify JWT from cookies (`/api/clients`, `/api/auth/me`, deliveries routes) and apply user isolation rules.
+- TODO routes strictly scope by `user` id from JWT. Admin Users API controls access with the per-user flag `todoEnabled`.
 
 ---
 
@@ -396,3 +412,4 @@ Record changes to architecture here when updating:
  - 2025-09-11: Reserve dialog is now rendered in all views via `MainPage`, so reserving from Car Detail opens the client selection dialog immediately.
  - 2025-09-12: Unified mobile bottom bar with pull-to-hide handle; added scroll-into-view for selected chip; refined chip styling with subtle icons.
  - 2025-09-12: Updated PWA manifest to reference `public/app-icon.png`, `public/app-icon-512.png`, and `public/app-icon-maskable.png` as the app icons.
+ - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.

@@ -79,18 +79,25 @@ export async function PATCH(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { userId, matchingEnabled } = body || {};
-    if (!userId || typeof matchingEnabled !== 'boolean') {
-      return NextResponse.json({ error: 'userId and matchingEnabled are required' }, { status: 400 });
+    const { userId, matchingEnabled, todoEnabled } = body || {};
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    const updated = await User.findByIdAndUpdate(userId, { $set: { matchingEnabled } }, { new: true });
+    const set: Record<string, any> = {};
+    if (typeof matchingEnabled === 'boolean') set.matchingEnabled = matchingEnabled;
+    if (typeof todoEnabled === 'boolean') set.todoEnabled = todoEnabled;
+    if (Object.keys(set).length === 0) {
+      return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 });
+    }
+
+    const updated = await User.findByIdAndUpdate(userId, { $set: set }, { new: true });
     if (!updated) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     return NextResponse.json({ success: true, user: updated });
   } catch (error) {
-    console.error('Error updating user matchingEnabled:', error);
+    console.error('Error updating user flags:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

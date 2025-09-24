@@ -12,6 +12,7 @@ interface User {
   department: string;
   role: string;
   matchingEnabled?: boolean;
+  todoEnabled?: boolean;
   createdAt: string;
 }
 
@@ -58,6 +59,23 @@ export default function UserList() {
     }
   };
 
+  const toggleTodo = async (userId: string, next: boolean) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, todoEnabled: next }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || 'Failed to update user');
+      }
+      await reload();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  };
+
   if (loading) return <p>Loading users...</p>;
   if (error) return <p>Error: {error}</p>;
 
@@ -73,6 +91,7 @@ export default function UserList() {
               <th className="p-3">Department</th>
               <th className="p-3">Role</th>
               <th className="p-3">Matching</th>
+              <th className="p-3">TODO Access</th>
               <th className="p-3">Created At</th>
             </tr>
           </thead>
@@ -91,6 +110,16 @@ export default function UserList() {
                       onChange={(e) => toggleMatching(user._id, e.target.checked)}
                     />
                     <span>{user.matchingEnabled !== false ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                </td>
+                <td className="p-3">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={user.todoEnabled === true}
+                      onChange={(e) => toggleTodo(user._id, e.target.checked)}
+                    />
+                    <span>{user.todoEnabled ? 'Enabled' : 'Disabled'}</span>
                   </label>
                 </td>
                 <td className="p-3">{new Date(user.createdAt).toLocaleDateString()}</td>

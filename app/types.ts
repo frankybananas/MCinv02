@@ -1,6 +1,6 @@
 export type CarState = "in-stock" | "coming" | "reserved" | "sold";
 export type CarStatus = "all" | CarState | "demo";
-export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications";
+export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications" | "todo";
 
 export interface Picture {
   _id?: string;
@@ -92,6 +92,16 @@ export interface NotificationItem {
     matchId?: string;
   };
   read?: boolean;
+}
+
+// TODO items
+export interface TodoItem {
+  _id: string;
+  user: string; // owner (server ensures isolation)
+  date: string; // ISO date (yyyy-mm-dd)
+  title: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ReconTask {
