@@ -2,7 +2,9 @@ import { GET, POST } from '@/app/api/admin/users/route';
 
 jest.mock('@/lib/mongodb', () => ({ connect: jest.fn(async () => {}) }));
 jest.mock('@/models/User', () => ({ __esModule: true, default: {
-  find: jest.fn(async () => ([{ _id: 'u1', phone: '+100', profile: { firstName: 'A', lastName: 'B' }, department: 'new', role: 'user', createdAt: new Date().toISOString() }])),
+  find: jest.fn(() => ({
+    sort: jest.fn(async () => ([{ _id: 'u1', phone: '+100', profile: { firstName: 'A', lastName: 'B' }, department: 'new', role: 'user', createdAt: new Date().toISOString() }]))
+  })),
   findOne: jest.fn(async () => null),
   create: jest.fn(async (u: any) => u),
 }}));

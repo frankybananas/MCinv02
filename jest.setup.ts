@@ -93,7 +93,7 @@ jest.mock('jose', () => {
     setExpirationTime() { return this; }
     async sign() { return 'test.jwt.token'; }
   }
-  const jwtVerify = jest.fn(async () => ({ payload: { userId: 'test-user-id', phone: '+1000000000', role: 'user' } }));
+  const jwtVerify = jest.fn(async () => ({ payload: { userId: '65123456789abc0011223344', phone: '+1000000000', role: 'user' } }));
   return { SignJWT: SignJWTMock, jwtVerify };
 });
 

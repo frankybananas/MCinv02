@@ -51,7 +51,7 @@ jest.mock('@/models/Todo', () => ({ __esModule: true, default: {
 const todayIso = () => new Date().toISOString().substring(0,10);
 
 describe('API /api/todos', () => {
-  beforeEach(() => { store.length = 0; jest.clearAllMocks(); });
+  beforeEach(() => { store.length = 0; jest.clearAllMocks(); process.env.JWT_SECRET = 'test-secret'; });
 
   it('lists empty by default', async () => {
     const res = await GET(makeReq(`http://localhost/api/todos?date=${todayIso()}`) as any);
