@@ -5,7 +5,6 @@ import Client from '@/models/Client'
 import Match from '@/models/Match'
 import User from '@/models/User'
 import type { IMatch } from '@/models/Match'
-import type { IClient } from '@/models/Client'
 import type { IUser } from '@/models/User'
 import { withParams } from '@/lib/with-params'
 import { formatHttpError, isHttpError } from '@/lib/errors'
@@ -18,7 +17,7 @@ interface MatchParams extends Record<string, string> {
 }
 
 type HydratedMatch = HydratedDocument<IMatch>
-type HydratedClient = HydratedDocument<IClient>
+type ClientDocument = NonNullable<Awaited<ReturnType<typeof Client.findById>>>
 
 interface MatchSummary {
   id: string
@@ -33,9 +32,9 @@ function isPrivileged(session: SessionData): boolean {
   return session.role === 'admin' || session.role === 'manager'
 }
 
-async function fetchClient(clientId: string, session: SessionData): Promise<HydratedClient> {
+async function fetchClient(clientId: string, session: SessionData): Promise<ClientDocument> {
   const client = await Client.findById(clientId)
-  return ensureClientAccess(client, session, 'Client not found')
+  return ensureClientAccess(client, session, 'Client not found') as ClientDocument
 }
 
 function buildMatchSummary(match: HydratedMatch): MatchSummary {

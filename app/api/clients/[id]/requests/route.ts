@@ -6,9 +6,7 @@ import ClientRequest from '@/models/ClientRequest'
 import Car from '@/models/Car'
 import Match from '@/models/Match'
 import User from '@/models/User'
-import type { IClient } from '@/models/Client'
 import type { IClientRequest } from '@/models/ClientRequest'
-import type { IUser } from '@/models/User'
 import type { IMatch } from '@/models/Match'
 import { buildRequestText, embedText, explainMatchShort } from '@/lib/embeddings'
 import { upsertRequestVector, searchCarsByVector } from '@/lib/vector-store'
@@ -22,7 +20,7 @@ interface ClientRequestParams extends Record<string, string> {
   id: string
 }
 
-type HydratedClient = HydratedDocument<IClient>
+type ClientDocument = NonNullable<Awaited<ReturnType<typeof Client.findById>>>
 type HydratedClientRequest = HydratedDocument<IClientRequest>
 
 interface ClientRequestResponse {
@@ -55,9 +53,9 @@ function isPrivileged(session: SessionData): boolean {
   return session.role === 'admin' || session.role === 'manager'
 }
 
-async function fetchClient(clientId: string, session: SessionData): Promise<HydratedClient> {
+async function fetchClient(clientId: string, session: SessionData): Promise<ClientDocument> {
   const client = await Client.findById(clientId)
-  return ensureClientAccess(client, session, 'Client not found')
+  return ensureClientAccess(client, session, 'Client not found') as ClientDocument
 }
 
 function toStringId(value: Types.ObjectId | string): string {
