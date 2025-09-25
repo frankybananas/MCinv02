@@ -2,6 +2,13 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export type MatchStatus = 'new' | 'notified' | 'viewed' | 'dismissed' | 'converted';
 
+export interface MatchAuditEntry {
+  action: string;
+  performedBy: string;
+  timestamp: Date;
+  metadata?: Record<string, unknown>;
+}
+
 export interface IMatch extends Document {
   request: mongoose.Types.ObjectId;
   car: mongoose.Types.ObjectId;
@@ -14,6 +21,7 @@ export interface IMatch extends Document {
   viewedAt?: Date;
   dismissedAt?: Date;
   contactedAt?: Date;
+  auditLog?: MatchAuditEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +38,12 @@ const MatchSchema = new Schema<IMatch>({
   viewedAt: { type: Date },
   dismissedAt: { type: Date },
   contactedAt: { type: Date },
+  auditLog: [{
+    action: { type: String, required: true },
+    performedBy: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    metadata: { type: Schema.Types.Mixed },
+  }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

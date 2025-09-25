@@ -1,41 +1,44 @@
 import { NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
-import User from '@/models/User'
+import User, { type IUser } from '@/models/User'
 import { connect as connectDb } from '@/lib/mongodb'
+import { requireSession } from '@/lib/auth-session'
+import { formatHttpError, isHttpError, NotFoundError } from '@/lib/errors'
+import type { HydratedDocument } from 'mongoose'
 
-function parseCookie(header: string | null, name: string): string | null {
-  if (!header) return null
-  const parts = header.split(';')
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=')
-    if (k === name) return decodeURIComponent(rest.join('='))
+type UserDoc = HydratedDocument<IUser>
+
+function serializeUser(user: UserDoc) {
+  const profile = user.profile || {}
+  return {
+    phone: user.phone,
+    firstName: profile.firstName || '',
+    lastName: profile.lastName || '',
+    email: profile.email || '',
+    avatar: profile.avatar || '',
+    role: user.role,
+    notificationsLastSeenAt: user.notificationsLastSeenAt || null,
+    todoEnabled: user.todoEnabled === true,
   }
-  return null
 }
 
 export async function PUT(request: Request) {
   try {
-    const cookieHeader = request.headers.get('cookie')
-    const token = parseCookie(cookieHeader, 'session_token')
-    const jwtSecret = process.env.JWT_SECRET
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jwtVerify(token, secret)
-    const phoneFromSession = payload.phone as string | undefined
-    if (!phoneFromSession) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+    const session = await requireSession(request)
+    const phoneFromSession = session.phone
 
     const body = await request.json()
-    const { firstName, lastName, email, avatar, phone } = body || {}
+    const { firstName, lastName, email, avatar, phone } = (body ?? {}) as {
+      firstName?: unknown
+      lastName?: unknown
+      email?: unknown
+      avatar?: unknown
+      phone?: unknown
+    }
 
     await connectDb()
-    const user = await User.findOne({ phone: phoneFromSession })
+    const user = await User.findOne({ phone: phoneFromSession }) as UserDoc | null
     if (!user) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+      throw new NotFoundError('User not found')
     }
 
     user.profile = {
@@ -54,60 +57,37 @@ export async function PUT(request: Request) {
 
     await user.save()
 
-    const profile = user.profile || {}
-    const data = {
-      phone: user.phone,
-      firstName: profile.firstName || '',
-      lastName: profile.lastName || '',
-      email: profile.email || '',
-      avatar: profile.avatar || '',
-      role: user.role,
-      notificationsLastSeenAt: user.notificationsLastSeenAt || null,
-      todoEnabled: (user as any).todoEnabled === true,
-    }
+    const data = serializeUser(user)
 
     return NextResponse.json({ success: true, data, requireReauth })
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 })
+  } catch (err: unknown) {
+    if (isHttpError(err)) {
+      return NextResponse.json(formatHttpError(err), { status: err.status })
+    }
+    const message = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 
 export async function GET(request: Request) {
   try {
-    const cookieHeader = request.headers.get('cookie')
-    const token = parseCookie(cookieHeader, 'session_token')
-    const jwtSecret = process.env.JWT_SECRET
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jwtVerify(token, secret)
-    const phone = payload.phone as string | undefined
-    if (!phone) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+    const session = await requireSession(request)
+    const phone = session.phone
 
     await connectDb()
-    const user = await User.findOne({ phone })
+    const user = await User.findOne({ phone }) as UserDoc | null
     if (!user) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+      throw new NotFoundError('User not found')
     }
 
-    const profile = user.profile || {}
-    const data = {
-      phone: user.phone,
-      firstName: profile.firstName || '',
-      lastName: profile.lastName || '',
-      email: profile.email || '',
-      avatar: profile.avatar || '',
-      role: user.role,
-      notificationsLastSeenAt: (user as any).notificationsLastSeenAt || null,
-      todoEnabled: (user as any).todoEnabled === true,
-    }
+    const data = serializeUser(user)
 
     return NextResponse.json({ success: true, data })
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 })
+  } catch (err: unknown) {
+    if (isHttpError(err)) {
+      return NextResponse.json(formatHttpError(err), { status: err.status })
+    }
+    const message = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

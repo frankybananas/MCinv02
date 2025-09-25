@@ -284,6 +284,10 @@ Package manager: pnpm (per workspace preference).
   - Propagates `x-user-phone` and `x-user-role` to APIs for auditing and business logic.
 - API routes additionally verify JWT from cookies (`/api/clients`, `/api/auth/me`, deliveries routes) and apply user isolation rules.
 - TODO routes strictly scope by `user` id from JWT. Admin Users API controls access with the per-user flag `todoEnabled`.
+- Shared helpers in `lib/auth-session.ts` expose `requireSession()`, `getSession()`, and `isPrivileged()` to ensure all authenticated routes share the same parsing and validation logic.
+- Client request APIs rely on `lib/validation/client-request.ts` for Zod-based payload validation, input normalization, and sanitization before embeddings are refreshed.
+- Rate limiting helpers (`lib/rate-limit.ts`) protect mutation-heavy endpoints (client requests, match state changes) to guard against abuse.
+- Match status transitions (`/api/matches/[id]/view|contacted|dismiss`) append audit entries (see `Match.auditLog`) for traceability.
 
 ---
 
@@ -349,6 +353,7 @@ sequenceDiagram
 ## 12) Conventions & Notes
 
 - __Dynamic route params__: call `await request.blob()` before reading `params`.
+- Prefer the `withParams()` helper from `lib/with-params.ts`, which handles the blob read and unwraps `params` for you.
 - __React components__: use `.tsx` (TypeScript) for new components.
 - __Package manager__: use `pnpm` for installing/running scripts.
 - __Status values__: `in-stock | coming | reserved | sold | demo`. Use `app/components/status-utils.tsx` for label/color helpers.
@@ -413,3 +418,4 @@ Record changes to architecture here when updating:
  - 2025-09-12: Unified mobile bottom bar with pull-to-hide handle; added scroll-into-view for selected chip; refined chip styling with subtle icons.
  - 2025-09-12: Updated PWA manifest to reference `public/app-icon.png`, `public/app-icon-512.png`, and `public/app-icon-maskable.png` as the app icons.
  - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
+- 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
