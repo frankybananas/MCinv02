@@ -1,51 +1,46 @@
 import { NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
-import User from '@/models/User'
+import User, { type IUser } from '@/models/User'
+import { getSession } from '@/lib/auth-session'
+import type { HydratedDocument } from 'mongoose'
 
-function parseCookie(header: string | null, name: string): string | null {
-  if (!header) return null
-  const parts = header.split(';')
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=')
-    if (k === name) return decodeURIComponent(rest.join('='))
-  }
-  return null
-}
+type UserDoc = HydratedDocument<IUser>
 
-async function getPhoneFromRequest(request: Request): Promise<string | null> {
-  try {
-    const cookieHeader = request.headers.get('cookie')
-    const token = parseCookie(cookieHeader, 'session_token')
-    const jwtSecret = process.env.JWT_SECRET
-    if (!token || !jwtSecret) return null
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jwtVerify(token, secret)
-    const phone = (payload as any).phone as string | undefined
-    return phone || null
-  } catch {
-    return null
+function parseTimestamp(value: unknown): Date {
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
   }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value
+  }
+  return new Date()
 }
 
 export async function PUT(request: Request) {
   try {
-    const phone = await getPhoneFromRequest(request)
-    if (!phone) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    const session = await getSession(request)
+    const phone = session?.phone
+    if (!phone) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
 
     await connectDb()
 
-    const { timestamp } = await request.json().catch(() => ({ timestamp: new Date().toISOString() }))
-    const when = new Date(typeof timestamp === 'string' ? timestamp : Date.now())
+    const body = await request.json().catch(() => ({ timestamp: new Date().toISOString() }))
+    const timestampValue = typeof body === 'object' && body !== null && 'timestamp' in body ? (body as Record<string, unknown>).timestamp : undefined
+    const when = parseTimestamp(timestampValue)
 
-    const updated = await (User as any).findOneAndUpdate(
-      { phone },
-      { $set: { notificationsLastSeenAt: when } },
-      { new: true }
-    ).select('notificationsLastSeenAt')
+    const updated = await User.findOneAndUpdate({ phone }, { $set: { notificationsLastSeenAt: when } }, { new: true })
+      .select('notificationsLastSeenAt')
 
-    return NextResponse.json({ success: true, data: { notificationsLastSeenAt: updated?.notificationsLastSeenAt } })
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 })
+    const data = updated ? { notificationsLastSeenAt: (updated as UserDoc).notificationsLastSeenAt ?? null } : { notificationsLastSeenAt: null }
+
+    return NextResponse.json({ success: true, data })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

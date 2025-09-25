@@ -2,37 +2,42 @@ import mongoose, { Connection } from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections from growing exponentially
- * during API Route usage.
- */
-let cached = (global as any).mongoose;
+type MongooseCache = {
+  conn: Connection | null;
+  promise: Promise<Connection> | null;
+};
 
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
+declare global {
+  // eslint-disable-next-line no-var
+  var mongooseCache: MongooseCache | undefined;
+}
+
+function getCache(): MongooseCache {
+  if (!globalThis.mongooseCache) {
+    globalThis.mongooseCache = { conn: null, promise: null };
+  }
+  return globalThis.mongooseCache;
 }
 
 /**
  * Database connection function
  */
 export async function connect(): Promise<Connection> {
-  if (cached.conn) {
-    return cached.conn;
+  const cache = getCache();
+  if (cache.conn) {
+    return cache.conn;
   }
-  if (!cached.promise) {
+  if (!cache.promise) {
     if (!MONGODB_URI) {
       throw new Error('Missing MONGODB_URI. Please set it in your environment (e.g., .env.local).');
     }
     const opts = {
       bufferCommands: false,
     };
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      return mongoose.connection;
-    });
+    cache.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => mongooseInstance.connection);
   }
-  cached.conn = await cached.promise;
-  return cached.conn;
+  cache.conn = await cache.promise;
+  return cache.conn;
 }
 
 

@@ -1,236 +1,290 @@
 import { NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
-import User from '@/models/User'
+import User, { type IUser } from '@/models/User'
 import Car from '@/models/Car'
 import Delivery from '@/models/Delivery'
-import Match from '@/models/Match'
+import Match, { type IMatch } from '@/models/Match'
+import { getSession } from '@/lib/auth-session'
+import type { NotificationItem } from '@/app/types'
+import type { HydratedDocument, Types } from 'mongoose'
 
-function parseCookie(header: string | null, name: string): string | null {
-  if (!header) return null
-  const parts = header.split(';')
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=')
-    if (k === name) return decodeURIComponent(rest.join('='))
-  }
-  return null
+type UserDoc = HydratedDocument<IUser>
+
+interface PopulatedImage {
+  imageUrl?: string
 }
 
-async function getSessionInfo(request: Request): Promise<{ userId: string | null; phone: string | null }>{
-  try {
-    const cookieHeader = request.headers.get('cookie')
-    const token = parseCookie(cookieHeader, 'session_token')
-    const jwtSecret = process.env.JWT_SECRET
-    if (!token || !jwtSecret) return { userId: null, phone: null }
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jwtVerify(token, secret)
-    let userId: any = (payload as any).userId
-    if (typeof userId !== 'undefined') {
-      if (typeof userId !== 'string') {
-        try {
-          if (userId?.data && Array.isArray(userId.data)) {
-            userId = Buffer.from(userId.data).toString('utf8')
-          } else if (ArrayBuffer.isView(userId)) {
-            userId = Buffer.from(userId as Uint8Array).toString('utf8')
-          } else if (typeof userId?.toString === 'function') {
-            userId = userId.toString()
-          }
-        } catch {}
-      }
-      if (!(typeof userId === 'string' && /^[a-fA-F0-9]{24}$/.test(userId))) {
-        userId = null
-      }
-    } else {
-      userId = null
-    }
-    const phone = (payload as any).phone as string | undefined
-    return { userId, phone: phone || null }
-  } catch {
-    return { userId: null, phone: null }
+interface CarAuditEntry {
+  action?: string
+  details?: string
+  timestamp?: Date
+}
+
+interface CarShape {
+  _id: Types.ObjectId
+  make?: string
+  model?: string
+  year?: number
+  price?: number
+  images?: PopulatedImage[]
+  createdAt?: Date
+  updatedAt?: Date
+  auditLog?: CarAuditEntry[]
+}
+
+type CarDoc = HydratedDocument<CarShape>
+
+interface DeliveryAuditEntry {
+  action?: string
+  details?: string
+  timestamp?: Date
+}
+
+interface DeliveryShape {
+  _id: Types.ObjectId
+  status?: string
+  deliveryDate?: Date
+  updatedAt?: Date
+  createdAt?: Date
+  auditLog?: DeliveryAuditEntry[]
+  car?: CarDoc | null
+}
+
+type DeliveryDoc = HydratedDocument<DeliveryShape>
+
+type MatchDoc = HydratedDocument<IMatch> & { car?: CarDoc | null }
+
+function safeTitle(parts: Array<string | number | null | undefined>): string {
+  return parts
+    .map((part) => (typeof part === 'number' ? String(part) : part ?? ''))
+    .filter((value) => value !== '')
+    .join(' ')
+    .trim()
+}
+
+function firstImageUrl(images: PopulatedImage[] | undefined): string | undefined {
+  if (!Array.isArray(images) || images.length === 0) return undefined
+  const url = images[0]?.imageUrl
+  return typeof url === 'string' && url.trim().length > 0 ? url : undefined
+}
+
+function formatPriceZar(price: number | undefined): string | undefined {
+  if (typeof price !== 'number' || Number.isNaN(price)) return undefined
+  return `Price: ZAR ${new Intl.NumberFormat('en-ZA', { minimumFractionDigits: 0 }).format(price)}`
+}
+
+function toIso(date: Date | string | undefined | null): string {
+  if (date instanceof Date) {
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
   }
+  if (typeof date === 'string') {
+    const parsed = new Date(date)
+    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+  }
+  return new Date().toISOString()
+}
+
+function isCarStatusUpdate(entry: CarAuditEntry | undefined, keyword: 'reserved' | 'sold'): boolean {
+  if (!entry) return false
+  const action = String(entry.action ?? '').toLowerCase()
+  if (!action.includes('car status update')) return false
+  const details = String(entry.details ?? '').toLowerCase()
+  return details.includes(`to '${keyword}'`) || details.includes(`to "${keyword}"`) || details.includes(`to ${keyword}`)
+}
+
+function buildCarNotificationId(prefix: string, carId: Types.ObjectId, timestamp: number): string {
+  return `${prefix}:${String(carId)}:${String(timestamp)}`
 }
 
 export async function GET(request: Request) {
   try {
-    const { userId, phone } = await getSessionInfo(request)
-    if (!phone) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    const session = await getSession(request)
+    if (!session?.phone) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
 
     await connectDb()
 
-    // Load user to get lastLogin; default to 72h window when absent
-    const user = await (User as any).findOne({ phone }).select('_id lastLogin profile')
+    const user = await User.findOne({ phone: session.phone }).select('_id lastLogin profile notificationsLastSeenAt') as UserDoc | null
     const since = user?.lastLogin ? new Date(user.lastLogin) : new Date(Date.now() - 72 * 60 * 60 * 1000)
 
-    const notifications: any[] = []
+    const notifications: NotificationItem[] = []
 
-    // 1) New Cars added by anyone since last login
+    // New cars since last login
     try {
-      const newCars: any[] = await (Car as any)
-        .find({ createdAt: { $gt: since } })
+      const newCars = await Car.find({ createdAt: { $gt: since } })
         .select('make model year images createdAt price')
         .sort({ createdAt: -1 })
-        .populate('images')
+        .populate('images') as unknown as CarDoc[]
 
-      for (const c of newCars) {
-        const title = `${c.year ?? ''} ${c.make ?? ''} ${c.model ?? ''}`.trim()
-        const imageUrl = Array.isArray(c.images) && c.images[0]?.imageUrl ? c.images[0].imageUrl : undefined
+      for (const car of newCars) {
+        const title = safeTitle([car.year, car.make, car.model])
+        const createdAtIso = toIso(car.createdAt)
         notifications.push({
-          _id: `car_new:${String(c._id)}`,
+          _id: `car_new:${String(car._id)}`,
           type: 'car_new',
           title: title ? `New car added: ${title}` : 'New car added',
-          description: typeof c.price === 'number' ? `Price: ZAR ${new Intl.NumberFormat('en-ZA', { minimumFractionDigits: 0 }).format(c.price)}` : undefined,
-          createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
-          data: { carId: String(c._id), imageUrl },
+          description: formatPriceZar(car.price),
+          createdAt: createdAtIso,
+          data: {
+            carId: String(car._id),
+            imageUrl: firstImageUrl(car.images),
+          },
         })
       }
-    } catch (e) {
-      // swallow car aggregation errors to avoid blocking
-      console.warn('Notifications: car aggregation failed', (e as any)?.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn('Notifications: car aggregation failed', message)
     }
 
-    // 2) Car status changes (reserved/sold) by anyone since last login
+    // Car status updates
     try {
-      const carsWithRecentLogs: any[] = await (Car as any)
-        .find({ 'auditLog.timestamp': { $gt: since } })
+      const carsWithLogs = await Car.find({ 'auditLog.timestamp': { $gt: since } })
         .select('make model year images auditLog createdAt updatedAt')
-        .populate('images')
+        .populate('images') as unknown as CarDoc[]
 
-      for (const c of carsWithRecentLogs) {
-        const title = `${c.year ?? ''} ${c.make ?? ''} ${c.model ?? ''}`.trim() || 'Vehicle'
-        const imageUrl = Array.isArray(c.images) && c.images[0]?.imageUrl ? c.images[0].imageUrl : undefined
-        const entries: any[] = Array.isArray(c.auditLog) ? c.auditLog : []
-        for (const entry of entries) {
-          const t = new Date(entry.timestamp || c.updatedAt || c.createdAt).getTime()
-          if (t <= since.getTime()) continue
-          const details = String(entry.details || '').toLowerCase()
-          if (String(entry.action || '').toLowerCase().includes('car status update')) {
-            if (details.includes("to 'reserved'") || details.includes('to "reserved"') || details.includes('to reserved')) {
-              notifications.push({
-                _id: `car_reserved:${String(c._id)}:${String(t)}`,
-                type: 'car_reserved',
-                title: `Car reserved: ${title}`,
-                description: entry.details || 'Car status changed to reserved',
-                createdAt: new Date(t).toISOString(),
-                data: { carId: String(c._id), imageUrl },
-              })
-            }
-            if (details.includes("to 'sold'") || details.includes('to "sold"') || details.includes('to sold')) {
-              notifications.push({
-                _id: `car_sold:${String(c._id)}:${String(t)}`,
-                type: 'car_sold',
-                title: `Car sold: ${title}`,
-                description: entry.details || 'Car status changed to sold',
-                createdAt: new Date(t).toISOString(),
-                data: { carId: String(c._id), imageUrl },
-              })
-            }
+      for (const car of carsWithLogs) {
+        const title = safeTitle([car.year, car.make, car.model]) || 'Vehicle'
+        const imageUrl = firstImageUrl(car.images)
+        const auditEntries = Array.isArray(car.auditLog) ? car.auditLog : []
+
+        for (const entry of auditEntries) {
+          const timestamp = new Date(entry?.timestamp ?? car.updatedAt ?? car.createdAt ?? new Date()).getTime()
+          if (!Number.isFinite(timestamp) || timestamp <= since.getTime()) continue
+
+          if (isCarStatusUpdate(entry, 'reserved')) {
+            notifications.push({
+              _id: buildCarNotificationId('car_reserved', car._id, timestamp),
+              type: 'car_reserved',
+              title: `Car reserved: ${title}`,
+              description: entry?.details || 'Car status changed to reserved',
+              createdAt: new Date(timestamp).toISOString(),
+              data: { carId: String(car._id), imageUrl },
+            })
+          }
+
+          if (isCarStatusUpdate(entry, 'sold')) {
+            notifications.push({
+              _id: buildCarNotificationId('car_sold', car._id, timestamp),
+              type: 'car_sold',
+              title: `Car sold: ${title}`,
+              description: entry?.details || 'Car status changed to sold',
+              createdAt: new Date(timestamp).toISOString(),
+              data: { carId: String(car._id), imageUrl },
+            })
           }
         }
       }
-    } catch (e) {
-      console.warn('Notifications: car status aggregation failed', (e as any)?.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn('Notifications: car status aggregation failed', message)
     }
 
-    // 3) Delivery updates for this salesperson
+    // Delivery updates for salesperson
+    const userId = user?._id ? String(user._id) : null
     if (userId) {
       try {
-        const deliveries: any[] = await (Delivery as any)
-          .find({ salesperson: userId })
+        const deliveries = await Delivery.find({ salesperson: userId })
           .select('car status deliveryDate auditLog updatedAt createdAt')
           .populate({ path: 'car', select: 'make model year images', populate: { path: 'images' } })
-          .sort({ updatedAt: -1 })
+          .sort({ updatedAt: -1 }) as unknown as DeliveryDoc[]
 
-        const now = Date.now()
-        const THREE_DAYS = 3 * 24 * 60 * 60 * 1000
+        const nowMs = Date.now()
+        const threeDays = 3 * 24 * 60 * 60 * 1000
 
-        for (const d of deliveries) {
-          const car = d.car || {}
-          const carTitle = `${car.year ?? ''} ${car.make ?? ''} ${car.model ?? ''}`.trim() || 'Vehicle'
-          const imageUrl = Array.isArray(car.images) && car.images[0]?.imageUrl ? car.images[0].imageUrl : undefined
+        for (const delivery of deliveries) {
+          const car = delivery.car ?? null
+          const carTitle = safeTitle([car?.year, car?.make, car?.model]) || 'Vehicle'
+          const imageUrl = car ? firstImageUrl(car.images) : undefined
+          const auditEntries = Array.isArray(delivery.auditLog) ? delivery.auditLog : []
 
-          // Audit log entries since 'since'
-          const entries: any[] = Array.isArray(d.auditLog) ? d.auditLog : []
-          for (const entry of entries) {
-            const t = new Date(entry.timestamp || d.updatedAt || d.createdAt).getTime()
-            if (t > since.getTime()) {
-              notifications.push({
-                _id: `delivery_update:${String(d._id)}:${String(t)}`,
-                type: 'delivery_update',
-                title: `Delivery update: ${carTitle}`,
-                description: entry.details || entry.action || 'Delivery updated',
-                createdAt: new Date(t).toISOString(),
-                data: { deliveryId: String(d._id), imageUrl },
-              })
-            }
+          for (const entry of auditEntries) {
+            const timestamp = new Date(entry?.timestamp ?? delivery.updatedAt ?? delivery.createdAt ?? new Date()).getTime()
+            if (!Number.isFinite(timestamp) || timestamp <= since.getTime()) continue
+
+            notifications.push({
+              _id: `delivery_update:${String(delivery._id)}:${String(timestamp)}`,
+              type: 'delivery_update',
+              title: `Delivery update: ${carTitle}`,
+              description: entry?.details || entry?.action || 'Delivery updated',
+              createdAt: new Date(timestamp).toISOString(),
+              data: { deliveryId: String(delivery._id), imageUrl },
+            })
           }
 
-          // Due soon reminder
-          if (d.status === 'active' && d.deliveryDate) {
-            const dt = new Date(d.deliveryDate).getTime()
-            if (dt >= now && dt <= now + THREE_DAYS) {
+          if (delivery.status === 'active' && delivery.deliveryDate) {
+            const dueAt = new Date(delivery.deliveryDate).getTime()
+            if (Number.isFinite(dueAt) && dueAt >= nowMs && dueAt <= nowMs + threeDays) {
               notifications.push({
-                _id: `delivery_due_soon:${String(d._id)}:${String(dt)}`,
+                _id: `delivery_due_soon:${String(delivery._id)}:${String(dueAt)}`,
                 type: 'delivery_due_soon',
                 title: `Delivery due soon: ${carTitle}`,
-                description: `Scheduled for ${new Date(dt).toLocaleString()}`,
+                description: `Scheduled for ${new Date(dueAt).toLocaleString()}`,
                 createdAt: new Date().toISOString(),
-                data: { deliveryId: String(d._id), imageUrl },
+                data: { deliveryId: String(delivery._id), imageUrl },
               })
             }
           }
 
-          // Completed since last login
-          if (d.status === 'completed') {
-            const t = new Date(d.updatedAt || d.createdAt).getTime()
-            if (t > since.getTime()) {
+          if (delivery.status === 'completed') {
+            const completedAt = new Date(delivery.updatedAt ?? delivery.createdAt ?? new Date()).getTime()
+            if (Number.isFinite(completedAt) && completedAt > since.getTime()) {
               notifications.push({
-                _id: `delivery_completed:${String(d._id)}:${String(t)}`,
+                _id: `delivery_completed:${String(delivery._id)}:${String(completedAt)}`,
                 type: 'delivery_completed',
                 title: `Delivery completed: ${carTitle}`,
                 description: 'Delivery marked as completed',
-                createdAt: new Date(t).toISOString(),
-                data: { deliveryId: String(d._id), imageUrl },
+                createdAt: new Date(completedAt).toISOString(),
+                data: { deliveryId: String(delivery._id), imageUrl },
               })
             }
           }
         }
-      } catch (e) {
-        console.warn('Notifications: delivery aggregation failed', (e as any)?.message)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        console.warn('Notifications: delivery aggregation failed', message)
       }
     }
 
-    // 4) New matches for this salesperson since last login/seen
+    // New matches for salesperson
     try {
-      const phoneStr = String(phone)
-      const matches: any[] = await (Match as any)
-        .find({ createdByPhone: phoneStr, createdAt: { $gt: since }, status: { $in: ['new', 'notified'] } })
+      const matches = await Match.find({
+        createdByPhone: session.phone,
+        createdAt: { $gt: since },
+        status: { $in: ['new', 'notified'] },
+      })
         .select('car client score explanation createdAt')
         .sort({ createdAt: -1 })
-        .populate({ path: 'car', select: 'make model year images', populate: { path: 'images' } })
+        .populate({ path: 'car', select: 'make model year images', populate: { path: 'images' } }) as unknown as MatchDoc[]
 
-      for (const m of matches) {
-        const car = (m as any).car || {}
-        const title = `${car.year ?? ''} ${car.make ?? ''} ${car.model ?? ''}`.trim() || 'Vehicle match'
-        const imageUrl = Array.isArray(car.images) && car.images[0]?.imageUrl ? car.images[0].imageUrl : undefined
+      for (const match of matches) {
+        const car = match.car ?? null
+        const title = safeTitle([car?.year, car?.make, car?.model]) || 'Vehicle match'
         notifications.push({
-          _id: `client_match:${String(m._id)}`,
-          type: 'client_match' as any,
+          _id: `client_match:${String(match._id)}`,
+          type: 'client_match',
           title: `New match: ${title}`,
-          description: (m as any).explanation || undefined,
-          createdAt: new Date(m.createdAt || Date.now()).toISOString(),
-          data: { carId: String(car?._id || ''), clientId: String((m as any).client || ''), matchId: String(m._id), imageUrl },
+          description: match.explanation ?? undefined,
+          createdAt: toIso(match.createdAt ?? new Date()),
+          data: {
+            carId: car?._id ? String(car._id) : undefined,
+            clientId: match.client ? String(match.client) : undefined,
+            matchId: String(match._id),
+            imageUrl: car ? firstImageUrl(car.images) : undefined,
+          },
         })
       }
-    } catch (e) {
-      console.warn('Notifications: matches aggregation failed', (e as any)?.message)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn('Notifications: matches aggregation failed', message)
     }
 
-    // Sort DESC by createdAt and limit
     notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     const limited = notifications.slice(0, 50)
 
     return NextResponse.json({ success: true, data: limited })
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

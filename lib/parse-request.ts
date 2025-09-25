@@ -24,6 +24,60 @@ export interface ParsedRequestResult {
   filters: ParsedRequestFilters
 }
 
+interface RawParsedRequest {
+  title?: unknown
+  freeText?: unknown
+  filters?: Record<string, unknown>
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => item.length > 0)
+}
+
+function asNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number' || Number.isNaN(value)) return undefined
+  return value
+}
+
+function asPositiveInteger(value: unknown): number | undefined {
+  if (typeof value !== 'number') return undefined
+  if (!Number.isFinite(value)) return undefined
+  const rounded = Math.trunc(value)
+  return rounded >= 0 ? rounded : undefined
+}
+
+function normalizeFilters(raw: Record<string, unknown> | undefined): ParsedRequestFilters {
+  const input = raw ?? {}
+  return {
+    makes: asStringArray(input.makes),
+    models: asStringArray(input.models),
+    minYear: asNumber(input.minYear),
+    maxYear: asNumber(input.maxYear),
+    maxMileageKm: asNumber(input.maxMileageKm),
+    minBudgetZar: asNumber(input.minBudgetZar),
+    maxBudgetZar: asNumber(input.maxBudgetZar),
+    seats: asPositiveInteger(input.seats),
+    fuelTypes: asStringArray(input.fuelTypes),
+    transmissions: asStringArray(input.transmissions),
+    bodyTypes: asStringArray(input.bodyTypes),
+    colors: asStringArray(input.colors),
+    mustHave: asStringArray(input.mustHave),
+    niceToHave: asStringArray(input.niceToHave),
+    excludeTerms: asStringArray(input.excludeTerms),
+  }
+}
+
+function normalizeParsedResult(raw: RawParsedRequest, notes: string): ParsedRequestResult {
+  const title = typeof raw.title === 'string' && raw.title.trim().length > 0 ? raw.title.trim() : undefined
+  const freeText = typeof raw.freeText === 'string' && raw.freeText.trim().length > 0 ? raw.freeText.trim() : notes
+  const filters = normalizeFilters(raw.filters)
+  return { title, freeText, filters }
+}
+
 export async function parseNotesToRequest(notes: string): Promise<ParsedRequestResult | null> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return null
@@ -40,16 +94,14 @@ export async function parseNotesToRequest(notes: string): Promise<ParsedRequestR
     ],
     temperature: 0.1,
     max_tokens: 300,
-    response_format: { type: 'json_object' } as any,
+    response_format: { type: 'json_object' },
   })
   const content = res.choices?.[0]?.message?.content
   if (!content) return null
   try {
-    const parsed = JSON.parse(content)
+    const parsed = JSON.parse(content) as unknown
     if (!parsed || typeof parsed !== 'object') return null
-    parsed.freeText = notes
-    if (!parsed.filters) parsed.filters = {}
-    return parsed as ParsedRequestResult
+    return normalizeParsedResult(parsed as RawParsedRequest, notes)
   } catch {
     return null
   }
