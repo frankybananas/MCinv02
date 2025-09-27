@@ -55,21 +55,36 @@ export function Todo() {
   const add = async () => {
     if (!newTitle.trim()) return;
     try {
+      setError(null);
+      const payload = {
+        date: selectedDate,
+        title: newTitle.trim(),
+        time: newTime?.trim() || null
+      };
+      
       const res = await fetch('/api/todos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: selectedDate,
-          title: newTitle.trim(),
-          time: newTime ? newTime : null,
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cookie': document.cookie // Ensure cookies are sent with the request
+        },
+        credentials: 'include', // Include credentials for cross-origin requests
+        body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to add TODO');
+      
+      const data = await res.json().catch(() => ({}));
+      
+      if (!res.ok) {
+        const errorMessage = data?.error || 'Failed to add TODO';
+        throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Failed to add TODO');
+      }
+      
       setNewTitle('');
       setNewTime('');
       await load();
     } catch (e) {
-      setError((e as Error).message);
+      console.error('Error adding TODO:', e);
+      setError((e as Error).message || 'Failed to add TODO');
     }
   };
 
@@ -151,9 +166,9 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 pb-6 mx-auto">
+    <div className="w-full max-w-full overflow-x-hidden px-1 sm:px-2 pb-4 mx-auto">
       {/* Monthly calendar - full width but contained */}
-      <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-4">
+      <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
         <DayPicker
           mode="single"
           selected={new Date(selectedDate + 'T12:00:00.000Z')}
@@ -164,26 +179,27 @@ export function Todo() {
           styles={{
             root: { width: '100%', maxWidth: '100%' },
             months: { width: '100%' },
-            month: { width: '100%', margin: 0, padding: '0.5rem' },
+            month: { width: '100%', margin: 0, padding: '0.25rem' },
             table: { width: '100%' },
             caption: { 
               fontWeight: 600, 
-              padding: '0.5rem 0', 
+              padding: '0.25rem 0', 
               textAlign: 'center',
               position: 'relative',
-              marginBottom: '0.5rem'
+              marginBottom: '0.25rem',
+              fontSize: '0.9rem'
             },
-            nav: { display: 'flex', justifyContent: 'space-between', padding: '0 0.5rem' },
-            head_cell: { padding: '0.25rem', textAlign: 'center', fontSize: '0.75rem' },
-            cell: { padding: '0.25rem', fontSize: '0.875rem' },
-            day: { width: '2rem', height: '2rem', margin: '0.1rem' }
+            nav: { display: 'flex', justifyContent: 'space-between', padding: '0 0.25rem' },
+            head_cell: { padding: '0.15rem', textAlign: 'center', fontSize: '0.7rem' },
+            cell: { padding: '0.15rem', fontSize: '0.8rem' },
+            day: { width: '1.75rem', height: '1.75rem', margin: '0.05rem' }
           }}
         />
       </div>
 
       {/* Date strip with horizontal scrolling */}
       <div className="w-full overflow-x-auto pb-2 -mx-1">
-        <div className="flex gap-2 px-1 w-max min-w-full">
+        <div className="flex gap-1.5 px-1 w-max min-w-full">
           {strip.map((d) => {
             const isActive = d === selectedDate;
             const day = new Date(d + 'T12:00:00');
@@ -195,19 +211,19 @@ export function Todo() {
                 key={d} 
                 size="sm" 
                 variant={isActive ? 'default' : 'outline'} 
-                className="flex-col h-14 w-14 p-1 rounded-lg shrink-0" 
+                className="flex-col h-12 w-10 p-0.5 rounded-md text-xs" 
                 onClick={() => setSelectedDate(d)}
               >
-                <span className="text-xs font-normal">{dayOfWeek}</span>
-                <span className="text-base font-medium">{dayOfMonth}</span>
+                <span className="text-[0.65rem] font-normal leading-none">{dayOfWeek}</span>
+                <span className="text-sm font-medium leading-none mt-0.5">{dayOfMonth}</span>
               </Button>
             );
           })}
         </div>
       </div>
 
-      <Card className="w-full mt-4">
-        <CardContent className="p-3 space-y-3">
+      <Card className="w-full mt-3">
+        <CardContent className="p-2 space-y-2">
           <form
             className="flex flex-col gap-3"
             onSubmit={(e) => {
@@ -215,42 +231,36 @@ export function Todo() {
               void add();
             }}
           >
-            <div className="space-y-1">
-              <label htmlFor="todo-title" className="block text-xs font-medium text-muted-foreground">
-                Title
-              </label>
-              <Input
-                id="todo-title"
-                placeholder="New entry (e.g. Call client)"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                required
-                className="w-full"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-2">
               <div className="space-y-1">
-                <label htmlFor="todo-time" className="block text-xs font-medium text-muted-foreground">
-                  Time (optional)
-                </label>
                 <Input
-                  id="todo-time"
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  step={300}
+                  id="todo-title"
+                  placeholder="New entry (e.g. Call client)"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  required
                   className="w-full"
                 />
               </div>
               
-              <div className="flex items-end">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    id="todo-time"
+                    type="time"
+                    value={newTime}
+                    onChange={(e) => setNewTime(e.target.value)}
+                    step={300}
+                    className="w-full"
+                  />
+                </div>
+                
                 <Button 
                   type="submit" 
                   disabled={!newTitle.trim()} 
-                  className="w-full h-10"
+                  className="h-9 px-3"
                 >
-                  <Plus className="w-4 h-4 mr-1" /> Add
+                  <Plus className="w-4 h-4" />
                 </Button>
               </div>
             </div>
