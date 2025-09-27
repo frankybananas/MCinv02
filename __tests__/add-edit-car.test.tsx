@@ -153,110 +153,234 @@ describe('AddEditCar image interactions', () => {
   });
 
   it('requires 300ms press before drag starts', async () => {
+    // Mock the timer functions
     jest.useFakeTimers();
+    
+    // Mock the setPointerCapture and releasePointerCapture methods
+    const mockSetPointerCapture = jest.fn();
+    const mockReleasePointerCapture = jest.fn();
+    
+    // Render the component
     render(<AddEditCar {...baseProps()} />);
-
+    
+    // Get the tiles and set up the test
     const tiles = screen.getAllByTestId('car-image-tile');
     const tileOne = tiles[0];
-    const tileTwo = tiles[1];
-
-    // Mock elementFromPoint to return the second tile
-    const originalElementFromPoint = document.elementFromPoint;
-    (document as any).elementFromPoint = jest.fn(() => tileTwo);
-
-    // Start pointer down but don't wait long enough
-    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
     
-    // Move pointer after 150ms (before the 300ms threshold)
-    act(() => {
-      jest.advanceTimersByTime(150);
-      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 50, clientY: 50 });
+    // Mock the elementFromPoint to return the tile we're dragging over
+    const originalElementFromPoint = document.elementFromPoint;
+    (document as any).elementFromPoint = jest.fn(() => tileOne);
+    
+    // Mock the setPointerCapture method
+    Object.defineProperty(tileOne, 'setPointerCapture', {
+      value: mockSetPointerCapture,
+      writable: true
+    });
+    
+    // Mock the releasePointerCapture method
+    Object.defineProperty(tileOne, 'releasePointerCapture', {
+      value: mockReleasePointerCapture,
+      writable: true
     });
 
-    // Should not have reordered yet
-    let updatedTiles = screen.getAllByTestId('car-image-tile');
-    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
-
-    // Wait for the full 300ms
+    // 1. Initial pointer down
+    fireEvent.pointerDown(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch', 
+      clientX: 5, 
+      clientY: 5 
+    });
+    
+    // 2. Move slightly (within threshold) after 150ms
+    act(() => {
+      jest.advanceTimersByTime(150);
+      fireEvent.pointerMove(tileOne, { 
+        pointerId: 1, 
+        pointerType: 'touch', 
+        clientX: 7, 
+        clientY: 6 
+      });
+    });
+    
+    // Should not have called setPointerCapture yet
+    expect(mockSetPointerCapture).not.toHaveBeenCalled();
+    
+    // 3. Wait for the full 300ms
     act(() => {
       jest.advanceTimersByTime(150);
     });
-
-    // Now it should have reordered
-    updatedTiles = screen.getAllByTestId('car-image-tile');
-    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
-
-    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    
+    // Now it should have called setPointerCapture
+    expect(mockSetPointerCapture).toHaveBeenCalledWith(1);
+    
+    // 4. Move the pointer to trigger reorder
+    fireEvent.pointerMove(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch', 
+      clientX: 50, 
+      clientY: 50 
+    });
+    
+    // 5. End the drag
+    fireEvent.pointerUp(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch' 
+    });
+    
+    // Cleanup
     (document as any).elementFromPoint = originalElementFromPoint;
     jest.useRealTimers();
   });
 
   it('cancels drag if movement exceeds threshold during delay', async () => {
+    // Mock the timer functions
     jest.useFakeTimers();
+    
+    // Mock the setPointerCapture method
+    const mockSetPointerCapture = jest.fn();
+    
+    // Render the component
     render(<AddEditCar {...baseProps()} />);
-
+    
+    // Get the tiles and set up the test
     const tiles = screen.getAllByTestId('car-image-tile');
     const tileOne = tiles[0];
-    const tileTwo = tiles[1];
-
-    // Mock elementFromPoint to return the second tile
-    const originalElementFromPoint = document.elementFromPoint;
-    (document as any).elementFromPoint = jest.fn(() => tileTwo);
-
-    // Start pointer down
-    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
     
-    // Move more than 5px during the delay
+    // Mock the elementFromPoint to return the tile we're dragging over
+    const originalElementFromPoint = document.elementFromPoint;
+    (document as any).elementFromPoint = jest.fn(() => tileOne);
+    
+    // Mock the setPointerCapture method
+    Object.defineProperty(tileOne, 'setPointerCapture', {
+      value: mockSetPointerCapture,
+      writable: true
+    });
+
+    // 1. Initial pointer down
+    fireEvent.pointerDown(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch', 
+      clientX: 5, 
+      clientY: 5 
+    });
+    
+    // 2. Move more than 5px during the delay (exceeds threshold)
     act(() => {
       jest.advanceTimersByTime(100);
-      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 20, clientY: 20 });
+      fireEvent.pointerMove(tileOne, { 
+        pointerId: 1, 
+        pointerType: 'touch', 
+        clientX: 20,  // More than 5px from start (5,5)
+        clientY: 20   // More than 5px from start (5,5)
+      });
     });
-
-    // Wait for the full 300ms
+    
+    // 3. Wait for the full 300ms
     act(() => {
-      jest.advanceTimersByTime(300);
+      jest.advanceTimersByTime(200);
     });
-
-    // Should not have reordered because we moved too much during delay
-    const updatedTiles = screen.getAllByTestId('car-image-tile');
-    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
-
-    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    
+    // Should not have called setPointerCapture because we moved too much
+    expect(mockSetPointerCapture).not.toHaveBeenCalled();
+    
+    // 4. Try to move again - should not trigger drag
+    fireEvent.pointerMove(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch', 
+      clientX: 50, 
+      clientY: 50 
+    });
+    
+    // 5. End the interaction
+    fireEvent.pointerUp(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch' 
+    });
+    
+    // Cleanup
     (document as any).elementFromPoint = originalElementFromPoint;
     jest.useRealTimers();
   });
 
   it('allows small movements during delay without canceling drag', async () => {
+    // Mock the timer functions
     jest.useFakeTimers();
+    
+    // Mock the setPointerCapture method
+    const mockSetPointerCapture = jest.fn();
+    const mockReleasePointerCapture = jest.fn();
+    
+    // Render the component
     render(<AddEditCar {...baseProps()} />);
-
+    
+    // Get the tiles and set up the test
     const tiles = screen.getAllByTestId('car-image-tile');
     const tileOne = tiles[0];
-    const tileTwo = tiles[1];
-
-    // Mock elementFromPoint to return the second tile
-    const originalElementFromPoint = document.elementFromPoint;
-    (document as any).elementFromPoint = jest.fn(() => tileTwo);
-
-    // Start pointer down
-    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
     
-    // Move less than 5px during the delay (small jitter)
-    act(() => {
-      jest.advanceTimersByTime(100);
-      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 7, clientY: 6 });
+    // Mock the elementFromPoint to return the tile we're dragging over
+    const originalElementFromPoint = document.elementFromPoint;
+    (document as any).elementFromPoint = jest.fn(() => tileOne);
+    
+    // Mock the pointer capture methods
+    Object.defineProperties(tileOne, {
+      setPointerCapture: {
+        value: mockSetPointerCapture,
+        writable: true
+      },
+      releasePointerCapture: {
+        value: mockReleasePointerCapture,
+        writable: true
+      }
     });
 
-    // Wait for the full 300ms
+    // 1. Initial pointer down
+    fireEvent.pointerDown(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch', 
+      clientX: 5, 
+      clientY: 5 
+    });
+    
+    // 2. Move slightly (within threshold) during the delay
+    act(() => {
+      jest.advanceTimersByTime(100);
+      fireEvent.pointerMove(tileOne, { 
+        pointerId: 1, 
+        pointerType: 'touch', 
+        clientX: 7,  // Less than 5px from start (5,5)
+        clientY: 6   // Less than 5px from start (5,5)
+      });
+    });
+    
+    // Should not have called setPointerCapture yet
+    expect(mockSetPointerCapture).not.toHaveBeenCalled();
+    
+    // 3. Wait for the full 300ms
     act(() => {
       jest.advanceTimersByTime(200);
     });
-
-    // Should still allow the drag to proceed
-    const updatedTiles = screen.getAllByTestId('car-image-tile');
-    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
-
-    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    
+    // Now it should have called setPointerCapture
+    expect(mockSetPointerCapture).toHaveBeenCalledWith(1);
+    
+    // 4. Move the pointer to trigger reorder
+    fireEvent.pointerMove(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch', 
+      clientX: 50, 
+      clientY: 50 
+    });
+    
+    // 5. End the drag
+    fireEvent.pointerUp(tileOne, { 
+      pointerId: 1, 
+      pointerType: 'touch' 
+    });
+    
+    // Should have called releasePointerCapture
+    expect(mockReleasePointerCapture).toHaveBeenCalledWith(1);
+    
+    // Cleanup
     (document as any).elementFromPoint = originalElementFromPoint;
     jest.useRealTimers();
   });

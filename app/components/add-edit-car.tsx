@@ -149,19 +149,32 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const initialPointerPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const initialImages = car?.images?.map(img => ({
-      id: String((img as any)._id ?? (img as any).id ?? uuidv4()),
-      url: (img as any).imageUrl,
-      file: undefined,
-      isNew: false,
-    })) ?? [];
-    setDisplayedImages(initialImages);
+    try {
+      // Ensure we have a valid images array, defaulting to an empty array if undefined
+      const images = Array.isArray(car?.images) ? car.images : [];
+      
+      const initialImages = images.map(img => ({
+        id: String((img as any)._id ?? (img as any).id ?? uuidv4()),
+        url: (img as any).imageUrl ?? '',
+        file: undefined,
+        isNew: false,
+      }));
+      
+      setDisplayedImages(initialImages);
+    } catch (error) {
+      console.error('Error initializing images:', error);
+      setDisplayedImages([]);
+    }
 
     return () => {
-      displayedImages.forEach(img => {
-        if (img.isNew) {
-          URL.revokeObjectURL(img.url);
-        }
+      // Use the current value of displayedImages in the cleanup
+      setDisplayedImages(prevImages => {
+        prevImages.forEach(img => {
+          if (img?.isNew && img?.url) {
+            URL.revokeObjectURL(img.url);
+          }
+        });
+        return [];
       });
     };
   }, [car]);
