@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { AddEditCar } from '@/app/components/add-edit-car';
 import type { Car } from '@/app/types';
 
@@ -59,6 +59,7 @@ describe('AddEditCar image interactions', () => {
   });
 
   it('reorders images via pointer drag', async () => {
+    jest.useFakeTimers();
     render(<AddEditCar {...baseProps()} />);
 
     const tiles = screen.getAllByTestId('car-image-tile');
@@ -71,13 +72,24 @@ describe('AddEditCar image interactions', () => {
     const originalElementFromPoint = document.elementFromPoint;
     (document as any).elementFromPoint = jest.fn(() => tileTwo);
 
-    await act(async () => {
-      fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
-      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 50, clientY: 50 });
-      fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    // Start drag with initial pointer down
+    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
+    
+    // Wait for the drag delay
+    act(() => {
+      jest.advanceTimersByTime(300);
     });
+    
+    // Move the pointer to trigger reorder
+    fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 50, clientY: 50 });
+    
+    // End the drag
+    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
 
     (document as any).elementFromPoint = originalElementFromPoint;
+    
+    // Clean up timers
+    jest.useRealTimers();
 
     const updatedTiles = screen.getAllByTestId('car-image-tile');
     expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
@@ -92,11 +104,11 @@ describe('AddEditCar image interactions', () => {
 
     const removeButton = within(tiles[1]).getByRole('button', { name: /remove image/i });
 
-    await act(async () => {
-      fireEvent.pointerDown(removeButton, { pointerId: 2, pointerType: 'touch' });
-      fireEvent.click(removeButton);
-      fireEvent.pointerUp(removeButton, { pointerId: 2, pointerType: 'touch' });
-    });
+    // For remove button clicks, we don't need to wait for the drag delay
+    // since we're not actually dragging, just clicking the button
+    fireEvent.pointerDown(removeButton, { pointerId: 2, pointerType: 'touch' });
+    fireEvent.click(removeButton);
+    fireEvent.pointerUp(removeButton, { pointerId: 2, pointerType: 'touch' });
 
     const afterRemoval = screen.getAllByTestId('car-image-tile');
     expect(afterRemoval).toHaveLength(2);
@@ -120,23 +132,132 @@ describe('AddEditCar image interactions', () => {
     const tiles = screen.getAllByTestId('car-image-tile');
     expect(tiles).toHaveLength(5);
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /save car/i }));
-    });
+    // No need for act here since we're not testing drag functionality
+    fireEvent.click(screen.getByRole('button', { name: /save car/i }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const formDataArg = onSave.mock.calls[0][0] as FormData;
     const entries = Array.from(formDataArg.entries());
     const imageOrder = entries.filter(([key]) => key === 'imageOrder').map(([, value]) => value);
+    
+    // Check that all images are included in the correct order
+    expect(imageOrder).toHaveLength(5);
     expect(imageOrder[0]).toMatch(/img-1/);
     expect(imageOrder[1]).toMatch(/img-2/);
     expect(imageOrder[2]).toMatch(/img-3/);
-    expect(imageOrder).toEqual([
-      expect.stringMatching(/img-1/),
-      expect.stringMatching(/img-2/),
-      expect.stringMatching(/img-3/),
-      expect.stringMatching(/new:0/),
-      expect.stringMatching(/new:1/),
-    ]);
+    expect(imageOrder[3]).toMatch(/new:0/);
+    expect(imageOrder[4]).toMatch(/new:1/);
+    
+    // Also verify the structure of the form data
+    expect(entries.some(([key]) => key === 'images')).toBe(true);
+  });
+
+  it('requires 300ms press before drag starts', async () => {
+    jest.useFakeTimers();
+    render(<AddEditCar {...baseProps()} />);
+
+    const tiles = screen.getAllByTestId('car-image-tile');
+    const tileOne = tiles[0];
+    const tileTwo = tiles[1];
+
+    // Mock elementFromPoint to return the second tile
+    const originalElementFromPoint = document.elementFromPoint;
+    (document as any).elementFromPoint = jest.fn(() => tileTwo);
+
+    // Start pointer down but don't wait long enough
+    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
+    
+    // Move pointer after 150ms (before the 300ms threshold)
+    act(() => {
+      jest.advanceTimersByTime(150);
+      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 50, clientY: 50 });
+    });
+
+    // Should not have reordered yet
+    let updatedTiles = screen.getAllByTestId('car-image-tile');
+    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+
+    // Wait for the full 300ms
+    act(() => {
+      jest.advanceTimersByTime(150);
+    });
+
+    // Now it should have reordered
+    updatedTiles = screen.getAllByTestId('car-image-tile');
+    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
+
+    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    (document as any).elementFromPoint = originalElementFromPoint;
+    jest.useRealTimers();
+  });
+
+  it('cancels drag if movement exceeds threshold during delay', async () => {
+    jest.useFakeTimers();
+    render(<AddEditCar {...baseProps()} />);
+
+    const tiles = screen.getAllByTestId('car-image-tile');
+    const tileOne = tiles[0];
+    const tileTwo = tiles[1];
+
+    // Mock elementFromPoint to return the second tile
+    const originalElementFromPoint = document.elementFromPoint;
+    (document as any).elementFromPoint = jest.fn(() => tileTwo);
+
+    // Start pointer down
+    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
+    
+    // Move more than 5px during the delay
+    act(() => {
+      jest.advanceTimersByTime(100);
+      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 20, clientY: 20 });
+    });
+
+    // Wait for the full 300ms
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    // Should not have reordered because we moved too much during delay
+    const updatedTiles = screen.getAllByTestId('car-image-tile');
+    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+
+    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    (document as any).elementFromPoint = originalElementFromPoint;
+    jest.useRealTimers();
+  });
+
+  it('allows small movements during delay without canceling drag', async () => {
+    jest.useFakeTimers();
+    render(<AddEditCar {...baseProps()} />);
+
+    const tiles = screen.getAllByTestId('car-image-tile');
+    const tileOne = tiles[0];
+    const tileTwo = tiles[1];
+
+    // Mock elementFromPoint to return the second tile
+    const originalElementFromPoint = document.elementFromPoint;
+    (document as any).elementFromPoint = jest.fn(() => tileTwo);
+
+    // Start pointer down
+    fireEvent.pointerDown(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 5, clientY: 5 });
+    
+    // Move less than 5px during the delay (small jitter)
+    act(() => {
+      jest.advanceTimersByTime(100);
+      fireEvent.pointerMove(tileOne, { pointerId: 1, pointerType: 'touch', clientX: 7, clientY: 6 });
+    });
+
+    // Wait for the full 300ms
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    // Should still allow the drag to proceed
+    const updatedTiles = screen.getAllByTestId('car-image-tile');
+    expect(updatedTiles[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
+
+    fireEvent.pointerUp(tileOne, { pointerId: 1, pointerType: 'touch' });
+    (document as any).elementFromPoint = originalElementFromPoint;
+    jest.useRealTimers();
   });
 });

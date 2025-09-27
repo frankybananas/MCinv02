@@ -134,9 +134,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
     try { localStorage.setItem(LS_IMG_TILE_KEY, String(tileSize)) } catch {}
   }, [tileSize])
 
@@ -148,11 +145,14 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const dragFromIndex = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const isPointerDraggingRef = useRef(false);
+  const dragStartTimerRef = useRef<number | null>(null);
+  const initialPointerPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const initialImages = car?.images?.map(img => ({
       id: String((img as any)._id ?? (img as any).id ?? uuidv4()),
       url: (img as any).imageUrl,
+      file: undefined,
       isNew: false,
     })) ?? [];
     setDisplayedImages(initialImages);
@@ -197,19 +197,41 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   };
 
   const finalizePointerDrag = () => {
+    // Clear any pending drag start
+    if (dragStartTimerRef.current) {
+      clearTimeout(dragStartTimerRef.current);
+      dragStartTimerRef.current = null;
+    }
     dragFromIndex.current = null;
     activePointerIdRef.current = null;
     isPointerDraggingRef.current = false;
+    initialPointerPos.current = null;
   };
 
   const handleTilePointerDown = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    dragFromIndex.current = index;
-    activePointerIdRef.current = event.pointerId;
-    isPointerDraggingRef.current = true;
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {}
+    
+    // Clear any existing timer
+    if (dragStartTimerRef.current) {
+      clearTimeout(dragStartTimerRef.current);
+    }
+    
+    // Store initial position for movement threshold check
+    initialPointerPos.current = { x: event.clientX, y: event.clientY };
+    
+    // Set a timer to start dragging after a delay
+    dragStartTimerRef.current = window.setTimeout(() => {
+      if (initialPointerPos.current) {
+        dragFromIndex.current = index;
+        activePointerIdRef.current = event.pointerId;
+        isPointerDraggingRef.current = true;
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {}
+      }
+      dragStartTimerRef.current = null;
+    }, 300); // 300ms delay before drag starts
+    
     event.preventDefault();
   };
 
@@ -229,13 +251,31 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   };
 
   const handleTilePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    // If we have a drag start timer, check if we've moved too far
+    if (dragStartTimerRef.current && initialPointerPos.current) {
+      const dx = Math.abs(event.clientX - initialPointerPos.current.x);
+      const dy = Math.abs(event.clientY - initialPointerPos.current.y);
+      
+      // If moved more than 5px in any direction, cancel the drag start
+      if (dx > 5 || dy > 5) {
+        clearTimeout(dragStartTimerRef.current);
+        dragStartTimerRef.current = null;
+        initialPointerPos.current = null;
+      }
+      return;
+    }
+    
+    // Handle actual dragging
     if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
     if (typeof document === 'undefined') return;
+    
     const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
     const tile = element?.closest('[data-image-index]') as HTMLElement | null;
     if (!tile) return;
+    
     const toIndexRaw = Number(tile.dataset.imageIndex ?? '-1');
     if (Number.isNaN(toIndexRaw)) return;
+    
     reorderImages(toIndexRaw);
   };
 
@@ -246,6 +286,14 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   };
 
   const handleTilePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    // If we have an active drag start timer, clear it (this was just a tap/click)
+    if (dragStartTimerRef.current) {
+      clearTimeout(dragStartTimerRef.current);
+      dragStartTimerRef.current = null;
+      initialPointerPos.current = null;
+      return;
+    }
+    
     if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
