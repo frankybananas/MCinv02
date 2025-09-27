@@ -46,13 +46,23 @@ async function getUserIdFromRequest(request: Request): Promise<string | null> {
   }
 }
 
+async function ensureTodoEnabled(userId: string): Promise<boolean> {
+  const userDoc = await (User as any).findById(userId);
+  if (!userDoc) return false;
+  if (typeof userDoc.select === 'function') {
+    const selected = await userDoc.select('todoEnabled');
+    return Boolean(selected?.todoEnabled);
+  }
+  return Boolean(userDoc.todoEnabled);
+}
+
 export async function GET(request: Request) {
   try {
     const userId = await getUserIdFromRequest(request);
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     await connectDb();
-    const user = await (User as any).findById(userId).select('todoEnabled');
-    if (!user || user.todoEnabled !== true) {
+    const enabled = await ensureTodoEnabled(userId);
+    if (!enabled) {
       return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
     }
     const { searchParams } = new URL(request.url);
@@ -75,8 +85,8 @@ export async function POST(request: Request) {
     const userId = await getUserIdFromRequest(request);
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     await connectDb();
-    const user = await (User as any).findById(userId).select('todoEnabled');
-    if (!user || user.todoEnabled !== true) {
+    const enabled = await ensureTodoEnabled(userId);
+    if (!enabled) {
       return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
     }
     const body = await request.json();
@@ -87,8 +97,8 @@ export async function POST(request: Request) {
     // compute next order for the day
     const dayStart = new Date(date + 'T00:00:00.000Z');
     const dayEnd = new Date(date + 'T23:59:59.999Z');
-    const last = await Todo.findOne({ user: userId, date: { $gte: dayStart, $lte: dayEnd } }).sort({ order: -1 }).select('order');
-    const nextOrder = (last?.order ?? 0) + 1;
+    const lastOrderDoc = await Todo.findOne({ user: userId, date: { $gte: dayStart, $lte: dayEnd } }).sort({ order: -1 });
+    const nextOrder = (lastOrderDoc?.order ?? 0) + 1;
     const item = await Todo.create({ user: userId, date: dt, title, time: normalizedTime, order: nextOrder });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (err: any) {
