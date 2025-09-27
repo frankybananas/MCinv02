@@ -75,7 +75,8 @@ export type NotificationType =
   | "delivery_update"
   | "delivery_due_soon"
   | "delivery_completed"
-  | "client_match";
+  | "client_match"
+  | "todo_reminder";
 
 export interface NotificationItem {
   _id: string; // unique per item (can be a composite)
@@ -90,6 +91,7 @@ export interface NotificationItem {
     imageUrl?: string;
     clientId?: string;
     matchId?: string;
+    todoId?: string;
   };
   read?: boolean;
 }

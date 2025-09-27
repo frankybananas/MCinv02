@@ -4,6 +4,7 @@ import User, { type IUser } from '@/models/User'
 import Car from '@/models/Car'
 import Delivery from '@/models/Delivery'
 import Match, { type IMatch } from '@/models/Match'
+import Todo from '@/models/Todo'
 import { getSession } from '@/lib/auth-session'
 import type { NotificationItem } from '@/app/types'
 import type { HydratedDocument, Types } from 'mongoose'
@@ -243,6 +244,58 @@ export async function GET(request: Request) {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         console.warn('Notifications: delivery aggregation failed', message)
+      }
+    }
+
+    // Upcoming TODO reminders (36 hours prior)
+    if (userId) {
+      try {
+        const nowMs = Date.now()
+        const reminderWindow = 36 * 60 * 60 * 1000
+        const upcomingCutoff = new Date(nowMs + reminderWindow + 24 * 60 * 60 * 1000)
+        const todos = await Todo.find({
+          user: userId,
+          date: { $lte: upcomingCutoff },
+        })
+          .select('title date time updatedAt createdAt')
+          .sort({ date: 1, order: 1 })
+
+        for (const todo of todos) {
+          const baseDate = new Date(todo.date ?? new Date())
+          if (Number.isNaN(baseDate.getTime())) continue
+          if (typeof todo.time === 'string' && /^\d{2}:\d{2}$/.test(todo.time)) {
+            const [hh, mm] = todo.time.split(':').map((part) => Number(part))
+            baseDate.setHours(hh, mm, 0, 0)
+          }
+          const eventMs = baseDate.getTime()
+          if (!Number.isFinite(eventMs)) continue
+          if (eventMs <= nowMs) continue
+          if (eventMs - nowMs > reminderWindow) continue
+
+          const reminderId = `todo_reminder:${String(todo._id)}`
+          if (notifications.some((n) => n._id === reminderId)) continue
+
+          const reminderCreatedMs = Math.max(eventMs - reminderWindow, nowMs)
+          const scheduledText = typeof todo.time === 'string'
+            ? `${new Date(eventMs).toLocaleString()}`
+            : `${new Date(eventMs).toLocaleDateString()}`
+
+          notifications.push({
+            _id: reminderId,
+            type: 'todo_reminder',
+            title: `Upcoming task: ${todo.title}`,
+            description: `Happening ${scheduledText}`,
+            createdAt: new Date(reminderCreatedMs).toISOString(),
+            data: {
+              clientId: undefined,
+              matchId: undefined,
+              todoId: String(todo._id),
+            },
+          })
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        console.warn('Notifications: todo reminders failed', message)
       }
     }
 
