@@ -1,4 +1,0 @@
-#!/usr/bin/env sh
-# Temporary no-op hook to avoid commit popup errors on Windows.
-# Add your checks here (e.g. lint, tests) when ready, and set a non-zero exit on failure.
-exit 0
