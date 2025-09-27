@@ -66,6 +66,17 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 - This pattern preserves the FAB’s click/tap behavior while keeping the list beneath fully scrollable.
 - __Data layer__: MongoDB models in `models/` (`Car`, `Client`, `Delivery`, `User`, etc.) via a cached `mongoose` connection (`lib/mongodb.ts`).
 - __API__: Next.js route handlers in `app/api/...` implement CRUD and domain workflows (cars, clients, deliveries, auth, users, uploads, cron).
+
+### Notifications: Read and Done
+- The notifications feed is assembled by `app/api/notifications/route.ts` from multiple sources (cars, deliveries, matches, TODO reminders). It now filters out any items the user marked as Done via `User.notificationsDoneIds`.
+- Mark all as Read:
+  - UI: A toolbar button on the Notifications view (“Mark all as read”).
+  - Behavior: Updates `notificationsLastSeenAt` on the client and persists to the server using `PUT /api/notifications/seen`.
+  - Badge: The unread count in `MainMenu` is computed from `notificationsLastSeenAt` and drops to 0 when marked.
+- Done (hide from feed but preserve underlying data):
+  - API: `PUT /api/notifications/state` with `{ id: string, done: boolean }`. When `done === true`, the id is added to `notificationsDoneIds` on the current user; when `false`, it is removed.
+  - UI: A per-notification action (check icon) removes the item from the list and persists state; it does not affect the underlying entity (e.g., a TODO reminder does not delete the TODO or its calendar entry).
+  - Feed: `GET /api/notifications` excludes any ids present in `notificationsDoneIds`.
 - __User isolation__: Implemented in API routes based on JWT claims and role. Clients are filtered by `createdByPhone`; deliveries are filtered by `salesperson` (current user id).
 - __File storage__: Vehicle images to R2/S3 via `@aws-sdk/client-s3` and `lib/s3.js` (Cloudflare R2-compatible).
 

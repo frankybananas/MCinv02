@@ -1,87 +1,37 @@
-import { NextResponse } from 'next/server';
-import { requireSession } from '@/lib/auth-session';
-import { connect as connectDb } from '@/lib/mongodb';
-import User from '@/models/User';
+import { NextResponse } from 'next/server'
+import { connect as connectDb } from '@/lib/mongodb'
+import User from '@/models/User'
+import { getSession } from '@/lib/auth-session'
 
-type NotificationAction = 'read' | 'unread' | 'done' | 'undone';
-
-interface RequestPayload {
-  notificationId?: unknown;
-  action?: unknown;
-}
-
-function normalizeAction(value: unknown): NotificationAction | null {
-  if (typeof value !== 'string') return null;
-  const lowered = value.toLowerCase();
-  if (lowered === 'read' || lowered === 'unread' || lowered === 'done' || lowered === 'undone') {
-    return lowered;
-  }
-  return null;
-}
-
-function normalizeId(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-export async function POST(request: Request) {
+export async function PUT(request: Request) {
   try {
-    const session = await requireSession(request);
-    const phone = session.phone;
+    const session = await getSession(request)
+    const phone = session?.phone
     if (!phone) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = (await request.json().catch(() => ({}))) as RequestPayload;
-    const notificationId = normalizeId(body.notificationId);
-    const action = normalizeAction(body.action);
-
-    if (!notificationId || !action) {
-      return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 });
+    const body = await request.json().catch(() => null)
+    const id = typeof body?.id === 'string' ? body.id : ''
+    const done = typeof body?.done === 'boolean' ? body.done : true
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'id required' }, { status: 400 })
     }
 
-    await connectDb();
+    await connectDb()
 
-    const update: Record<string, unknown> = {};
-    if (action === 'read') {
-      update.$addToSet = { notificationsReadIds: notificationId };
-    } else if (action === 'unread') {
-      update.$pull = { notificationsReadIds: notificationId };
-    } else if (action === 'done') {
-      update.$addToSet = { notificationsDoneIds: notificationId };
-      update.$pull = { ...(update.$pull as Record<string, unknown> | undefined), notificationsReadIds: notificationId };
-    } else if (action === 'undone') {
-      update.$pull = { notificationsDoneIds: notificationId };
+    const update = done
+      ? { $addToSet: { notificationsDoneIds: id } }
+      : { $pull: { notificationsDoneIds: id } }
+
+    const user = await User.findOneAndUpdate({ phone }, update, { new: true }).select('notificationsDoneIds')
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
 
-    const updatedUser = await User.findOneAndUpdate(
-      { phone },
-      update,
-      {
-        new: true,
-        select: 'notificationsReadIds notificationsDoneIds notificationsLastSeenAt',
-      }
-    );
-
-    if (!updatedUser) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        readIds: Array.isArray(updatedUser.notificationsReadIds)
-          ? updatedUser.notificationsReadIds.map(String)
-          : [],
-        doneIds: Array.isArray(updatedUser.notificationsDoneIds)
-          ? updatedUser.notificationsDoneIds.map(String)
-          : [],
-        notificationsLastSeenAt: updatedUser.notificationsLastSeenAt ?? null,
-      },
-    });
+    return NextResponse.json({ success: true, data: { notificationsDoneIds: user.notificationsDoneIds ?? [] } })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Server error';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

@@ -106,12 +106,10 @@ export async function GET(request: Request) {
 
     await connectDb()
 
-    const user = await User.findOne({ phone: session.phone }).select('_id lastLogin profile notificationsLastSeenAt notificationsReadIds notificationsDoneIds') as UserDoc | null
+    const user = await User.findOne({ phone: session.phone }).select('_id lastLogin profile notificationsLastSeenAt') as UserDoc | null
     const since = user?.lastLogin ? new Date(user.lastLogin) : new Date(Date.now() - 72 * 60 * 60 * 1000)
 
     const notifications: NotificationItem[] = []
-    const readSet = new Set<string>(Array.isArray(user?.notificationsReadIds) ? user!.notificationsReadIds.map((id) => String(id)) : [])
-    const doneSet = new Set<string>(Array.isArray(user?.notificationsDoneIds) ? user!.notificationsDoneIds.map((id) => String(id)) : [])
 
     // New cars since last login
     try {
@@ -334,26 +332,13 @@ export async function GET(request: Request) {
       console.warn('Notifications: matches aggregation failed', message)
     }
 
-    const annotated = notifications
-      .filter((item) => !doneSet.has(item._id))
-      .map((item) => ({
-        ...item,
-        read: readSet.has(item._id),
-        done: false,
-      }))
+    // Exclude items the user marked as Done
+    const doneIds = new Set<string>(Array.isArray((user as any)?.notificationsDoneIds) ? (user as any).notificationsDoneIds : [])
+    const visible = notifications.filter(n => !doneIds.has(n._id))
+    visible.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const limited = visible.slice(0, 50)
 
-    annotated.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    const limited = annotated.slice(0, 50)
-
-    return NextResponse.json({
-      success: true,
-      data: limited,
-      meta: {
-        readIds: Array.from(readSet),
-        doneIds: Array.from(doneSet),
-        notificationsLastSeenAt: user?.notificationsLastSeenAt ?? null,
-      },
-    })
+    return NextResponse.json({ success: true, data: limited })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

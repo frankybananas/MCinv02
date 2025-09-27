@@ -8,6 +8,7 @@ export interface IUser extends Document {
   department: 'new' | 'used';
   matchingEnabled?: boolean;
   todoEnabled?: boolean;
+  notificationsDoneIds?: string[];
   profile?: {
     firstName?: string;
     lastName?: string;
@@ -16,8 +17,6 @@ export interface IUser extends Document {
   };
   lastLogin?: Date;
   notificationsLastSeenAt?: Date;
-  notificationsReadIds?: string[];
-  notificationsDoneIds?: string[];
   otpSecret?: string;
   otpExpiry?: Date;
   isTestAccount: boolean;
@@ -34,6 +33,7 @@ const UserSchema = new Schema<IUser>({
   department: { type: String, enum: ['new', 'used'], required: true },
   matchingEnabled: { type: Boolean, default: true },
   todoEnabled: { type: Boolean, default: false },
+  notificationsDoneIds: { type: [String], default: [] },
   profile: {
     firstName: { type: String, trim: true },
     lastName: { type: String, trim: true },
@@ -42,8 +42,6 @@ const UserSchema = new Schema<IUser>({
   },
   lastLogin: { type: Date },
   notificationsLastSeenAt: { type: Date },
-  notificationsReadIds: { type: [String], default: [] },
-  notificationsDoneIds: { type: [String], default: [] },
   otpSecret: { type: String },
   otpExpiry: { type: Date },
   isTestAccount: { type: Boolean, default: false },

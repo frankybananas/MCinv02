@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Bell } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Bell, CheckCheck } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
@@ -32,8 +32,10 @@ interface DashboardProps {
   onDeliverySelect?: (delivery: Delivery) => void;
   notifications?: NotificationItem[];
   onNotificationSelect?: (item: NotificationItem) => void;
+  onNotificationDone?: (item: NotificationItem) => void;
   unreadNotificationsCount?: number;
   todoEnabled?: boolean;
+  onMarkAllNotificationsRead?: () => void;
 }
 
 //
@@ -55,8 +57,10 @@ export function Dashboard({
   onDeliverySelect,
   notifications = [],
   onNotificationSelect,
+  onNotificationDone,
   unreadNotificationsCount = 0,
-  todoEnabled = false
+  todoEnabled = false,
+  onMarkAllNotificationsRead
 }: DashboardProps) {
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')

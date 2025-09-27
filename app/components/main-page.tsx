@@ -253,6 +253,36 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     } catch {}
   };
 
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      const nowIso = new Date().toISOString();
+      setNotificationsLastSeenAt(nowIso);
+      const res = await fetch('/api/notifications/seen', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp: nowIso }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        const serverTs = j?.data?.notificationsLastSeenAt as string | undefined;
+        if (serverTs) setNotificationsLastSeenAt(serverTs);
+      }
+    } catch {}
+  };
+
+  const handleNotificationDone = async (n: NotificationItem) => {
+    try {
+      const res = await fetch('/api/notifications/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: n._id, done: true }),
+      });
+      if (!res.ok) return;
+      // Optimistically remove from local list
+      setNotifications((prev) => prev.filter((x) => x._id !== n._id));
+    } catch {}
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchData();
@@ -682,6 +712,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           notifications={notifications}
           unreadNotificationsCount={unreadNotificationsCount}
           todoEnabled={todoEnabled}
+          onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+          onNotificationDone={handleNotificationDone}
           onNotificationSelect={async (n) => {
             try {
               if (n?.data?.deliveryId) {

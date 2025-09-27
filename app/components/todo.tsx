@@ -34,7 +34,7 @@ function TimeInputField({ inputId, value, onChange, wrapperClassName }: TimeInpu
         value={value}
         onChange={(event) => onChange(event.target.value)}
         step={300}
-        className={cn('w-full caret-slate-900 dark:caret-slate-100', !value && 'text-transparent focus:text-slate-900 dark:focus:text-slate-100')}
+        className="w-full pl-20"
         aria-label="Time"
       />
       {!value && (
