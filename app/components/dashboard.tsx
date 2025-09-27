@@ -565,50 +565,45 @@ export function Dashboard({
       </ScrollArea>
 
       {!showTodo && (
-        <div className="fixed right-4 sm:right-6 z-50 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] lg:bottom-6 flex flex-col items-center pointer-events-none">
-          <div className={`flex flex-col items-center gap-3 mb-3 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
-            <div className="flex items-center gap-3">
-              <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
-                Add Client
-              </span>
+        <div className="fixed right-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:right-6 pointer-events-none">
+          <div className="relative flex flex-col items-end gap-3 pointer-events-none">
+            <div className={`flex items-center gap-3 rounded-full border border-white/15 bg-slate-950/85 px-4 py-2 text-white text-sm font-medium shadow-[0_18px_36px_-18px_rgba(15,23,42,0.8)] backdrop-blur-xl transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
               <Button
                 onClick={() => {
                   onAddClient()
                   setFabOpen(false)
                 }}
-                size="lg"
-                variant="secondary"
-                className="pointer-events-auto rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-white/90 backdrop-blur-md border border-gray-200/50 hover:border-blue-300/50"
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 rounded-full bg-white/15 text-white hover:bg-white/25"
               >
-                <Users className="w-5 h-5 text-blue-600" />
+                <Users className="h-5 w-5" />
               </Button>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
-                Add Car
-              </span>
+              <span className="whitespace-nowrap">Add client</span>
+              <div className="h-8 w-px bg-white/20" aria-hidden="true" />
+              <span className="whitespace-nowrap">Add car</span>
               <Button
                 onClick={() => {
                   onAddCar()
                   setFabOpen(false)
                 }}
-                size="lg"
-                className="pointer-events-auto rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-orange-500 hover:bg-orange-600 border border-orange-300/50"
+                size="icon"
+                className="h-10 w-10 rounded-full bg-orange-500 text-white hover:bg-orange-600"
               >
-                <CarLucide className="w-5 h-5 text-white" />
+                <CarLucide className="h-5 w-5" />
               </Button>
             </div>
+            <Button
+              onClick={() => setFabOpen(!fabOpen)}
+              size="lg"
+              className={`pointer-events-auto rounded-full w-16 h-16 border border-white/25 bg-white/20 text-slate-900 shadow-[0_24px_40px_-18px_rgba(15,23,42,0.45)] backdrop-blur-2xl transition-all duration-300 hover:bg-white/30 dark:text-white ${fabOpen ? 'rotate-45' : 'rotate-0'}`}
+            >
+              <Plus className="w-6 h-6" />
+            </Button>
           </div>
-          <Button
-            onClick={() => setFabOpen(!fabOpen)}
-            size="lg"
-            className={`pointer-events-auto rounded-full w-14 h-14 shadow-xl hover:shadow-2xl transition-all duration-300 bg-blue-600 hover:bg-blue-700 border border-blue-300/50 ${fabOpen ? 'rotate-45' : 'rotate-0'}`}
-          >
-            <Plus className="w-6 h-6 text-white" />
-          </Button>
           {fabOpen && (
             <div
-              className="fixed inset-0 bg-black bg-opacity-20 -z-10"
+              className="fixed inset-0 z-[-1] bg-black/20"
               onClick={() => setFabOpen(false)}
             />
           )}

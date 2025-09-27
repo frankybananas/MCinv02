@@ -49,13 +49,14 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
 - The bar’s wrapper uses `pointer-events: none` while chips/buttons use `pointer-events: auto`, so content beneath remains scrollable.
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
-- The bottom drawer pull handle has been removed and the bottom bar padding reduced to increase content height.
- - Chips include subtle icons per section/filter (car, check, clock, bookmark, tag, wand, users, truck, bell, calendar, admin shield). Active state uses a solid highlight; inactive uses a light glass outline.
+- The bottom drawer pull handle has been removed and the bottom bar padding reduced to increase content height; scrollbars are hidden on mobile so the bar maintains a clean glass look.
+- Chips include subtle icons per section/filter (car, check, clock, bookmark, tag, wand, users, truck, bell, calendar, admin shield). Active state uses a solid highlight; inactive uses a light glass outline.
 
 ### Mobile Dashboard: FAB vs. Scroll
-- The main Stock list scrolls within a viewport that also hosts a floating “Add” FAB near the bottom-right.
+- The main Stock list exposes a right-aligned floating action cluster that aligns visually with the glass `MainMenu`. The primary `+` FAB rests just above the menu on the trailing edge, uses a neutral glassmorphism treatment (semi-transparent white with backdrop blur), and expands into a pill that provides one-tap actions for “Add client” and “Add car”.
 - To ensure the area under/around the FAB remains scrollable on mobile:
-  - The FAB’s immediate wrapper/container should use `pointer-events: none;` so it does not intercept scroll/touch events.
+  - The cluster wrapper keeps `pointer-events: none` except on the interactive buttons.
+  - When expanded, a subtle backdrop appears beneath the FAB but below the controls (`z-[-1]`) so taps remain responsive.
   - The actionable element (the button itself) should use `pointer-events: auto;` so taps on the button still work. This lets the rest of the area beneath remain scrollable.
   - Provide bottom padding on the scroll container at least equal to the FAB’s diameter plus spacing, e.g. `padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));` to prevent the FAB from visually overlapping and blocking the last items.
   - Keep the FAB’s z-index above content for visibility, but do not wrap it in other positioned elements that capture gestures.
