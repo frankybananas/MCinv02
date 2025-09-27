@@ -233,18 +233,24 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="relative w-full max-w-full px-1 sm:px-2 pb-4 mx-auto">
+    <div className="relative w-full max-w-full px-1 sm:px-2 pb-[calc(9rem+env(safe-area-inset-bottom))] mx-auto overflow-x-hidden">
       <div className="pointer-events-none fixed left-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:left-6">
-        <Button
-          type="button"
-          size="icon"
-          onClick={() => setShowForm((prev) => !prev)}
-          aria-expanded={showForm}
-          aria-label={showForm ? 'Hide new entry form' : 'Open new entry form'}
-          className={`pointer-events-auto h-14 w-14 rounded-full border border-white/25 bg-white/25 text-slate-900 shadow-[0_24px_44px_-18px_rgba(15,23,42,0.4)] backdrop-blur-2xl transition-all duration-300 hover:bg-white/35 dark:text-white ${showForm ? 'rotate-45' : ''}`}
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-3 rounded-full bg-slate-900/25 blur-lg shadow-[0_24px_44px_-18px_rgba(15,23,42,0.6)] dark:bg-slate-200/20"
+          />
+          <Button
+            type="button"
+            size="icon"
+            onClick={() => setShowForm((prev) => !prev)}
+            aria-expanded={showForm}
+            aria-label={showForm ? 'Hide new entry form' : 'Open new entry form'}
+            className={`pointer-events-auto h-14 w-14 rounded-full border border-white/30 bg-white/50 text-slate-900 shadow-xl ring-1 ring-white/70 backdrop-blur-2xl transition-all duration-300 hover:bg-white/60 dark:text-white dark:ring-slate-700/70 ${showForm ? 'rotate-45' : ''}`}
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Monthly calendar - full width but contained */}
@@ -292,7 +298,7 @@ export function Todo() {
 
       {/* Date strip with horizontal scrolling */}
       <div
-        className="w-full overflow-x-auto pb-2 -mx-1 [-ms-overflow-style:none] scrollbar-thin scrollbar-transparent"
+        className="w-full overflow-x-auto pb-2 mx-0 sm:-mx-1 [-ms-overflow-style:none] scrollbar-thin scrollbar-transparent"
         style={{ scrollbarWidth: 'none' }}
       >
         <div className="flex gap-1.5 px-1 w-max min-w-full" style={{ msOverflowStyle: 'none' }}>
@@ -357,7 +363,7 @@ export function Todo() {
                     inputId="todo-time"
                     value={newTime}
                     onChange={setNewTime}
-                    wrapperClassName="flex-1"
+                    wrapperClassName="flex-1 min-w-0"
                   />
 
                   <Button
@@ -414,7 +420,7 @@ export function Todo() {
                             inputId={`todo-edit-time-${t._id}`}
                             value={editingTime}
                             onChange={(value) => setEditingTime(value)}
-                            wrapperClassName="flex-1"
+                            wrapperClassName="flex-1 min-w-0"
                           />
                           <Button size="sm" variant="outline" onClick={saveEdit}>
                             Save
