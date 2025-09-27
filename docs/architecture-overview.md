@@ -1,4 +1,12 @@
 ### 6.8 TODOs (server storage, user isolation, gating)
+## Edit Car: Image Gallery and Reordering
+
+- The image gallery on `Add/Edit Car` uses a fixed, responsive 3-column grid for consistent layout across devices.
+- Page scrolling is preserved while interacting with images. Pointer default behavior is not prevented until a drag is actually active.
+- Reordering uses pointer-based drag with a 300ms press-and-hold delay and a small movement threshold before activation to avoid accidental drags during scroll.
+- The previous "Image size" slider and persisted tile-size preference were removed to simplify the UI and improve scrolling ergonomics.
+- Client-side compression is applied on add (see `docs/image-compression.md`).
+
 - Data storage: All TODO items are stored on the server in MongoDB using the `models/Todo.ts` schema. Each item has a `user` ObjectId reference to ensure strict per-user isolation. This guarantees the same TODOs are available on any device after login.
 - List/Create: `GET/POST /api/todos` require auth, infer current user id from JWT, and operate only on that user’s records.
 - Update/Delete: `PUT/DELETE /api/todos/[id]` enforce ownership (filter by `{ _id, user }`).

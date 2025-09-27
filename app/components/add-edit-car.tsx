@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+// import { Label } from "@/components/ui/label"
 import type { Car } from "../types"
 
 interface AddEditCarProps {
@@ -158,11 +158,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const MRU_LIMIT = 15
   const LS_MAKES_KEY = 'mcinv_recent_makes'
   const LS_MODELS_KEY = 'mcinv_recent_models'
-  const LS_IMG_TILE_KEY = 'mcinv_img_tile_px'
-  const DEFAULT_TILE = 200
-  const MIN_TILE = 120
-  const MAX_TILE = 320
-  const STEP_TILE = 20
 
   const loadList = (key: string): string[] => {
     try {
@@ -187,8 +182,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       return next
     })
   }
-
-  const [tileSize, setTileSize] = useState<number>(DEFAULT_TILE);
 
   useEffect(() => {
     // Load MRU lists on mount
@@ -215,20 +208,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     saveList(LS_MODELS_KEY, m2)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Load and persist image tile size preference
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_IMG_TILE_KEY)
-      const num = raw ? parseInt(raw, 10) : NaN
-      if (!isNaN(num)) {
-        const clamped = Math.min(MAX_TILE, Math.max(MIN_TILE, num))
-        setTileSize(clamped)
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    try { localStorage.setItem(LS_IMG_TILE_KEY, String(tileSize)) } catch {}
-  }, [tileSize])
 
   const [displayedImages, setDisplayedImages] = useState<DisplayImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -351,8 +330,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       }
       dragStartTimerRef.current = null;
     }, 300); // 300ms delay before drag starts
-    
-    event.preventDefault();
   };
 
   const reorderImages = (toIndex: number) => {
@@ -387,6 +364,8 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     
     // Handle actual dragging
     if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
+    // Prevent page scroll only while actively dragging
+    event.preventDefault();
     if (typeof document === 'undefined') return;
     
     const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
@@ -498,27 +477,9 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-base sm:text-lg">Vehicle Images</CardTitle>
-                    <div className="flex items-center gap-3">
-                      <Label htmlFor="tile-size" className="text-xs text-muted-foreground">Image size</Label>
-                      <input
-                        id="tile-size"
-                        type="range"
-                        min={MIN_TILE}
-                        max={MAX_TILE}
-                        step={STEP_TILE}
-                        value={tileSize}
-                        onChange={(e) => setTileSize(Number(e.target.value))}
-                        className="w-28 sm:w-40 h-2 cursor-pointer"
-                        aria-label="Image size"
-                      />
-                      <span className="text-xs text-muted-foreground w-12 text-right">{tileSize}px</span>
-                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <div
-                      className="grid gap-2 sm:gap-4"
-                      style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
-                    >
+                  <CardContent className="overflow-auto">
+                    <div className="grid gap-2 sm:gap-3 grid-cols-3">
                       {displayedImages.map((img, idx) => (
                         <div
                           key={img.id}
@@ -526,14 +487,12 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           data-testid="car-image-tile"
                           data-image-index={idx}
                           data-image-id={img.id}
-                          style={{ touchAction: 'none' }}
                           onPointerDown={(event) => handleTilePointerDown(event, idx)}
                           onPointerMove={handleTilePointerMove}
                           onPointerEnter={(event) => handleTilePointerEnter(event, idx)}
                           onPointerUp={handleTilePointerUp}
                           onPointerCancel={handleTilePointerCancel}
                         >
-
                           <img
                             src={img.url}
                             alt="Car image"
