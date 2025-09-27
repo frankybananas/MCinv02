@@ -23,8 +23,10 @@ export function Todo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [newTime, setNewTime] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
+  const [editingTime, setEditingTime] = useState<string>('');
 
   const load = async (iso?: string) => {
     const date = iso ?? selectedDate;
@@ -56,10 +58,15 @@ export function Todo() {
       const res = await fetch('/api/todos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, title: newTitle.trim() })
+        body: JSON.stringify({
+          date: selectedDate,
+          title: newTitle.trim(),
+          time: newTime ? newTime : null,
+        })
       });
       if (!res.ok) throw new Error('Failed to add TODO');
       setNewTitle('');
+      setNewTime('');
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -76,9 +83,10 @@ export function Todo() {
     }
   };
 
-  const startEdit = (id: string, title: string) => {
+  const startEdit = (id: string, title: string, time?: string | null) => {
     setEditingId(id);
     setEditingTitle(title);
+    setEditingTime(time ?? '');
   };
 
   const saveEdit = async () => {
@@ -87,11 +95,15 @@ export function Todo() {
       const res = await fetch(`/api/todos/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editingTitle })
+        body: JSON.stringify({
+          title: editingTitle,
+          time: editingTime ? editingTime : null,
+        })
       });
       if (!res.ok) throw new Error('Failed to update TODO');
       setEditingId(null);
       setEditingTitle('');
+      setEditingTime('');
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -139,15 +151,16 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-full">
       {/* Monthly calendar */}
-      <div className="rounded-md border p-2 bg-white/70">
+      <div className="rounded-md border p-2 bg-white/70 overflow-hidden">
         <DayPicker
           mode="single"
           selected={new Date(selectedDate + 'T12:00:00.000Z')}
           onSelect={(d) => d && setSelectedDate(toIsoDate(d))}
           weekStartsOn={1}
           showOutsideDays
+          className="w-full max-w-full"
           styles={{
             caption: { fontWeight: 600 },
           }}
@@ -157,22 +170,54 @@ export function Todo() {
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {strip.map((d) => {
           const isActive = d === selectedDate;
+          const label = new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
           return (
             <Button key={d} size="sm" variant={isActive ? 'default' : 'ghost'} className="rounded-full" onClick={() => setSelectedDate(d)}>
-              <CalendarIcon className="w-4 h-4 mr-1" /> {d}
+              <CalendarIcon className="w-4 h-4 mr-1" /> {label}
             </Button>
           );
         })}
       </div>
 
       <Card>
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex gap-2">
-            <Input placeholder="New entry (e.g. Call client)" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-            <Button onClick={add} disabled={!newTitle.trim()} className="shrink-0">
-              <Plus className="w-4 h-4 mr-1" /> Add
-            </Button>
-          </div>
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          <form
+            className="flex flex-col sm:flex-row gap-2 sm:items-end"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void add();
+            }}
+          >
+            <div className="flex-1 min-w-0">
+              <label htmlFor="todo-title" className="block text-xs font-medium text-muted-foreground mb-1">
+                Title
+              </label>
+              <Input
+                id="todo-title"
+                placeholder="New entry (e.g. Call client)"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div className="w-full sm:w-40">
+              <label htmlFor="todo-time" className="block text-xs font-medium text-muted-foreground mb-1">
+                Time (optional)
+              </label>
+              <Input
+                id="todo-time"
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                step={300}
+              />
+            </div>
+            <div className="sm:w-auto">
+              <Button type="submit" disabled={!newTitle.trim()} className="w-full sm:w-auto">
+                <Plus className="w-4 h-4 mr-1" /> Add Entry
+              </Button>
+            </div>
+          </form>
           {loading ? (
             <p className="mt-3 text-sm text-muted-foreground">Loading...</p>
           ) : error ? (
@@ -192,12 +237,18 @@ export function Todo() {
                 >
                   <div className="flex-1 min-w-0 pr-2">
                     {editingId === t._id ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <Input
                           value={editingTitle}
                           onChange={(e) => setEditingTitle(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(); }}
                           autoFocus
+                        />
+                        <Input
+                          type="time"
+                          value={editingTime}
+                          onChange={(e) => setEditingTime(e.target.value)}
+                          step={300}
                         />
                         <Button size="icon" variant="secondary" onClick={saveEdit} aria-label="Save">
                           <Check className="w-4 h-4" />
@@ -206,13 +257,15 @@ export function Todo() {
                     ) : (
                       <div>
                         <p className="font-medium text-sm truncate">{t.title}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t.time ? `${t.time} · ` : ''}{new Date(t.date).toLocaleDateString()}
+                        </p>
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
                     {editingId !== t._id && (
-                      <Button variant="ghost" size="icon" onClick={() => startEdit(t._id, t.title)} aria-label="Edit">
+                      <Button variant="ghost" size="icon" onClick={() => startEdit(t._id, t.title, t.time)} aria-label="Edit">
                         <Pencil className="w-4 h-4" />
                       </Button>
                     )}

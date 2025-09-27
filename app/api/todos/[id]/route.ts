@@ -48,10 +48,16 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     await connectDb();
     const body = await request.json();
-    const { title, date, order } = body || {};
+    const { title, date, order, time } = body || {};
     const update: any = {};
     if (typeof title === 'string') update.title = title;
     if (typeof date === 'string') update.date = new Date(date + 'T12:00:00.000Z');
+    if (typeof time === 'string' || time === null) {
+      if (typeof time === 'string' && !/^\d{2}:\d{2}$/.test(time)) {
+        return NextResponse.json({ success: false, error: 'Invalid time format' }, { status: 400 });
+      }
+      update.time = time ?? null;
+    }
     if (typeof order === 'number' && Number.isFinite(order)) update.order = order;
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ success: false, error: 'No updatable fields' }, { status: 400 });

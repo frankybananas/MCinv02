@@ -80,6 +80,7 @@ API routes (selected):
 - TODOs
   - `app/api/todos/route.ts` (GET my todos filtered by date, POST create)
   - `app/api/todos/[id]/route.ts` (PUT update, DELETE) — all routes enforce ownership via JWT user id
+  - Entries capture optional HH:mm `time` metadata, used to display precise reminders in the UI.
 - Misc
   - `app/api/uploads/route.ts` (file uploads)
   - Test/health routes under `app/api/test*/`

@@ -80,15 +80,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
     }
     const body = await request.json();
-    const { date, title } = body || {};
+    const { date, title, time } = body || {};
     if (!date || !title) return NextResponse.json({ success: false, error: 'date and title required' }, { status: 400 });
+    const normalizedTime = typeof time === 'string' && /^\d{2}:\d{2}$/.test(time) ? time : null;
     const dt = new Date(date + 'T12:00:00.000Z');
     // compute next order for the day
     const dayStart = new Date(date + 'T00:00:00.000Z');
     const dayEnd = new Date(date + 'T23:59:59.999Z');
     const last = await Todo.findOne({ user: userId, date: { $gte: dayStart, $lte: dayEnd } }).sort({ order: -1 }).select('order');
     const nextOrder = (last?.order ?? 0) + 1;
-    const item = await Todo.create({ user: userId, date: dt, title, order: nextOrder });
+    const item = await Todo.create({ user: userId, date: dt, title, time: normalizedTime, order: nextOrder });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 });

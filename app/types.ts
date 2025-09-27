@@ -100,6 +100,8 @@ export interface TodoItem {
   user: string; // owner (server ensures isolation)
   date: string; // ISO date (yyyy-mm-dd)
   title: string;
+  time?: string;
+  order?: number;
   createdAt: string;
   updatedAt: string;
 }
