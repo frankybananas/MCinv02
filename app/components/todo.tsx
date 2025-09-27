@@ -32,7 +32,7 @@ export function Todo() {
     const date = iso ?? selectedDate;
     try {
       setLoading(true);
-      const res = await fetch(`/api/todos?date=${encodeURIComponent(date)}`);
+      const res = await fetch(`/api/todos?date=${encodeURIComponent(date)}`, { credentials: 'include' });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const message = typeof data?.error === 'string' ? data.error : 'Failed to load TODOs';
@@ -65,17 +65,16 @@ export function Todo() {
       const res = await fetch('/api/todos', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Cookie': document.cookie // Ensure cookies are sent with the request
+          'Content-Type': 'application/json'
         },
-        credentials: 'include', // Include credentials for cross-origin requests
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
       
       const data = await res.json().catch(() => ({}));
       
       if (!res.ok) {
-        const errorMessage = data?.error || 'Failed to add TODO';
+        const errorMessage = data?.error || (res.status === 401 ? 'Unauthorized' : 'Failed to add TODO');
         throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Failed to add TODO');
       }
       
@@ -90,7 +89,7 @@ export function Todo() {
 
   const remove = async (id: string) => {
     try {
-      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE', credentials: 'include' });
       if (!res.ok) throw new Error('Failed to delete TODO');
       await load();
     } catch (e) {
@@ -110,6 +109,7 @@ export function Todo() {
       const res = await fetch(`/api/todos/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           title: editingTitle,
           time: editingTime ? editingTime : null,
@@ -144,6 +144,7 @@ export function Todo() {
       await Promise.all(reordered.map((it, i) => fetch(`/api/todos/${it._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ order: i })
       })));
     } catch (e) {
@@ -272,7 +273,7 @@ export function Todo() {
             </div>
           ) : error ? (
             <div className="rounded-md bg-red-50 p-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-red-700">{error === 'Unauthorized' ? 'Unauthorized — please sign in again.' : error}</p>
             </div>
           ) : items.length === 0 ? (
             <div className="rounded-md bg-muted/30 p-4 text-center">

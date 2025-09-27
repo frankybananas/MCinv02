@@ -1,7 +1,16 @@
-### 6.8 TODOs (user isolation)
+### 6.8 TODOs (server storage, user isolation, gating)
+- Data storage: All TODO items are stored on the server in MongoDB using the `models/Todo.ts` schema. Each item has a `user` ObjectId reference to ensure strict per-user isolation. This guarantees the same TODOs are available on any device after login.
 - List/Create: `GET/POST /api/todos` require auth, infer current user id from JWT, and operate only on that user’s records.
 - Update/Delete: `PUT/DELETE /api/todos/[id]` enforce ownership (filter by `{ _id, user }`).
-- Admins do not get cross-user access here by default; this is strictly per-user.
+- Feature gating: The TODO UI is only shown when the authenticated user has `todoEnabled === true` (see `app/components/main-page.tsx` → state `todoEnabled` read from `GET /api/auth/me`, and `app/components/dashboard.tsx` where the TODO chip is rendered conditionally). On the server, all TODO routes also check this flag and return 403 when disabled.
+- Admin visibility: Admins do not get cross-user access here by default; this is strictly per-user.
+
+Troubleshooting Unauthorized on TODO:
+- If the TODO view shows “Unauthorized”, the session cookie (`session_token`) was not included or is invalid/expired. Steps:
+  - Confirm you are logged in. `GET /api/auth/me` should return 200 and include `todoEnabled`.
+  - Ensure requests to `/api/todos` include credentials. The client component `app/components/todo.tsx` uses `fetch(url, { credentials: 'include' })` for GET/POST/PUT/DELETE.
+  - Verify `JWT_SECRET` is configured and `middleware.ts` allows the target path.
+  - Confirm the current user has `todoEnabled: true` or the server will reply 403 (feature disabled). The UI will also hide the TODO tab for such users.
 
 # MCinv02 – Architecture & Wiring Overview
 
@@ -136,7 +145,7 @@ Interaction highlights:
 - Others: `models/Picture.js`, `models/Document.js`, `models/Session.ts`, `models/Phone.js`.
 
 - `models/Todo.ts`
-  - Fields: `user -> User`, `date` (day-level), `title`, timestamps. All queries are user-isolated.
+  - Fields: `user -> User`, `date` (day-level), `title`, optional `time` (HH:mm), `order`, timestamps. All queries are user-isolated.
 
 DB connection:
 - `lib/mongodb.ts` exposes `connect()` with a cached connection across hot reloads.
@@ -420,3 +429,4 @@ Record changes to architecture here when updating:
  - 2025-09-12: Updated PWA manifest to reference `public/app-icon.png`, `public/app-icon-512.png`, and `public/app-icon-maskable.png` as the app icons.
  - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
+ - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
