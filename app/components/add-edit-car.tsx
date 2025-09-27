@@ -219,6 +219,21 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const isPointerDraggingRef = useRef(false);
   const dragStartTimerRef = useRef<number | null>(null);
   const initialPointerPos = useRef<{ x: number; y: number } | null>(null);
+  const suppressContextMenuRef = useRef(false);
+
+  // Suppress native context menu only while press/drag is active
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onContextMenu = (e: Event) => {
+      if (suppressContextMenuRef.current) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('contextmenu', onContextMenu as EventListener, { capture: true });
+    return () => {
+      document.removeEventListener('contextmenu', onContextMenu as EventListener, { capture: true } as any);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -305,6 +320,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     activePointerIdRef.current = null;
     isPointerDraggingRef.current = false;
     initialPointerPos.current = null;
+    suppressContextMenuRef.current = false;
   };
 
   const handleTilePointerDown = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
@@ -317,15 +333,19 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     
     // Store initial position for movement threshold check
     initialPointerPos.current = { x: event.clientX, y: event.clientY };
+    const targetEl = event.currentTarget;
+    const pid = event.pointerId;
+    // Begin suppressing context menu while we evaluate long-press/drag
+    suppressContextMenuRef.current = true;
     
     // Set a timer to start dragging after a delay
     dragStartTimerRef.current = window.setTimeout(() => {
       if (initialPointerPos.current) {
         dragFromIndex.current = index;
-        activePointerIdRef.current = event.pointerId;
+        activePointerIdRef.current = pid;
         isPointerDraggingRef.current = true;
         try {
-          event.currentTarget.setPointerCapture(event.pointerId);
+          targetEl.setPointerCapture(pid);
         } catch {}
       }
       dragStartTimerRef.current = null;
@@ -358,6 +378,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
         clearTimeout(dragStartTimerRef.current);
         dragStartTimerRef.current = null;
         initialPointerPos.current = null;
+        suppressContextMenuRef.current = false; // not dragging anymore
       }
       return;
     }
@@ -390,6 +411,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       clearTimeout(dragStartTimerRef.current);
       dragStartTimerRef.current = null;
       initialPointerPos.current = null;
+      suppressContextMenuRef.current = false;
       return;
     }
     
@@ -483,7 +505,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       {displayedImages.map((img, idx) => (
                         <div
                           key={img.id}
-                          className="relative group aspect-square cursor-grab"
+                          className="relative group aspect-square cursor-grab select-none"
                           data-testid="car-image-tile"
                           data-image-index={idx}
                           data-image-id={img.id}
@@ -492,12 +514,18 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           onPointerEnter={(event) => handleTilePointerEnter(event, idx)}
                           onPointerUp={handleTilePointerUp}
                           onPointerCancel={handleTilePointerCancel}
+                          onContextMenu={(e) => e.preventDefault()}
+                          style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
                         >
                           <img
                             src={img.url}
                             alt="Car image"
-                            className="w-full h-full object-cover rounded-md"
+                            className="w-full h-full object-cover rounded-md select-none"
                             data-testid="car-image-img"
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                            onContextMenu={(e) => e.preventDefault()}
+                            style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' } as React.CSSProperties}
                           />
                           {idx === 0 && (
                             <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
