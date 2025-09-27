@@ -151,9 +151,9 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="w-full space-y-4 px-3 pb-6 sm:px-4 sm:max-w-3xl mx-auto">
-      {/* Monthly calendar */}
-      <div className="rounded-xl border bg-white/80 shadow-sm overflow-hidden w-full">
+    <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 pb-6 mx-auto">
+      {/* Monthly calendar - full width but contained */}
+      <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-4">
         <DayPicker
           mode="single"
           selected={new Date(selectedDate + 'T12:00:00.000Z')}
@@ -163,36 +163,60 @@ export function Todo() {
           className="w-full"
           styles={{
             root: { width: '100%', maxWidth: '100%' },
-            month: { width: '100%', margin: 0 },
+            months: { width: '100%' },
+            month: { width: '100%', margin: 0, padding: '0.5rem' },
             table: { width: '100%' },
-            caption: { fontWeight: 600, padding: '0.5rem 0', textAlign: 'center' },
+            caption: { 
+              fontWeight: 600, 
+              padding: '0.5rem 0', 
+              textAlign: 'center',
+              position: 'relative',
+              marginBottom: '0.5rem'
+            },
+            nav: { display: 'flex', justifyContent: 'space-between', padding: '0 0.5rem' },
+            head_cell: { padding: '0.25rem', textAlign: 'center', fontSize: '0.75rem' },
+            cell: { padding: '0.25rem', fontSize: '0.875rem' },
+            day: { width: '2rem', height: '2rem', margin: '0.1rem' }
           }}
         />
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {strip.map((d) => {
-          const isActive = d === selectedDate;
-          const label = new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-          return (
-            <Button key={d} size="sm" variant={isActive ? 'default' : 'ghost'} className="rounded-full shrink-0" onClick={() => setSelectedDate(d)}>
-              <CalendarIcon className="w-4 h-4 mr-1" /> {label}
-            </Button>
-          );
-        })}
+      {/* Date strip with horizontal scrolling */}
+      <div className="w-full overflow-x-auto pb-2 -mx-1">
+        <div className="flex gap-2 px-1 w-max min-w-full">
+          {strip.map((d) => {
+            const isActive = d === selectedDate;
+            const day = new Date(d + 'T12:00:00');
+            const dayOfWeek = day.toLocaleDateString(undefined, { weekday: 'short' });
+            const dayOfMonth = day.getDate();
+            
+            return (
+              <Button 
+                key={d} 
+                size="sm" 
+                variant={isActive ? 'default' : 'outline'} 
+                className="flex-col h-14 w-14 p-1 rounded-lg shrink-0" 
+                onClick={() => setSelectedDate(d)}
+              >
+                <span className="text-xs font-normal">{dayOfWeek}</span>
+                <span className="text-base font-medium">{dayOfMonth}</span>
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
-      <Card className="w-full">
-        <CardContent className="p-3 sm:p-4 space-y-3">
+      <Card className="w-full mt-4">
+        <CardContent className="p-3 space-y-3">
           <form
-            className="flex flex-col sm:flex-row gap-3 sm:items-end"
+            className="flex flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault();
               void add();
             }}
           >
-            <div className="flex-1 min-w-0 w-full">
-              <label htmlFor="todo-title" className="block text-xs font-medium text-muted-foreground mb-1">
+            <div className="space-y-1">
+              <label htmlFor="todo-title" className="block text-xs font-medium text-muted-foreground">
                 Title
               </label>
               <Input
@@ -201,81 +225,128 @@ export function Todo() {
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 required
+                className="w-full"
               />
             </div>
-            <div className="w-full sm:w-40">
-              <label htmlFor="todo-time" className="block text-xs font-medium text-muted-foreground mb-1">
-                Time (optional)
-              </label>
-              <Input
-                id="todo-time"
-                type="time"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                step={300}
-              />
-            </div>
-            <div className="sm:w-auto w-full">
-              <Button type="submit" disabled={!newTitle.trim()} className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-1" /> Add Entry
-              </Button>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="todo-time" className="block text-xs font-medium text-muted-foreground">
+                  Time (optional)
+                </label>
+                <Input
+                  id="todo-time"
+                  type="time"
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  step={300}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="flex items-end">
+                <Button 
+                  type="submit" 
+                  disabled={!newTitle.trim()} 
+                  className="w-full h-10"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Add
+                </Button>
+              </div>
             </div>
           </form>
+
           {loading ? (
-            <p className="mt-3 text-sm text-muted-foreground">Loading...</p>
+            <div className="flex justify-center py-4">
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
           ) : error ? (
-            <p className="mt-3 text-sm text-red-500">{error}</p>
+            <div className="rounded-md bg-red-50 p-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
           ) : items.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">No entries for this day.</p>
+            <div className="rounded-md bg-muted/30 p-4 text-center">
+              <p className="text-sm text-muted-foreground">No entries for this day.</p>
+            </div>
           ) : (
-            <ul className="mt-3 space-y-2">
+            <ul className="space-y-2 mt-3">
               {items.map((t) => (
                 <li
                   key={t._id}
-                  className="flex items-center justify-between border rounded-md p-2"
+                  className="flex items-center justify-between rounded-lg border bg-card p-3"
                   draggable
                   onDragStart={() => onDragStart(t._id)}
                   onDragOver={onDragOver}
                   onDrop={() => onDrop(t._id)}
                 >
-                  <div className="flex-1 min-w-0 pr-2">
+                  <div className="min-w-0 pr-2">
                     {editingId === t._id ? (
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <div className="space-y-2 w-full">
                         <Input
                           value={editingTitle}
                           onChange={(e) => setEditingTitle(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') void saveEdit(); }}
                           autoFocus
+                          className="w-full"
                         />
-                        <Input
-                          type="time"
-                          value={editingTime}
-                          onChange={(e) => setEditingTime(e.target.value)}
-                          step={300}
-                        />
-                        <Button size="icon" variant="secondary" onClick={saveEdit} aria-label="Save">
-                          <Check className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Input
+                            type="time"
+                            value={editingTime}
+                            onChange={(e) => setEditingTime(e.target.value)}
+                            step={300}
+                            className="flex-1"
+                          />
+                          <Button size="sm" variant="outline" onClick={saveEdit}>
+                            Save
+                          </Button>
+                        </div>
                       </div>
                     ) : (
-                      <div>
+                      <div className="space-y-0.5">
                         <p className="font-medium text-sm truncate">{t.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t.time ? `${t.time} · ` : ''}{new Date(t.date).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          {t.time && (
+                            <span className="inline-flex items-center">
+                              <CalendarIcon className="w-3 h-3 mr-1" />
+                              {t.time}
+                            </span>
+                          )}
+                          {t.time && <span className="mx-1">•</span>}
+                          <span>{new Date(t.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        </div>
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    {editingId !== t._id && (
-                      <Button variant="ghost" size="icon" onClick={() => startEdit(t._id, t.title, t.time)} aria-label="Edit">
-                        <Pencil className="w-4 h-4" />
+                  
+                  {editingId !== t._id && (
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEdit(t._id, t.title, t.time);
+                        }} 
+                        className="h-8 w-8"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="icon" onClick={() => remove(t._id)} aria-label="Delete">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          remove(t._id);
+                        }} 
+                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
