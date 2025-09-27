@@ -52,7 +52,6 @@ export function OTPScreen({ phoneNumber, onVerify, onBack }: OTPScreenProps) {
                 maxLength={4}
                 required
               />
-              <p className="text-sm text-muted-foreground text-center mt-2">Demo: Use 1234 to login</p>
             </div>
             <Button type="submit" className="w-full h-12 text-lg">
               Verify & Login

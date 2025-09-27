@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -90,6 +90,12 @@ export function Dashboard({
   const showDelivery = activeStatus === "delivery"
   const showNotifications = activeStatus === "notifications"
   const showTodo = activeStatus === "todo"
+
+  useEffect(() => {
+    if (showTodo && fabOpen) {
+      setFabOpen(false)
+    }
+  }, [showTodo, fabOpen])
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
   const formatPrice = (price?: number | null) => {
@@ -672,62 +678,56 @@ export function Dashboard({
         </div>
       </ScrollArea>
 
-      {/* Floating Action Button with Menu */}
-      <div className="fixed right-4 sm:right-6 z-50 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] lg:bottom-6 flex flex-col items-center pointer-events-none">
-        {/* Menu Items */}
-        <div className={`flex flex-col items-center gap-3 mb-3 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
-          <div className="flex items-center gap-3">
-            <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
-              Add Client
-            </span>
-            <Button
-              onClick={() => {
-                onAddClient()
-                setFabOpen(false)
-              }}
-              size="lg"
-              variant="secondary"
-              className="pointer-events-auto rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-white/90 backdrop-blur-md border border-gray-200/50 hover:border-blue-300/50"
-            >
-              <Users className="w-5 h-5 text-blue-600" />
-            </Button>
+      {!showTodo && (
+        <div className="fixed right-4 sm:right-6 z-50 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] lg:bottom-6 flex flex-col items-center pointer-events-none">
+          <div className={`flex flex-col items-center gap-3 mb-3 transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+            <div className="flex items-center gap-3">
+              <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
+                Add Client
+              </span>
+              <Button
+                onClick={() => {
+                  onAddClient()
+                  setFabOpen(false)
+                }}
+                size="lg"
+                variant="secondary"
+                className="pointer-events-auto rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-white/90 backdrop-blur-md border border-gray-200/50 hover:border-blue-300/50"
+              >
+                <Users className="w-5 h-5 text-blue-600" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
+                Add Car
+              </span>
+              <Button
+                onClick={() => {
+                  onAddCar()
+                  setFabOpen(false)
+                }}
+                size="lg"
+                className="pointer-events-auto rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-orange-500 hover:bg-orange-600 border border-orange-300/50"
+              >
+                <CarLucide className="w-5 h-5 text-white" />
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="bg-black/80 backdrop-blur-md text-white px-3 py-1 rounded-md text-sm font-medium whitespace-nowrap shadow-lg border border-white/20">
-              Add Car
-            </span>
-            <Button
-              onClick={() => {
-                onAddCar()
-                setFabOpen(false)
-              }}
-              size="lg"
-              className="pointer-events-auto rounded-full w-12 h-12 shadow-xl hover:shadow-2xl transition-all duration-200 bg-orange-500 hover:bg-orange-600 border border-orange-300/50"
-            >
-              <CarLucide className="w-5 h-5 text-white" />
-            </Button>
-          </div>
+          <Button
+            onClick={() => setFabOpen(!fabOpen)}
+            size="lg"
+            className={`pointer-events-auto rounded-full w-14 h-14 shadow-xl hover:shadow-2xl transition-all duration-300 bg-blue-600 hover:bg-blue-700 border border-blue-300/50 ${fabOpen ? 'rotate-45' : 'rotate-0'}`}
+          >
+            <Plus className="w-6 h-6 text-white" />
+          </Button>
+          {fabOpen && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-20 -z-10"
+              onClick={() => setFabOpen(false)}
+            />
+          )}
         </div>
-        
-        {/* Main FAB */}
-        <Button
-          onClick={() => setFabOpen(!fabOpen)}
-          size="lg"
-          className={`pointer-events-auto rounded-full w-14 h-14 shadow-xl hover:shadow-2xl transition-all duration-300 bg-blue-600 hover:bg-blue-700 border border-blue-300/50 ${
-            fabOpen ? 'rotate-45' : 'rotate-0'
-          }`}
-        >
-          <Plus className="w-6 h-6 text-white" />
-        </Button>
-        
-        {/* Backdrop */}
-        {fabOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-20 -z-10"
-            onClick={() => setFabOpen(false)}
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }
