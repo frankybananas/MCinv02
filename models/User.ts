@@ -16,6 +16,8 @@ export interface IUser extends Document {
   };
   lastLogin?: Date;
   notificationsLastSeenAt?: Date;
+  notificationsReadIds?: string[];
+  notificationsDoneIds?: string[];
   otpSecret?: string;
   otpExpiry?: Date;
   isTestAccount: boolean;
@@ -40,6 +42,8 @@ const UserSchema = new Schema<IUser>({
   },
   lastLogin: { type: Date },
   notificationsLastSeenAt: { type: Date },
+  notificationsReadIds: { type: [String], default: [] },
+  notificationsDoneIds: { type: [String], default: [] },
   otpSecret: { type: String },
   otpExpiry: { type: Date },
   isTestAccount: { type: Boolean, default: false },

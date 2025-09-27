@@ -37,7 +37,6 @@ export async function getUserContext(request: Request): Promise<UserContext | nu
     return null;
   }
 }
-
 export async function GET(request: Request) {
   try {
     const ctx = await getUserContext(request);
@@ -49,6 +48,7 @@ export async function GET(request: Request) {
     }
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date'); // yyyy-mm-dd
+    const range = searchParams.get('range');
     const q: any = { user: ctx.userId };
     if (date) {
       const dayStart = new Date(date + 'T00:00:00.000Z');
@@ -56,7 +56,28 @@ export async function GET(request: Request) {
       q.date = { $gte: dayStart, $lte: dayEnd };
     }
     const items = await Todo.find(q).sort({ date: 1, order: 1, createdAt: 1 });
-    return NextResponse.json({ success: true, data: items });
+    let overview: Record<string, number> | undefined;
+    if (range === 'month' && date) {
+      const pivot = new Date(date + 'T12:00:00.000Z');
+      if (!Number.isNaN(pivot.getTime())) {
+        const monthStart = new Date(Date.UTC(pivot.getUTCFullYear(), pivot.getUTCMonth(), 1, 0, 0, 0));
+        const monthEnd = new Date(Date.UTC(pivot.getUTCFullYear(), pivot.getUTCMonth() + 1, 1, 0, 0, 0));
+        const monthDocs = await Todo.find({
+          user: ctx.userId,
+          date: { $gte: monthStart, $lt: monthEnd },
+        }).select('date');
+        overview = monthDocs.reduce<Record<string, number>>((acc, doc) => {
+          const value = doc.date instanceof Date ? doc.date : new Date(doc.date);
+          if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            const key = value.toISOString().slice(0, 10);
+            acc[key] = (acc[key] ?? 0) + 1;
+          }
+          return acc;
+        }, {});
+      }
+    }
+
+    return NextResponse.json({ success: true, data: items, overview });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 });
   }

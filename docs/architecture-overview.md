@@ -46,6 +46,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
   - Stock filters first: `All`, `In-Stock`, `Coming`, `Reserved`, `Sold`, `Demo`.
   - Global sections after filters: `Clients`, `Delivery`, `Notifications`, `TODO` (if enabled for the user), and `Admin` (if role).
   - The menu remains fixed across breakpoints, applies a glassmorphism treatment, respects safe-area insets, and keeps the first filters accessible by default while allowing smooth scroll-to-active behavior when tabs change.
+- The TODO page (`app/components/todo.tsx`) mirrors this treatment with a horizontal day strip that scrolls without visible scrollbars; each day chip highlights when tasks exist and syncs with the monthly calendar above.
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
 - The bar’s wrapper uses `pointer-events: none` while chips/buttons use `pointer-events: auto`, so content beneath remains scrollable.
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
@@ -54,7 +55,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 - Header dropdown now displays the deployed version (`NEXT_PUBLIC_APP_VERSION`) under the logout action and attaches it to `window.__MCINV_APP_VERSION__` for diagnostics.
 
 ### Mobile Dashboard: FAB vs. Scroll
-- The main Stock list exposes a right-aligned floating action cluster that aligns visually with the glass `MainMenu`. The primary `+` FAB rests just above the menu on the trailing edge, uses a neutral glassmorphism treatment (semi-transparent white with backdrop blur), and expands into a pill that provides one-tap actions for “Add client” and “Add car”.
+- The main Stock list exposes a right-aligned floating action cluster that aligns visually with the glass `MainMenu`. The primary `+` FAB rests just above the menu on the trailing edge, uses a neutral glassmorphism treatment (semi-transparent white with backdrop blur), and expands into a pill that provides one-tap actions for “Add client” and “Add car”. The TODO view adds a complementary left-aligned glass FAB that toggles the entry form so the input isn’t rendered until the user requests it.
 - To ensure the area under/around the FAB remains scrollable on mobile:
   - The cluster wrapper keeps `pointer-events: none` except on the interactive buttons.
   - When expanded, a subtle backdrop appears beneath the FAB but below the controls (`z-[-1]`) so taps remain responsive.

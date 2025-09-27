@@ -94,6 +94,7 @@ export interface NotificationItem {
     todoId?: string;
   };
   read?: boolean;
+  done?: boolean;
 }
 
 // TODO items

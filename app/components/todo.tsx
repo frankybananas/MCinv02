@@ -4,10 +4,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CalendarIcon, Plus, Trash2, Pencil, Check } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Pencil } from 'lucide-react';
 import type { TodoItem } from '../types';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
+import { cn } from '@/lib/utils';
 
 // Very lightweight day selector without heavy deps
 function toIsoDate(d: Date) {
@@ -15,6 +16,34 @@ function toIsoDate(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+interface TimeInputFieldProps {
+  inputId: string;
+  value: string;
+  onChange: (value: string) => void;
+  wrapperClassName?: string;
+}
+
+function TimeInputField({ inputId, value, onChange, wrapperClassName }: TimeInputFieldProps) {
+  return (
+    <div className={cn('relative', wrapperClassName)}>
+      <Input
+        id={inputId}
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        step={300}
+        className={cn('w-full caret-slate-900 dark:caret-slate-100', !value && 'text-transparent focus:text-slate-900 dark:focus:text-slate-100')}
+        aria-label="Time"
+      />
+      {!value && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 rounded-md bg-white px-2 py-0.5 text-xs font-medium text-muted-foreground shadow-sm dark:bg-slate-900">
+          Optional: Time
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function Todo() {
@@ -27,8 +56,10 @@ export function Todo() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
   const [editingTime, setEditingTime] = useState<string>('');
+  const [showForm, setShowForm] = useState(false);
+  const [monthOverview, setMonthOverview] = useState<Record<string, number>>({});
 
-  const load = async (iso?: string) => {
+  const load = async (iso?: string): Promise<TodoItem[]> => {
     const date = iso ?? selectedDate;
     try {
       setLoading(true);
@@ -41,16 +72,36 @@ export function Todo() {
       const fetchedItems = Array.isArray(data?.data) ? data.data : [];
       setItems(fetchedItems);
       setError(null);
+      return fetchedItems;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load TODOs';
       setItems([]);
       setError(message);
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
+  const loadMonthOverview = async (iso: string) => {
+    try {
+      const res = await fetch(`/api/todos?date=${encodeURIComponent(iso)}&range=month`, { credentials: 'include' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        return;
+      }
+      const overview = data?.overview as Record<string, number> | undefined;
+      if (overview && typeof overview === 'object') {
+        setMonthOverview(overview);
+      }
+    } catch {
+      // Ignore overview errors
+    }
+  };
+
   useEffect(() => { void load(selectedDate); }, [selectedDate]);
+  const monthKey = selectedDate.slice(0, 7);
+  useEffect(() => { void loadMonthOverview(selectedDate); }, [monthKey, selectedDate]);
 
   const add = async () => {
     if (!newTitle.trim()) return;
@@ -80,7 +131,8 @@ export function Todo() {
       
       setNewTitle('');
       setNewTime('');
-      await load();
+      const updated = await load();
+      setMonthOverview((prev) => ({ ...prev, [selectedDate]: updated.length }));
     } catch (e) {
       console.error('Error adding TODO:', e);
       setError((e as Error).message || 'Failed to add TODO');
@@ -91,7 +143,8 @@ export function Todo() {
     try {
       const res = await fetch(`/api/todos/${id}`, { method: 'DELETE', credentials: 'include' });
       if (!res.ok) throw new Error('Failed to delete TODO');
-      await load();
+      const updated = await load();
+      setMonthOverview((prev) => ({ ...prev, [selectedDate]: updated.length }));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -119,7 +172,8 @@ export function Todo() {
       setEditingId(null);
       setEditingTitle('');
       setEditingTime('');
-      await load();
+      const updated = await load();
+      setMonthOverview((prev) => ({ ...prev, [selectedDate]: updated.length }));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -150,7 +204,8 @@ export function Todo() {
     } catch (e) {
       setError((e as Error).message);
       // Fallback reload
-      await load();
+      const updated = await load();
+      setMonthOverview((prev) => ({ ...prev, [selectedDate]: updated.length }));
     }
   };
 
@@ -166,8 +221,32 @@ export function Todo() {
     return days;
   }, [selectedDate]);
 
+  const eventsByDate = useMemo(() => {
+    return new Map<string, number>(Object.entries(monthOverview || {}));
+  }, [monthOverview]);
+
+  const selectedDay = useMemo(() => {
+    const date = new Date(selectedDate + 'T12:00:00.000Z');
+    const weekday = date.toLocaleDateString(undefined, { weekday: 'long' });
+    const formatted = date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+    return { weekday, formatted };
+  }, [selectedDate]);
+
   return (
-    <div className="w-full max-w-full overflow-x-hidden px-1 sm:px-2 pb-4 mx-auto">
+    <div className="relative w-full max-w-full px-1 sm:px-2 pb-4 mx-auto">
+      <div className="pointer-events-none fixed left-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:left-6">
+        <Button
+          type="button"
+          size="icon"
+          onClick={() => setShowForm((prev) => !prev)}
+          aria-expanded={showForm}
+          aria-label={showForm ? 'Hide new entry form' : 'Open new entry form'}
+          className={`pointer-events-auto h-14 w-14 rounded-full border border-white/25 bg-white/25 text-slate-900 shadow-[0_24px_44px_-18px_rgba(15,23,42,0.4)] backdrop-blur-2xl transition-all duration-300 hover:bg-white/35 dark:text-white ${showForm ? 'rotate-45' : ''}`}
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+      </div>
+
       {/* Monthly calendar - full width but contained */}
       <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
         <DayPicker
@@ -182,38 +261,59 @@ export function Todo() {
             months: { width: '100%' },
             month: { width: '100%', margin: 0, padding: '0.25rem' },
             table: { width: '100%' },
-            caption: { 
-              fontWeight: 600, 
-              padding: '0.25rem 0', 
+            caption: {
+              fontWeight: 600,
+              padding: '0.25rem 0',
               textAlign: 'center',
               position: 'relative',
               marginBottom: '0.25rem',
-              fontSize: '0.9rem'
+              fontSize: '0.9rem',
             },
             nav: { display: 'flex', justifyContent: 'space-between', padding: '0 0.25rem' },
             head_cell: { padding: '0.15rem', textAlign: 'center', fontSize: '0.7rem' },
             cell: { padding: '0.15rem', fontSize: '0.8rem' },
-            day: { width: '1.75rem', height: '1.75rem', margin: '0.05rem' }
+            day: { width: '1.75rem', height: '1.75rem', margin: '0.05rem' },
+          }}
+          modifiers={{
+            hasEntries: (d) => (eventsByDate.get(toIsoDate(d)) ?? 0) > 0,
+          }}
+          modifiersClassNames={{
+            hasEntries: 'relative after:absolute after:inset-x-[28%] after:bottom-1 after:h-1.5 after:rounded-full after:bg-blue-500 after:content-[""]',
+          }}
+          modifiersStyles={{
+            hasEntries: {
+              boxShadow: '0 0 0 1px rgba(37, 99, 235, 0.35) inset',
+              borderRadius: '999px',
+              color: 'rgb(37 99 235)',
+            },
           }}
         />
       </div>
 
       {/* Date strip with horizontal scrolling */}
-      <div className="w-full overflow-x-auto pb-2 -mx-1">
-        <div className="flex gap-1.5 px-1 w-max min-w-full">
-          {strip.map((d) => {
-            const isActive = d === selectedDate;
-            const day = new Date(d + 'T12:00:00');
-            const dayOfWeek = day.toLocaleDateString(undefined, { weekday: 'short' });
-            const dayOfMonth = day.getDate();
-            
+      <div
+        className="w-full overflow-x-auto pb-2 -mx-1 [-ms-overflow-style:none] scrollbar-thin scrollbar-transparent"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        <div className="flex gap-1.5 px-1 w-max min-w-full" style={{ msOverflowStyle: 'none' }}>
+          {strip.map((iso) => {
+            const isActive = iso === selectedDate;
+            const hasItems = (eventsByDate.get(iso) ?? 0) > 0;
+            const dateObj = new Date(iso + 'T12:00:00.000Z');
+            const dayOfWeek = dateObj.toLocaleDateString(undefined, { weekday: 'short' });
+            const dayOfMonth = dateObj.getDate();
+
             return (
-              <Button 
-                key={d} 
-                size="sm" 
-                variant={isActive ? 'default' : 'outline'} 
-                className="flex-col h-12 w-10 p-0.5 rounded-md text-xs" 
-                onClick={() => setSelectedDate(d)}
+              <Button
+                key={iso}
+                size="sm"
+                variant={isActive ? 'default' : 'outline'}
+                className={cn(
+                  'flex flex-col items-center justify-center h-12 w-12 rounded-lg p-0.5 text-xs transition-colors',
+                  hasItems && !isActive && 'border border-blue-400/80 bg-blue-50/60 text-blue-700 shadow-sm',
+                  isActive && 'shadow-md'
+                )}
+                onClick={() => setSelectedDate(iso)}
               >
                 <span className="text-[0.65rem] font-normal leading-none">{dayOfWeek}</span>
                 <span className="text-sm font-medium leading-none mt-0.5">{dayOfMonth}</span>
@@ -223,50 +323,59 @@ export function Todo() {
         </div>
       </div>
 
-      <Card className="w-full mt-3">
-        <CardContent className="p-2 space-y-2">
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void add();
-            }}
-          >
-            <div className="grid grid-cols-1 gap-2">
-              <div className="space-y-1">
-                <Input
-                  id="todo-title"
-                  placeholder="New entry (e.g. Call client)"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  required
-                  className="w-full"
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <div className="flex-1">
+      <Card className="mb-3 bg-white/80 shadow-sm">
+        <CardContent className="p-3">
+          <h2 className="text-base font-semibold text-slate-800">{selectedDay.weekday}</h2>
+          <p className="text-xs text-muted-foreground">{selectedDay.formatted}</p>
+        </CardContent>
+      </Card>
+
+      {showForm && (
+        <Card className="w-full mb-3">
+          <CardContent className="p-2 space-y-2">
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void add();
+              }}
+            >
+              <div className="grid grid-cols-1 gap-2">
+                <div className="space-y-1">
                   <Input
-                    id="todo-time"
-                    type="time"
-                    value={newTime}
-                    onChange={(e) => setNewTime(e.target.value)}
-                    step={300}
+                    id="todo-title"
+                    placeholder="New entry (e.g. Call client)"
+                    value={newTitle}
+                    onChange={(event) => setNewTitle(event.target.value)}
+                    required
                     className="w-full"
                   />
                 </div>
-                
-                <Button 
-                  type="submit" 
-                  disabled={!newTitle.trim()} 
-                  className="h-9 px-3"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </form>
 
+                <div className="flex gap-2">
+                  <TimeInputField
+                    inputId="todo-time"
+                    value={newTime}
+                    onChange={setNewTime}
+                    wrapperClassName="flex-1"
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={!newTitle.trim()}
+                    className="h-9 w-10"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="w-full">
+        <CardContent className="p-2 space-y-2">
           {loading ? (
             <div className="flex justify-center py-4">
               <p className="text-sm text-muted-foreground">Loading...</p>
@@ -301,12 +410,11 @@ export function Todo() {
                           className="w-full"
                         />
                         <div className="flex gap-2">
-                          <Input
-                            type="time"
+                          <TimeInputField
+                            inputId={`todo-edit-time-${t._id}`}
                             value={editingTime}
-                            onChange={(e) => setEditingTime(e.target.value)}
-                            step={300}
-                            className="flex-1"
+                            onChange={(value) => setEditingTime(value)}
+                            wrapperClassName="flex-1"
                           />
                           <Button size="sm" variant="outline" onClick={saveEdit}>
                             Save
