@@ -121,7 +121,7 @@ function MainMenuComponent({
             ref={scrollContainerRef}
             className="max-[320px]:overflow-visible overflow-x-auto px-1"
           >
-            <ul className="flex items-center justify-center gap-1.5 px-1 py-1.5 sm:px-3 sm:py-2 max-[320px]:flex-col max-[320px]:items-stretch">
+            <ul className="flex items-center justify-start gap-1.5 px-1 py-1.5 sm:px-3 sm:py-2 md:justify-center max-[320px]:flex-col max-[320px]:items-stretch">
               {menuItems.map((item) => {
                 const isActive = item.id !== "admin" && activeStatus === item.id;
                 return (
