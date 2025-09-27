@@ -31,12 +31,18 @@ export function Todo() {
     try {
       setLoading(true);
       const res = await fetch(`/api/todos?date=${encodeURIComponent(date)}`);
-      if (!res.ok) throw new Error('Failed to load TODOs');
-      const j = await res.json();
-      setItems(Array.isArray(j?.data) ? j.data : []);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message = typeof data?.error === 'string' ? data.error : 'Failed to load TODOs';
+        throw new Error(message);
+      }
+      const fetchedItems = Array.isArray(data?.data) ? data.data : [];
+      setItems(fetchedItems);
       setError(null);
     } catch (e) {
-      setError((e as Error).message);
+      const message = e instanceof Error ? e.message : 'Failed to load TODOs';
+      setItems([]);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -169,6 +175,8 @@ export function Todo() {
           </div>
           {loading ? (
             <p className="mt-3 text-sm text-muted-foreground">Loading...</p>
+          ) : error ? (
+            <p className="mt-3 text-sm text-red-500">{error}</p>
           ) : items.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">No entries for this day.</p>
           ) : (
@@ -216,7 +224,6 @@ export function Todo() {
               ))}
             </ul>
           )}
-          {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
         </CardContent>
       </Card>
     </div>
