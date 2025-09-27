@@ -1,51 +1,17 @@
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 import { connect as connectDb } from '@/lib/mongodb';
 import Todo from '@/models/Todo';
-
-function parseCookie(header: string | null, name: string): string | null {
-  if (!header) return null;
-  const parts = header.split(';');
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=');
-    if (k === name) return decodeURIComponent(rest.join('='));
-  }
-  return null;
-}
-
-async function getUserIdFromRequest(request: Request): Promise<string | null> {
-  const cookieHeader = request.headers.get('cookie');
-  const token = parseCookie(cookieHeader, 'session_token');
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!token || !jwtSecret) return null;
-  try {
-    const secret = new TextEncoder().encode(jwtSecret);
-    const { payload } = await jwtVerify(token, secret);
-    let userId: any = (payload as any).userId;
-    if (typeof userId !== 'string') {
-      try {
-        if (userId?.data && Array.isArray(userId.data)) {
-          userId = Buffer.from(userId.data).toString('utf8');
-        } else if (ArrayBuffer.isView(userId)) {
-          userId = Buffer.from(userId as Uint8Array).toString('utf8');
-        } else if (typeof userId?.toString === 'function') {
-          userId = userId.toString();
-        }
-      } catch {}
-    }
-    if (typeof userId === 'string' && /^[a-fA-F0-9]{24}$/.test(userId)) {
-      return userId;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+import { getUserContext } from '../route';
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const ctx = await getUserContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!ctx.todoEnabled) {
+      return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
+    }
     await connectDb();
     const body = await request.json();
     const { title, date, order, time } = body || {};
@@ -62,7 +28,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ success: false, error: 'No updatable fields' }, { status: 400 });
     }
-    const item = await Todo.findOneAndUpdate({ _id: params.id, user: userId }, { $set: update }, { new: true });
+    const item = await Todo.findOneAndUpdate({ _id: params.id, user: ctx.userId }, { $set: update }, { new: true });
     if (!item) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true, data: item });
   } catch (err: any) {
@@ -72,10 +38,15 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const ctx = await getUserContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!ctx.todoEnabled) {
+      return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
+    }
     await connectDb();
-    const res = await Todo.findOneAndDelete({ _id: params.id, user: userId });
+    const res = await Todo.findOneAndDelete({ _id: params.id, user: ctx.userId });
     if (!res) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true, data: { _id: params.id } });
   } catch (err: any) {

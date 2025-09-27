@@ -1,73 +1,55 @@
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 import { connect as connectDb } from '@/lib/mongodb';
+import { requireSession } from '@/lib/auth-session';
 import Todo from '@/models/Todo';
 import User from '@/models/User';
 
-function parseCookie(header: string | null, name: string): string | null {
-  if (!header) return null;
-  const parts = header.split(';');
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=');
-    if (k === name) return decodeURIComponent(rest.join('='));
-  }
-  return null;
+export interface UserContext {
+  userId: string;
+  todoEnabled: boolean;
 }
 
-async function getUserIdFromRequest(request: Request): Promise<string | null> {
-  if (process.env.NODE_ENV === 'test') {
-    return '65123456789abc0011223344';
-  }
-  const cookieHeader = request.headers.get('cookie');
-  const token = parseCookie(cookieHeader, 'session_token');
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!token || !jwtSecret) return null;
+export async function getUserContext(request: Request): Promise<UserContext | null> {
   try {
-    const secret = new TextEncoder().encode(jwtSecret);
-    const { payload } = await jwtVerify(token, secret);
-    let userId: any = (payload as any).userId;
-    if (typeof userId !== 'string') {
-      try {
-        if (userId?.data && Array.isArray(userId.data)) {
-          userId = Buffer.from(userId.data).toString('utf8');
-        } else if (ArrayBuffer.isView(userId)) {
-          userId = Buffer.from(userId as Uint8Array).toString('utf8');
-        } else if (typeof userId?.toString === 'function') {
-          userId = userId.toString();
-        }
-      } catch {}
+    if (process.env.NODE_ENV === 'test') {
+      return { userId: '65123456789abc0011223344', todoEnabled: true };
     }
-    if (typeof userId === 'string' && /^[a-fA-F0-9]{24}$/.test(userId)) {
-      return userId;
+
+    const session = await requireSession(request);
+    await connectDb();
+
+    let userId: string | null = typeof session.userId === 'string' ? session.userId : null;
+
+    if (userId) {
+      const user = await User.findById(userId).select('_id todoEnabled').lean<{ _id: string; todoEnabled?: boolean }>();
+      if (!user) {
+        return null;
+      }
+      return { userId: user._id, todoEnabled: user.todoEnabled === true };
     }
-    return null;
+
+    const user = await User.findOne({ phone: session.phone }).select('_id todoEnabled').lean<{ _id: string; todoEnabled?: boolean }>();
+    if (!user) {
+      return null;
+    }
+    return { userId: user._id, todoEnabled: user.todoEnabled === true };
   } catch {
     return null;
   }
 }
 
-async function ensureTodoEnabled(userId: string): Promise<boolean> {
-  const userDoc = await (User as any).findById(userId);
-  if (!userDoc) return false;
-  if (typeof userDoc.select === 'function') {
-    const selected = await userDoc.select('todoEnabled');
-    return Boolean(selected?.todoEnabled);
-  }
-  return Boolean(userDoc.todoEnabled);
-}
-
 export async function GET(request: Request) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    await connectDb();
-    const enabled = await ensureTodoEnabled(userId);
-    if (!enabled) {
+    const ctx = await getUserContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!ctx.todoEnabled) {
       return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
     }
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date'); // yyyy-mm-dd
-    const q: any = { user: userId };
+    const q: any = { user: ctx.userId };
     if (date) {
       const dayStart = new Date(date + 'T00:00:00.000Z');
       const dayEnd = new Date(date + 'T23:59:59.999Z');
@@ -82,11 +64,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    await connectDb();
-    const enabled = await ensureTodoEnabled(userId);
-    if (!enabled) {
+    const ctx = await getUserContext(request);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!ctx.todoEnabled) {
       return NextResponse.json({ success: false, error: 'TODO feature not enabled' }, { status: 403 });
     }
     const body = await request.json();
@@ -97,9 +79,9 @@ export async function POST(request: Request) {
     // compute next order for the day
     const dayStart = new Date(date + 'T00:00:00.000Z');
     const dayEnd = new Date(date + 'T23:59:59.999Z');
-    const lastOrderDoc = await Todo.findOne({ user: userId, date: { $gte: dayStart, $lte: dayEnd } }).sort({ order: -1 });
+    const lastOrderDoc = await Todo.findOne({ user: ctx.userId, date: { $gte: dayStart, $lte: dayEnd } }).sort({ order: -1 });
     const nextOrder = (lastOrderDoc?.order ?? 0) + 1;
-    const item = await Todo.create({ user: userId, date: dt, title, time: normalizedTime, order: nextOrder });
+    const item = await Todo.create({ user: ctx.userId, date: dt, title, time: normalizedTime, order: nextOrder });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 });

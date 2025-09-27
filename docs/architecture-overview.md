@@ -12,6 +12,7 @@
 - Update/Delete: `PUT/DELETE /api/todos/[id]` enforce ownership (filter by `{ _id, user }`).
 - Feature gating: The TODO UI is only shown when the authenticated user has `todoEnabled === true` (see `app/components/main-page.tsx` → state `todoEnabled` read from `GET /api/auth/me`, and `app/components/dashboard.tsx` where the TODO chip is rendered conditionally). On the server, all TODO routes also check this flag and return 403 when disabled.
 - Admin visibility: Admins do not get cross-user access here by default; this is strictly per-user.
+- Auth plumbing: Starting 2025-09-27 the TODO API handlers `app/api/todos/route.ts` and `app/api/todos/[id]/route.ts` share a `getUserContext()` helper that calls `requireSession()` (see `lib/auth-session.ts`) to validate the `session_token` cookie. The helper reuses the `userId` claim embedded in modern JWTs and gracefully falls back to a phone lookup for legacy tokens that lack the claim. This eliminates duplicated JWT parsing and ensures the OTP-day checks already enforced in middleware also apply when requests hit the route directly.
 
 Troubleshooting Unauthorized on TODO:
 - If the TODO view shows “Unauthorized”, the session cookie (`session_token`) was not included or is invalid/expired. Steps:
