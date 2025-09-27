@@ -3,12 +3,9 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { User, LogOut, Users } from "lucide-react"
-
-function clean(v?: string) {
-  return v ? v.trim().replace(/^"|"$/g, "") : undefined
-}
+import { APP_VERSION } from "@/lib/app-info"
 
 export default function HeaderBar() {
   // Use the supplied Halfway logo explicitly, removing the previous placeholder/ACME logo
@@ -26,6 +23,9 @@ export default function HeaderBar() {
       } catch {}
     }
     fetchMe()
+    if (typeof window !== "undefined") {
+      ;(window as any).__MCINV_APP_VERSION__ = APP_VERSION
+    }
   }, [])
 
   const logout = async () => {
@@ -63,7 +63,6 @@ export default function HeaderBar() {
           <DropdownMenuContent align="end">
             {profile?.role === 'admin' && (
               <DropdownMenuItem onClick={() => { window.location.href = '/admin' }}>
-                <Users className="mr-2 h-4 w-4" />
                 Manage Users
               </DropdownMenuItem>
             )}
@@ -72,6 +71,10 @@ export default function HeaderBar() {
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <div className="px-3 pb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">
+              Version {APP_VERSION}
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       )}

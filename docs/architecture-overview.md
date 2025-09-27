@@ -51,6 +51,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
 - The bottom drawer pull handle has been removed and the bottom bar padding reduced to increase content height; scrollbars are hidden on mobile so the bar maintains a clean glass look.
 - Chips include subtle icons per section/filter (car, check, clock, bookmark, tag, wand, users, truck, bell, calendar, admin shield). Active state uses a solid highlight; inactive uses a light glass outline.
+- Header dropdown now displays the deployed version (`NEXT_PUBLIC_APP_VERSION`) under the logout action and attaches it to `window.__MCINV_APP_VERSION__` for diagnostics.
 
 ### Mobile Dashboard: FAB vs. Scroll
 - The main Stock list exposes a right-aligned floating action cluster that aligns visually with the glass `MainMenu`. The primary `+` FAB rests just above the menu on the trailing edge, uses a neutral glassmorphism treatment (semi-transparent white with backdrop blur), and expands into a pill that provides one-tap actions for “Add client” and “Add car”.

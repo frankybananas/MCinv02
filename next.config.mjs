@@ -1,3 +1,8 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf-8"));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -9,12 +14,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version ?? "0.0.0",
+  },
   serverExternalPackages: ["mongoose"],
   // Performance optimizations
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
-  // Enable compression
   compress: true,
   webpack: (config, { dev, isServer }) => {
     config.experiments = {
