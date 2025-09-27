@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Shield, Bell, Calendar } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Bell } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 import { Todo } from './todo'
+import { MainMenu } from "./main-menu"
 
 import type { Client } from "../types"
 
@@ -60,32 +61,6 @@ export function Dashboard({
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const navScrollRef = React.useRef<HTMLDivElement | null>(null)
-  const activeChipId = `nav-chip-${activeStatus}`
-
-  // Keep the selected chip in view when activeStatus changes
-  React.useEffect(() => {
-    try {
-      const el = typeof document !== 'undefined' ? document.getElementById(activeChipId) : null;
-      if (el && navScrollRef.current) {
-        el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-      }
-    } catch {}
-  }, [activeChipId, activeStatus])
-
-  // Outside click overlay handles closing; do not auto-close on touchmove/wheel.
-  // header moved to Root layout
-  // Top-level tabs: Stock (car area), Clients, Delivery, and Admin (if role)
-  const tabs: { id: DashboardTab | 'admin'; label: string; href?: string }[] = [
-    { id: "all", label: "Stock" },
-    { id: "clients", label: "Clients" },
-    { id: "delivery", label: "Delivery" },
-  ];
-
-  if (userRole === 'admin') {
-    tabs.push({ id: 'admin', label: 'Admin' });
-  }
-
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
   const showNotifications = activeStatus === "notifications"
@@ -180,102 +155,6 @@ export function Dashboard({
 
   return (
     <div className="flex flex-col h-screen bg-background">
-
-      {/* Unified Mobile/Tablet Bottom Navbar (always present) */}
-      {(
-        <>
-          <div
-            className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-white/90 backdrop-blur-xl border-t border-gray-200/60 shadow-2xl rounded-t-2xl"
-            data-testid="mobile-bottom-nav"
-          >
-            <div className="w-full overflow-x-auto" ref={navScrollRef}>
-              <div className="relative flex items-center justify-start p-2 sm:p-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                <div className="flex gap-3 flex-nowrap items-center whitespace-nowrap px-4 sm:px-6 pr-28 w-full">
-                  {([
-                    { id: 'all', label: 'All' },
-                    { id: 'in-stock', label: 'In-Stock' },
-                    { id: 'coming', label: 'Coming' },
-                    { id: 'reserved', label: 'Reserved' },
-                    { id: 'sold', label: 'Sold' },
-                    { id: 'demo', label: 'Demo' },
-                    { id: 'clients', label: 'Clients' },
-                    { id: 'delivery', label: 'Delivery' },
-                    { id: 'notifications', label: 'Notifications' },
-                    ...(todoEnabled ? [{ id: 'todo', label: 'TODO' }] : []),
-                    ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin' }] : []),
-                  ] as { id: DashboardTab | 'admin'; label: string }[]).map((item) => {
-                    const isActive = item.id !== 'admin' && activeStatus === (item.id as DashboardTab)
-                    return (
-                    <Button
-                      key={item.id}
-                      id={`nav-chip-${item.id}`}
-                      variant={'ghost'}
-                      size="sm"
-                      onClick={() => {
-                        if (item.id === 'admin') {
-                          window.location.href = '/admin';
-                        } else {
-                          onStatusFilterChange(item.id as DashboardTab)
-                        }
-                      }}
-                      type="button"
-                      aria-current={isActive ? 'page' : undefined}
-                      className={`h-9 px-4 text-xs sm:text-sm shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60
-                        ${isActive
-                          ? 'bg-blue-600 text-white border-blue-400/40 shadow-sm'
-                          : 'bg-white/10 text-foreground/90 border-white/25 hover:bg-white/20 backdrop-blur-sm'}
-                      `}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        {/* Icons per tab */}
-                        {item.id === 'all' && (
-                          <CarIcon className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'in-stock' && (
-                          <CheckCircle className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'coming' && (
-                          <Clock className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'reserved' && (
-                          <BookmarkCheck className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'sold' && (
-                          <Tag className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'demo' && (
-                          <Wand2 className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'clients' && (
-                          <Users className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'delivery' && (
-                          <Truck className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'notifications' && (
-                          <Bell className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'todo' && (
-                          <Calendar className={`${isActive ? 'text-white' : 'text-foreground/70'} w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.id === 'admin' && (
-                          <Shield className={`text-foreground/70 w-4 h-4`} aria-hidden="true" />
-                        )}
-                        {item.label}
-                        {item.id === 'notifications' && ((unreadNotificationsCount ?? 0) > 0) && (
-                          <span className={`ml-1 inline-flex items-center justify-center px-1.5 min-w-[18px] h-[18px] rounded-full text-[10px] font-semibold ${isActive ? 'bg-white text-blue-700' : 'bg-blue-600 text-white'}`}>
-                            {Math.min(unreadNotificationsCount, 99)}
-                          </span>
-                        )}
-                      </span>
-                    </Button>
-                  )})}
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Secondary navbar for Stock status filters */}
       {isStockStatus && (
