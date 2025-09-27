@@ -65,6 +65,13 @@ export function Dashboard({
   const showDelivery = activeStatus === "delivery"
   const showNotifications = activeStatus === "notifications"
   const showTodo = activeStatus === "todo"
+  const handleAdminNavigate = React.useCallback(() => {
+    try {
+      window.location.href = "/admin"
+    } catch (error) {
+      console.error("Navigation to admin failed", error)
+    }
+  }, [])
 
   useEffect(() => {
     if (showTodo && fabOpen) {
@@ -607,6 +614,14 @@ export function Dashboard({
           )}
         </div>
       )}
+      <MainMenu
+        activeStatus={activeStatus}
+        onStatusFilterChange={onStatusFilterChange}
+        unreadNotificationsCount={unreadNotificationsCount}
+        todoEnabled={todoEnabled}
+        userRole={userRole}
+        onAdminNavigate={handleAdminNavigate}
+      />
     </div>
   );
 }

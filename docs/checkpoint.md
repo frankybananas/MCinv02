@@ -3,7 +3,6 @@
 This section consolidates the latest state so a new LLM/dev can continue seamlessly. The older historical checkpoint is preserved below for context.
 
 ## High-level status
-
 - App (Next.js 15.2.4): https://htg.lotlynx.app
 - Qdrant: Coolify Service (internal only)
 - Diagnostics endpoint: `/api/diagnostics/qdrant` verifies readyz, collections, and a round-trip upsert/search
@@ -11,6 +10,9 @@ This section consolidates the latest state so a new LLM/dev can continue seamles
 
 ## Recent changes (files)
 
+- `app/components/main-menu.tsx`: new reusable glassmorphism bottom navigation shared across breakpoints with safe-area handling, smooth active-item scrolling, and optional admin + badge states.
+- `app/components/dashboard.tsx`: integrates `MainMenu` for persistent navigation, removes duplicated mobile-only nav markup, and preserves FAB + stock filter behavior.
+- `docs/checkpoint.md`: updated to reflect latest navigation work.
 - `app/components/client-request-quick.tsx`: quick input examples popover; SA brand/model/color/body-type parsing; summary shows colors and body types
 - `app/api/clients/[id]/requests/route.ts`: resilient save (embeddings/vector ops wrapped); gated by user `matchingEnabled`
 - `app/api/clients/[id]/matches/route.ts`: returns empty for non-privileged users with matching disabled
@@ -30,7 +32,6 @@ This section consolidates the latest state so a new LLM/dev can continue seamles
 - Created MongoDB connection utility in lib/mongodb.js with caching and error handling
 - Implemented models/schemas for documents, pictures, car, client details, and phone numbers:
   - Car model (models/Car.js)
-  - Client model (models/Client.js)
   - Document model (models/Document.js)
   - Picture model (models/Picture.js)
   - Phone model (models/Phone.js)
