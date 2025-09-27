@@ -151,44 +151,47 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="space-y-4 max-w-full">
+    <div className="w-full space-y-4 px-3 pb-6 sm:px-4 sm:max-w-3xl mx-auto">
       {/* Monthly calendar */}
-      <div className="rounded-md border p-2 bg-white/70 overflow-hidden">
+      <div className="rounded-xl border bg-white/80 shadow-sm overflow-hidden w-full">
         <DayPicker
           mode="single"
           selected={new Date(selectedDate + 'T12:00:00.000Z')}
           onSelect={(d) => d && setSelectedDate(toIsoDate(d))}
           weekStartsOn={1}
           showOutsideDays
-          className="w-full max-w-full"
+          className="w-full"
           styles={{
-            caption: { fontWeight: 600 },
+            root: { width: '100%', maxWidth: '100%' },
+            month: { width: '100%', margin: 0 },
+            table: { width: '100%' },
+            caption: { fontWeight: 600, padding: '0.5rem 0', textAlign: 'center' },
           }}
         />
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {strip.map((d) => {
           const isActive = d === selectedDate;
           const label = new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
           return (
-            <Button key={d} size="sm" variant={isActive ? 'default' : 'ghost'} className="rounded-full" onClick={() => setSelectedDate(d)}>
+            <Button key={d} size="sm" variant={isActive ? 'default' : 'ghost'} className="rounded-full shrink-0" onClick={() => setSelectedDate(d)}>
               <CalendarIcon className="w-4 h-4 mr-1" /> {label}
             </Button>
           );
         })}
       </div>
 
-      <Card>
+      <Card className="w-full">
         <CardContent className="p-3 sm:p-4 space-y-3">
           <form
-            className="flex flex-col sm:flex-row gap-2 sm:items-end"
+            className="flex flex-col sm:flex-row gap-3 sm:items-end"
             onSubmit={(e) => {
               e.preventDefault();
               void add();
             }}
           >
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 w-full">
               <label htmlFor="todo-title" className="block text-xs font-medium text-muted-foreground mb-1">
                 Title
               </label>
@@ -212,7 +215,7 @@ export function Todo() {
                 step={300}
               />
             </div>
-            <div className="sm:w-auto">
+            <div className="sm:w-auto w-full">
               <Button type="submit" disabled={!newTitle.trim()} className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-1" /> Add Entry
               </Button>
