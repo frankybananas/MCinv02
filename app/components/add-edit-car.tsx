@@ -28,6 +28,99 @@ interface DisplayImage {
   isNew: boolean;
 }
 
+// Image compression settings and helpers
+// Target: high visual quality for fullscreen on ~9" tablets while saving bandwidth/storage.
+// Strategy: limit long edge to 2560px, prefer WebP at quality ~0.82, fall back to JPEG at quality ~0.86.
+const MAX_DIMENSION = 2560; // pixels (covers ~2.5K long edge screens)
+const WEBP_QUALITY = 0.82;
+const JPEG_QUALITY = 0.86;
+
+async function loadImageBitmap(file: File): Promise<ImageBitmap> {
+  try {
+    // createImageBitmap is fast and handles various formats
+    return await createImageBitmap(file);
+  } catch {
+    // Fallback via HTMLImageElement
+    const dataUrl = await fileToDataURL(file);
+    return await dataURLToImageBitmap(dataUrl);
+  }
+}
+
+function fileToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataURLToImageBitmap(dataUrl: string): Promise<ImageBitmap> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      createImageBitmap(img)
+        .then(resolve)
+        .catch(reject);
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+function getTargetSize(width: number, height: number) {
+  const longEdge = Math.max(width, height);
+  if (longEdge <= MAX_DIMENSION) return { width, height };
+  const scale = MAX_DIMENSION / longEdge;
+  return { width: Math.round(width * scale), height: Math.round(height * scale) };
+}
+
+async function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) return reject(new Error('Canvas toBlob returned null'));
+      resolve(blob);
+    }, type, quality);
+  });
+}
+
+async function compressImage(file: File): Promise<File> {
+  // Only attempt compression for typical raster images
+  const inputType = (file.type || '').toLowerCase();
+  const isRaster = /image\/(jpeg|jpg|png|webp|heic|heif|bmp)/.test(inputType);
+  if (!isRaster) return file;
+
+  const bitmap = await loadImageBitmap(file);
+  const { width: tw, height: th } = getTargetSize(bitmap.width, bitmap.height);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return file; // fallback
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, tw, th);
+
+  // Prefer WebP when supported by the browser; otherwise JPEG
+  const canUseWebP = typeof canvas.toDataURL === 'function' && ((): boolean => {
+    try {
+      return canvas.toDataURL('image/webp').startsWith('data:image/webp');
+    } catch {
+      return false;
+    }
+  })();
+
+  const mime = canUseWebP ? 'image/webp' : 'image/jpeg';
+  const quality = canUseWebP ? WEBP_QUALITY : JPEG_QUALITY;
+  const blob = await canvasToBlob(canvas, mime, quality);
+
+  // Keep original extension semantics if possible; otherwise set based on mime
+  const ext = canUseWebP ? 'webp' : 'jpg';
+  const base = file.name.replace(/\.[^.]+$/, '') || 'image';
+  const newName = `${base}-compressed.${ext}`;
+  return new File([blob], newName, { type: mime, lastModified: Date.now() });
+}
+
 // Helper function to format the price with spaces
 const formatPrice = (value: string | number): string => {
   if (value === '' || value === null || value === undefined) return '';
@@ -188,17 +281,31 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      const newImages: DisplayImage[] = files.map(file => ({
-        id: uuidv4(),
-        url: URL.createObjectURL(file),
-        file: file,
-        isNew: true,
-      }));
-      setDisplayedImages(prev => [...prev, ...newImages]);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+
+    // Compress sequentially to avoid memory spikes on low-end devices
+    const compressedFiles: File[] = [];
+    for (const f of files) {
+      try {
+        const cf = await compressImage(f);
+        compressedFiles.push(cf);
+      } catch (err) {
+        console.warn('Image compression failed, using original file:', err);
+        compressedFiles.push(f);
+      }
     }
+
+    const newImages: DisplayImage[] = compressedFiles.map(file => ({
+      id: uuidv4(),
+      url: URL.createObjectURL(file),
+      file,
+      isNew: true,
+    }));
+    setDisplayedImages(prev => [...prev, ...newImages]);
+    // Reset the input so the same files can be selected again if needed
+    try { e.target.value = ''; } catch {}
   };
 
   const handleRemoveImage = (idToRemove: string) => {
