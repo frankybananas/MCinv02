@@ -126,6 +126,9 @@ API routes (selected):
   - `app/api/todos/route.ts` (GET my todos filtered by date, POST create)
   - `app/api/todos/[id]/route.ts` (PUT update, DELETE) — all routes enforce ownership via JWT user id
   - Entries capture optional HH:mm `time` metadata, used to display precise reminders in the UI.
+- WhatsApp Advertising
+  - `app/api/whatsapp/generate/route.ts` (POST generate images for in-stock cars)
+  - `app/api/whatsapp/complete/route.ts` (POST update generation status)
 - Misc
   - `app/api/uploads/route.ts` (file uploads)
   - Test/health routes under `app/api/test*/`
@@ -466,3 +469,4 @@ Record changes to architecture here when updating:
  - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
  - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
+- 2025-09-28: Added WhatsApp Status Advertising feature with image generation for in-stock cars. New components: `WhatsAppButton` in TODO page, `/api/whatsapp/*` endpoints, `WhatsAppGeneration` model, and client-side Canvas API image composition with gallery download integration. Feature generates branded car images (1080x1920px) with car details overlay for social media marketing.

@@ -9,6 +9,7 @@ import type { TodoItem } from '../types';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { cn } from '@/lib/utils';
+import { WhatsAppButton } from './whatsapp-button';
 
 // Very lightweight day selector without heavy deps
 function toIsoDate(d: Date) {
@@ -252,6 +253,12 @@ export function Todo() {
           </Button>
         </div>
       </div>
+
+      {/* WhatsApp Button */}
+      <WhatsAppButton onGenerationComplete={(count) => {
+        // Could add a TODO entry for the generation if desired
+        console.log(`WhatsApp generation completed: ${count} images`);
+      }} />
 
       {/* Monthly calendar - full width but contained */}
       <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
