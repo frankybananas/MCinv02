@@ -47,8 +47,6 @@ body {
     --sidebar-accent-foreground: 215 25% 27%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 45 100% 50%;
-    --app-shell-max-width: 680px;
-    --app-shell-inline-padding: clamp(0.75rem, 3vw, 1.5rem);
   }
   .dark {
     --background: 215 28% 17%;
@@ -83,38 +81,6 @@ body {
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 215 25% 27%;
     --sidebar-ring: 45 100% 50%;
-  }
-}
-
-@layer components {
-  .app-shell {
-    width: min(100%, var(--app-shell-max-width));
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: calc(var(--app-shell-inline-padding) + env(safe-area-inset-left));
-    padding-right: calc(var(--app-shell-inline-padding) + env(safe-area-inset-right));
-  }
-
-  .app-shell-left-anchor {
-    left: max(
-      calc(var(--app-shell-inline-padding) + env(safe-area-inset-left)),
-      calc(
-        (100vw - var(--app-shell-max-width)) / 2 +
-        var(--app-shell-inline-padding) +
-        env(safe-area-inset-left)
-      )
-    );
-  }
-
-  .app-shell-right-anchor {
-    right: max(
-      calc(var(--app-shell-inline-padding) + env(safe-area-inset-right)),
-      calc(
-        (100vw - var(--app-shell-max-width)) / 2 +
-        var(--app-shell-inline-padding) +
-        env(safe-area-inset-right)
-      )
-    );
   }
 }
 

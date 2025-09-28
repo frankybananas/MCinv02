@@ -233,8 +233,8 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="app-shell relative w-full pb-[calc(8.5rem+env(safe-area-inset-bottom))] mx-auto overflow-x-hidden">
-      <div className="pointer-events-none fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] z-50 app-shell-left-anchor">
+    <div className="relative w-full max-w-full px-1 sm:px-2 pb-[calc(9rem+env(safe-area-inset-bottom))] mx-auto overflow-x-hidden">
+      <div className="pointer-events-none fixed left-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:left-6">
         <div className="relative">
           <div
             aria-hidden="true"
@@ -254,7 +254,7 @@ export function Todo() {
       </div>
 
       {/* Monthly calendar - full width but contained */}
-      <div className="w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
+      <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
         <DayPicker
           mode="single"
           selected={new Date(selectedDate + 'T12:00:00.000Z')}
