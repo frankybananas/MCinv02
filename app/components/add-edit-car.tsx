@@ -1,19 +1,18 @@
 "use client"
 
-import type React from "react"
+import type { Car } from "../types"
+
 import { useState, useRef, useEffect } from "react"
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner"
 import { ArrowLeft, X } from 'lucide-react';
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-// import { Label } from "@/components/ui/label"
-import type { Car } from "../types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface AddEditCarProps {
   car?: Car
@@ -21,16 +20,10 @@ interface AddEditCarProps {
   onCancel: () => void
 }
 
-interface DisplayImage {
-  id: string;
-  url: string;
-  file?: File;
-  isNew: boolean;
-}
-
 // Image compression settings and helpers
 // Target: high visual quality for fullscreen on ~9" tablets while saving bandwidth/storage.
 // Strategy: limit long edge to 2560px, prefer WebP at quality ~0.82, fall back to JPEG at quality ~0.86.
+{{ ... }}
 const MAX_DIMENSION = 2560; // pixels (covers ~2.5K long edge screens)
 const WEBP_QUALITY = 0.82;
 const JPEG_QUALITY = 0.86;
@@ -216,6 +209,10 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   // Image role tracking for persistent ordering
   const [coverImageIndex, setCoverImageIndex] = useState<number | null>(car?.coverImageIndex ?? null);
   const [vinImageIndex, setVinImageIndex] = useState<number | null>(car?.vinImageIndex ?? null);
+
+  // Modal state for image role selection
+  const [selectedImageForRole, setSelectedImageForRole] = useState<DisplayImage | null>(null);
+  const [showRoleModal, setShowRoleModal] = useState(false);
 
 
   useEffect(() => {
@@ -450,7 +447,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       {getSortedImages().map((img, idx) => (
                         <div
                           key={img.id}
-                          className="relative group aspect-square cursor-default"
+                          className="relative group aspect-square"
                           data-testid="car-image-tile"
                           data-image-id={img.id}
                         >
@@ -469,38 +466,23 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
                             <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
                           )}
+                          {/* Small edit button that doesn't interfere with scrolling */}
                           <Button
                             type="button"
-                            variant="destructive"
+                            variant="secondary"
                             size="icon"
-                            className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="Remove image"
-                            onClick={() => handleRemoveImage(img.id)}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onPointerUp={(event) => event.stopPropagation()}
+                            className="absolute bottom-1 right-1 w-6 h-6 sm:w-7 sm:h-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                            aria-label="Edit image roles"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedImageForRole(img);
+                              setShowRoleModal(true);
+                            }}
                           >
-                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                           </Button>
-                          <div className="absolute bottom-1 left-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="text-xs px-1 py-0.5 h-auto flex-1"
-                              onClick={() => handleSetCover(displayedImages.findIndex(i => i.id === img.id))}
-                            >
-                              {coverImageIndex === displayedImages.findIndex(i => i.id === img.id) ? 'Cover' : 'Set Cover'}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="text-xs px-1 py-0.5 h-auto flex-1"
-                              onClick={() => handleSetVin(displayedImages.findIndex(i => i.id === img.id))}
-                            >
-                              {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) ? 'VIN' : 'Set VIN'}
-                            </Button>
-                          </div>
                         </div>
                       ))}
                       <div
@@ -679,7 +661,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       <label htmlFor="demo" className="text-xs sm:text-sm font-medium text-gray-900">
                         Dealership Demo Vehicle
                       </label>
-                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -687,6 +668,49 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
           </div>
         </ScrollArea>
       </form>
+
+      {/* Image Role Selection Modal */}
+      <Dialog open={showRoleModal} onOpenChange={setShowRoleModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Image Options</DialogTitle>
+          </DialogHeader>
+          {selectedImageForRole && (
+            <div className="space-y-4">
+              <img
+                src={selectedImageForRole.url}
+                alt="Selected car image"
+                className="w-full h-64 object-cover rounded-md"
+              />
+              <div className="flex gap-4">
+                <Button
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => {
+                    const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
+                    handleSetCover(imageIndex);
+                    setShowRoleModal(false);
+                  }}
+                >
+                  {coverImageIndex === displayedImages.findIndex(img => img.id === selectedImageForRole.id) ? 'Is Cover' : 'Set as Cover'}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
+                    handleSetVin(imageIndex);
+                    setShowRoleModal(false);
+                  }}
+                >
+                  {vinImageIndex === displayedImages.findIndex(img => img.id === selectedImageForRole.id) ? 'Is VIN' : 'Mark as VIN'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
