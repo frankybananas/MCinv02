@@ -20,11 +20,18 @@ interface AddEditCarProps {
   onCancel: () => void
 }
 
+interface DisplayImage {
+  id: string;
+  url: string;
+  file?: File;
+  isNew: boolean;
+}
+
 // Image compression settings and helpers
 // Target: high visual quality for fullscreen on ~9" tablets while saving bandwidth/storage.
 // Strategy: limit long edge to 2560px, prefer WebP at quality ~0.82, fall back to JPEG at quality ~0.86.
-{{ ... }}
-const MAX_DIMENSION = 2560; // pixels (covers ~2.5K long edge screens)
+// Placeholder removed
+const MAX_DIMENSION = 1080; // pixels (covers ~2.5K long edge screens)
 const WEBP_QUALITY = 0.82;
 const JPEG_QUALITY = 0.86;
 
@@ -219,8 +226,8 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     try {
       // Ensure we have a valid images array, defaulting to an empty array if undefined
       const images = Array.isArray(car?.images) ? car.images : [];
-      
-      const initialImages = images.map(img => ({
+
+      const initialImages = (images as any[]).map((img: any) => ({
         id: String((img as any)._id ?? (img as any).id ?? uuidv4()),
         url: (img as any).imageUrl ?? '',
         file: undefined,
@@ -466,6 +473,19 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
                             <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
                           )}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Remove image"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveImage(img.id);
+                            }}
+                          >
+                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
                           {/* Small edit button that doesn't interfere with scrolling */}
                           <Button
                             type="button"
@@ -518,7 +538,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                         <label className="text-xs sm:text-sm font-medium">Year</label>
                         <Select
                           value={String(formData.year ?? '')}
-                          onValueChange={(value) => handleInputChange("year", value)}
+                          onValueChange={(value: string) => handleInputChange("year", value)}
                           required
                         >
                           <SelectTrigger className="text-sm sm:text-base">
@@ -615,7 +635,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       <label className="text-xs sm:text-sm font-medium">Transmission</label>
                       <Select
                         value={formData.transmission}
-                        onValueChange={(value) => handleInputChange("transmission", value)}
+                        onValueChange={(value: string) => handleInputChange("transmission", value)}
                       >
                         <SelectTrigger className="text-sm sm:text-base">
                           <SelectValue />
@@ -661,6 +681,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       <label htmlFor="demo" className="text-xs sm:text-sm font-medium text-gray-900">
                         Dealership Demo Vehicle
                       </label>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
