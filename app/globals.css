@@ -56,6 +56,24 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  /* React Day Picker defaults add side margins that force horizontal overflow on mobile. */
+  .rdp {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .rdp-months,
+  .rdp-month,
+  .rdp-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
   }
 }
 
