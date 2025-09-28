@@ -569,7 +569,7 @@ export function Dashboard({
       </ScrollArea>
 
       {!showTodo && (
-        <div className="fixed right-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:right-6 pointer-events-none">
+        <div className="fixed app-shell-left-anchor bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 pointer-events-none">
           <div className="relative flex flex-col items-end gap-3 pointer-events-none">
             <div className={`flex items-center gap-3 rounded-full border border-white/15 bg-slate-950/85 px-4 py-2 text-white text-sm font-medium shadow-[0_18px_36px_-18px_rgba(15,23,42,0.8)] backdrop-blur-xl transition-all duration-300 ${fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
               <Button
