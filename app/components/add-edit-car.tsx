@@ -213,27 +213,6 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pointer-based reordering support (works on mouse & touch)
-  const dragFromIndex = useRef<number | null>(null);
-  const activePointerIdRef = useRef<number | null>(null);
-  const isPointerDraggingRef = useRef(false);
-  const dragStartTimerRef = useRef<number | null>(null);
-  const initialPointerPos = useRef<{ x: number; y: number } | null>(null);
-  const suppressContextMenuRef = useRef(false);
-
-  // Suppress native context menu only while press/drag is active
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const onContextMenu = (e: Event) => {
-      if (suppressContextMenuRef.current) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('contextmenu', onContextMenu as EventListener, { capture: true });
-    return () => {
-      document.removeEventListener('contextmenu', onContextMenu as EventListener, { capture: true } as any);
-    };
-  }, []);
 
   useEffect(() => {
     try {
@@ -310,126 +289,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     setDisplayedImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
-  const finalizePointerDrag = () => {
-    // Clear any pending drag start
-    if (dragStartTimerRef.current) {
-      clearTimeout(dragStartTimerRef.current);
-      dragStartTimerRef.current = null;
-    }
-    dragFromIndex.current = null;
-    activePointerIdRef.current = null;
-    isPointerDraggingRef.current = false;
-    initialPointerPos.current = null;
-    suppressContextMenuRef.current = false;
-  };
 
-  const handleTilePointerDown = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    
-    // Clear any existing timer
-    if (dragStartTimerRef.current) {
-      clearTimeout(dragStartTimerRef.current);
-    }
-    
-    // Store initial position for movement threshold check
-    initialPointerPos.current = { x: event.clientX, y: event.clientY };
-    const targetEl = event.currentTarget;
-    const pid = event.pointerId;
-    // Begin suppressing context menu while we evaluate long-press/drag
-    suppressContextMenuRef.current = true;
-    
-    // Set a timer to start dragging after a delay
-    dragStartTimerRef.current = window.setTimeout(() => {
-      if (initialPointerPos.current) {
-        dragFromIndex.current = index;
-        activePointerIdRef.current = pid;
-        isPointerDraggingRef.current = true;
-        try {
-          targetEl.setPointerCapture(pid);
-        } catch {}
-      }
-      dragStartTimerRef.current = null;
-    }, 300); // 300ms delay before drag starts
-  };
-
-  const reorderImages = (toIndex: number) => {
-    const fromIndex = dragFromIndex.current;
-    if (fromIndex === null) return;
-    setDisplayedImages(prev => {
-      if (prev.length === 0) return prev;
-      const next = [...prev];
-      const boundedFrom = Math.min(Math.max(fromIndex, 0), next.length - 1);
-      const [moved] = next.splice(boundedFrom, 1);
-      const insertionIndex = Math.min(Math.max(Math.trunc(toIndex), 0), next.length);
-      next.splice(insertionIndex, 0, moved);
-      dragFromIndex.current = Math.min(insertionIndex, next.length - 1);
-      return next;
-    });
-  };
-
-  const handleTilePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    // If we have a drag start timer, check if we've moved too far
-    if (dragStartTimerRef.current && initialPointerPos.current) {
-      const dx = Math.abs(event.clientX - initialPointerPos.current.x);
-      const dy = Math.abs(event.clientY - initialPointerPos.current.y);
-      
-      // If moved more than 5px in any direction, cancel the drag start
-      if (dx > 5 || dy > 5) {
-        clearTimeout(dragStartTimerRef.current);
-        dragStartTimerRef.current = null;
-        initialPointerPos.current = null;
-        suppressContextMenuRef.current = false; // not dragging anymore
-      }
-      return;
-    }
-    
-    // Handle actual dragging
-    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
-    // Prevent page scroll only while actively dragging
-    event.preventDefault();
-    if (typeof document === 'undefined') return;
-    
-    const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-    const tile = element?.closest('[data-image-index]') as HTMLElement | null;
-    if (!tile) return;
-    
-    const toIndexRaw = Number(tile.dataset.imageIndex ?? '-1');
-    if (Number.isNaN(toIndexRaw)) return;
-    
-    reorderImages(toIndexRaw);
-  };
-
-  const handleTilePointerEnter = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
-    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
-    event.preventDefault();
-    reorderImages(index);
-  };
-
-  const handleTilePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    // If we have an active drag start timer, clear it (this was just a tap/click)
-    if (dragStartTimerRef.current) {
-      clearTimeout(dragStartTimerRef.current);
-      dragStartTimerRef.current = null;
-      initialPointerPos.current = null;
-      suppressContextMenuRef.current = false;
-      return;
-    }
-    
-    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {}
-    event.preventDefault();
-    finalizePointerDrag();
-  };
-
-  const handleTilePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isPointerDraggingRef.current || event.pointerId !== activePointerIdRef.current) return;
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {}
-    finalizePointerDrag();
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -505,27 +365,15 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       {displayedImages.map((img, idx) => (
                         <div
                           key={img.id}
-                          className="relative group aspect-square cursor-grab select-none"
+                          className="relative group aspect-square cursor-default"
                           data-testid="car-image-tile"
-                          data-image-index={idx}
                           data-image-id={img.id}
-                          onPointerDown={(event) => handleTilePointerDown(event, idx)}
-                          onPointerMove={handleTilePointerMove}
-                          onPointerEnter={(event) => handleTilePointerEnter(event, idx)}
-                          onPointerUp={handleTilePointerUp}
-                          onPointerCancel={handleTilePointerCancel}
-                          onContextMenu={(e) => e.preventDefault()}
-                          style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
                         >
                           <img
                             src={img.url}
                             alt="Car image"
-                            className="w-full h-full object-cover rounded-md select-none"
+                            className="w-full h-full object-cover rounded-md"
                             data-testid="car-image-img"
-                            draggable={false}
-                            onDragStart={(e) => e.preventDefault()}
-                            onContextMenu={(e) => e.preventDefault()}
-                            style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' } as React.CSSProperties}
                           />
                           {idx === 0 && (
                             <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
