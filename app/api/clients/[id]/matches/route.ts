@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import type { HydratedDocument, Types } from 'mongoose'
+import type { HydratedDocument } from 'mongoose'
+import { Types } from 'mongoose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Client from '@/models/Client'
 import Match from '@/models/Match'
@@ -17,7 +18,11 @@ interface MatchParams extends Record<string, string> {
 }
 
 type HydratedMatch = HydratedDocument<IMatch>
-type ClientDocument = NonNullable<Awaited<ReturnType<typeof Client.findById>>>
+
+type ClientRecord = {
+  _id: Types.ObjectId
+  createdByPhone?: string
+}
 
 interface MatchSummary {
   id: string
@@ -32,9 +37,14 @@ function isPrivileged(session: SessionData): boolean {
   return session.role === 'admin' || session.role === 'manager'
 }
 
-async function fetchClient(clientId: string, session: SessionData): Promise<ClientDocument> {
+async function fetchClient(clientId: string, session: SessionData): Promise<ClientRecord> {
   const client = await Client.findById(clientId)
-  return ensureClientAccess(client, session, 'Client not found') as ClientDocument
+  const ensured = ensureClientAccess(client, session, 'Client not found') as { _id: Types.ObjectId | string; createdByPhone?: string }
+  const normalizedId = ensured._id instanceof Types.ObjectId ? ensured._id : new Types.ObjectId(String(ensured._id))
+  return {
+    _id: normalizedId,
+    createdByPhone: ensured.createdByPhone,
+  }
 }
 
 function buildMatchSummary(match: HydratedMatch): MatchSummary {
@@ -61,6 +71,7 @@ export const GET = withParams<MatchParams>(async (request, { params }) => {
     await connectDb()
 
     const client = await fetchClient(params.id, session)
+    const clientId = client._id
 
     if (!isPrivileged(session)) {
       const currentUser = await User.findOne({ phone: session.phone })
@@ -69,7 +80,7 @@ export const GET = withParams<MatchParams>(async (request, { params }) => {
       }
     }
 
-    const query: Record<string, unknown> = { client: client._id }
+    const query: Record<string, unknown> = { client: clientId }
     if (!isPrivileged(session)) {
       query.createdByPhone = session.phone
     }

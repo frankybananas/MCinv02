@@ -225,7 +225,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   useEffect(() => {
     try {
       // Ensure we have a valid images array, defaulting to an empty array if undefined
-      const images = Array.isArray(car?.images) ? car.images : [];
+      const images = Array.isArray(car?.images) ? car!.images : [];
 
       const initialImages = (images as any[]).map((img: any) => ({
         id: String((img as any)._id ?? (img as any).id ?? uuidv4()),

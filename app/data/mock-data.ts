@@ -1,12 +1,25 @@
-import type { Car } from "../types"
+import type { Car, Picture } from "../types"
+
+const createPicture = (url: string, title: string): Picture => {
+  const timestamp = new Date().toISOString()
+  return {
+    id: url,
+    title,
+    imageUrl: url,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    description: title,
+  }
+}
 
 export const mockCars: Car[] = [
   {
     id: "1",
+    _id: "car-1",
     images: [
-      "/placeholder.svg?height=300&width=400",
-      "/placeholder.svg?height=300&width=400",
-      "/placeholder.svg?height=300&width=400",
+      createPicture("/placeholder.svg?height=300&width=400", "Toyota Camry - Front"),
+      createPicture("/placeholder.svg?height=300&width=401", "Toyota Camry - Interior"),
+      createPicture("/placeholder.svg?height=300&width=402", "Toyota Camry - Rear"),
     ],
     year: 2022,
     make: "Toyota",
@@ -30,7 +43,11 @@ export const mockCars: Car[] = [
   },
   {
     id: "2",
-    images: ["/placeholder.svg?height=300&width=400", "/placeholder.svg?height=300&width=400"],
+    _id: "car-2",
+    images: [
+      createPicture("/placeholder.svg?height=300&width=403", "Honda Civic - Front"),
+      createPicture("/placeholder.svg?height=300&width=404", "Honda Civic - Cabin"),
+    ],
     year: 2021,
     make: "Honda",
     model: "Civic",
@@ -60,7 +77,8 @@ export const mockCars: Car[] = [
   },
   {
     id: "3",
-    images: ["/placeholder.svg?height=300&width=400"],
+    _id: "car-3",
+    images: [createPicture("/placeholder.svg?height=300&width=405", "Tesla Model 3 - Exterior")],
     year: 2023,
     make: "Tesla",
     model: "Model 3",
@@ -83,7 +101,11 @@ export const mockCars: Car[] = [
   },
   {
     id: "4",
-    images: ["/placeholder.svg?height=300&width=400", "/placeholder.svg?height=300&width=400"],
+    _id: "car-4",
+    images: [
+      createPicture("/placeholder.svg?height=300&width=406", "BMW 3 Series - Front"),
+      createPicture("/placeholder.svg?height=300&width=407", "BMW 3 Series - Dashboard"),
+    ],
     year: 2020,
     make: "BMW",
     model: "3 Series",

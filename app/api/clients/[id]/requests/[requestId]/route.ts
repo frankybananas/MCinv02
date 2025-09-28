@@ -3,7 +3,6 @@ import { connect as connectDb } from '@/lib/mongodb'
 import type { HydratedDocument } from 'mongoose'
 import Client from '@/models/Client'
 import ClientRequest, { type IClientRequest } from '@/models/ClientRequest'
-import type { IClient } from '@/models/Client'
 import { buildRequestText, embedText } from '@/lib/embeddings'
 import { upsertRequestVector } from '@/lib/vector-store'
 import { getRateLimitIdentity, requireSession } from '@/lib/auth-session'
@@ -18,6 +17,10 @@ interface ClientRequestParams extends Record<string, string> {
   requestId: string
 }
 
+type ClientOwned = {
+  createdByPhone?: string | null
+}
+
 export const PUT = withParams<ClientRequestParams>(async (request, { params }) => {
   const { id: clientId, requestId } = params
   try {
@@ -29,7 +32,7 @@ export const PUT = withParams<ClientRequestParams>(async (request, { params }) =
     })
 
     await connectDb()
-    const client = ensureClientAccess(await Client.findById(clientId) as (HydratedDocument<IClient> | null), session)
+    const client = ensureClientAccess(await Client.findById(clientId), session) as ClientOwned
 
     const rawBody = await request.json()
     const parsed = clientRequestUpdateSchema.safeParse(rawBody)
@@ -133,7 +136,7 @@ export const DELETE = withParams<ClientRequestParams>(async (request, { params }
     })
 
     await connectDb()
-    ensureClientAccess(await Client.findById(clientId) as (HydratedDocument<IClient> | null), session)
+    ensureClientAccess(await Client.findById(clientId), session)
 
     await ClientRequest.deleteOne({ _id: requestId, client: clientId })
     return NextResponse.json({ success: true, data: {} })

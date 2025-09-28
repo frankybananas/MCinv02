@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import type { HydratedDocument, Types } from 'mongoose'
+import type { HydratedDocument } from 'mongoose'
+import { Types } from 'mongoose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Client from '@/models/Client'
 import ClientRequest from '@/models/ClientRequest'
@@ -20,8 +21,29 @@ interface ClientRequestParams extends Record<string, string> {
   id: string
 }
 
-type ClientDocument = NonNullable<Awaited<ReturnType<typeof Client.findById>>>
+type ClientRecord = {
+  _id: Types.ObjectId
+  createdByPhone?: string
+}
 type HydratedClientRequest = HydratedDocument<IClientRequest>
+
+type ClientRequestLike = {
+  _id: Types.ObjectId | string
+  client: Types.ObjectId | string
+  createdByPhone: string
+  title?: string
+  freeText?: string
+  status: IClientRequest['status']
+  filters?: Filters
+  requestText?: string
+  embeddingVector?: number[]
+  embeddingModel?: string
+  lastEmbeddedAt?: Date
+  source?: IClientRequest['source']
+  priority?: number
+  createdAt: Date
+  updatedAt: Date
+}
 
 interface ClientRequestResponse {
   id: string
@@ -44,22 +66,33 @@ interface ClientRequestResponse {
 interface CreateRequestBody {
   title?: string
   freeText?: string
-  filters: IClientRequest['filters']
+  filters: Filters
 }
 
 type CarSearchResults = Awaited<ReturnType<typeof searchCarsByVector>>
+
+type Filters = IClientRequest['filters']
 
 function isPrivileged(session: SessionData): boolean {
   return session.role === 'admin' || session.role === 'manager'
 }
 
-async function fetchClient(clientId: string, session: SessionData): Promise<ClientDocument> {
+async function fetchClient(clientId: string, session: SessionData): Promise<ClientRecord> {
   const client = await Client.findById(clientId)
-  return ensureClientAccess(client, session, 'Client not found') as ClientDocument
+  const ensured = ensureClientAccess(client, session, 'Client not found') as { _id: Types.ObjectId | string; createdByPhone?: string }
+  const normalizedId = ensured._id instanceof Types.ObjectId ? ensured._id : new Types.ObjectId(String(ensured._id))
+  return {
+    _id: normalizedId,
+    createdByPhone: ensured.createdByPhone,
+  }
 }
 
 function toStringId(value: Types.ObjectId | string): string {
   return value instanceof Types.ObjectId ? value.toHexString() : String(value)
+}
+
+function normalizeObjectId(value: Types.ObjectId | string): Types.ObjectId {
+  return value instanceof Types.ObjectId ? value : new Types.ObjectId(value)
 }
 
 function toOptionalString(value: unknown): string | undefined {
@@ -88,35 +121,47 @@ function toStringArray(value: unknown): string[] | undefined {
   return cleaned.length ? cleaned : undefined
 }
 
-function sanitizeFilters(raw: unknown): IClientRequest['filters'] {
+type ArrayFilterKeys = {
+  [K in keyof Filters]: Filters[K] extends (infer _U)[] | undefined ? K : never
+}[keyof Filters]
+
+type NumberFilterKeys = {
+  [K in keyof Filters]: Filters[K] extends number | undefined ? K : never
+}[keyof Filters]
+
+function sanitizeFilters(raw: unknown): Filters {
   const source = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-  const filters: IClientRequest['filters'] = {}
+  const filters: Filters = {}
 
-  const assignArray = (key: keyof IClientRequest['filters'], value: unknown) => {
+  const setArray = (key: keyof Filters, value: unknown) => {
     const arr = toStringArray(value)
-    if (arr) filters[key] = arr
+    if (arr) {
+      (filters as Record<string, unknown>)[key as string] = arr
+    }
   }
 
-  const assignNumber = (key: keyof IClientRequest['filters'], value: unknown) => {
+  const setNumber = (key: keyof Filters, value: unknown) => {
     const num = toNumber(value)
-    if (typeof num === 'number') filters[key] = num
+    if (typeof num === 'number') {
+      (filters as Record<string, unknown>)[key as string] = num
+    }
   }
 
-  assignArray('makes', source.makes)
-  assignArray('models', source.models)
-  assignNumber('minYear', source.minYear)
-  assignNumber('maxYear', source.maxYear)
-  assignNumber('maxMileageKm', source.maxMileageKm)
-  assignNumber('minBudgetZar', source.minBudgetZar)
-  assignNumber('maxBudgetZar', source.maxBudgetZar)
-  assignNumber('seats', source.seats)
-  assignArray('fuelTypes', source.fuelTypes)
-  assignArray('transmissions', source.transmissions)
-  assignArray('bodyTypes', source.bodyTypes)
-  assignArray('colors', source.colors)
-  assignArray('mustHave', source.mustHave)
-  assignArray('niceToHave', source.niceToHave)
-  assignArray('excludeTerms', source.excludeTerms)
+  setArray('makes', source.makes)
+  setArray('models', source.models)
+  setNumber('minYear', source.minYear)
+  setNumber('maxYear', source.maxYear)
+  setNumber('maxMileageKm', source.maxMileageKm)
+  setNumber('minBudgetZar', source.minBudgetZar)
+  setNumber('maxBudgetZar', source.maxBudgetZar)
+  setNumber('seats', source.seats)
+  setArray('fuelTypes', source.fuelTypes)
+  setArray('transmissions', source.transmissions)
+  setArray('bodyTypes', source.bodyTypes)
+  setArray('colors', source.colors)
+  setArray('mustHave', source.mustHave)
+  setArray('niceToHave', source.niceToHave)
+  setArray('excludeTerms', source.excludeTerms)
 
   return filters
 }
@@ -129,23 +174,26 @@ function parseCreateRequestBody(value: unknown): CreateRequestBody {
   return { title, freeText, filters }
 }
 
-function buildClientRequestResponse(doc: HydratedClientRequest): ClientRequestResponse {
+function buildClientRequestResponse(doc: HydratedClientRequest | ClientRequestLike): ClientRequestResponse {
+  const raw = doc as ClientRequestLike
+  const docId = toStringId(raw._id)
+  const clientId = toStringId(raw.client)
   return {
-    id: toStringId(doc._id),
-    client: toStringId(doc.client),
-    createdByPhone: doc.createdByPhone,
-    title: doc.title ?? undefined,
-    freeText: doc.freeText ?? undefined,
-    status: doc.status,
-    filters: doc.filters ?? {},
-    requestText: doc.requestText ?? undefined,
-    embeddingVector: doc.embeddingVector ?? undefined,
-    embeddingModel: doc.embeddingModel ?? undefined,
-    lastEmbeddedAt: doc.lastEmbeddedAt ?? undefined,
-    source: doc.source ?? undefined,
-    priority: doc.priority ?? undefined,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
+    id: docId,
+    client: clientId,
+    createdByPhone: raw.createdByPhone,
+    title: raw.title ?? undefined,
+    freeText: raw.freeText ?? undefined,
+    status: raw.status,
+    filters: raw.filters ?? {},
+    requestText: raw.requestText ?? undefined,
+    embeddingVector: raw.embeddingVector ?? undefined,
+    embeddingModel: raw.embeddingModel ?? undefined,
+    lastEmbeddedAt: raw.lastEmbeddedAt ?? undefined,
+    source: raw.source ?? undefined,
+    priority: raw.priority ?? undefined,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
   }
 }
 
@@ -156,12 +204,14 @@ async function isMatchingAllowed(session: SessionData): Promise<boolean> {
 }
 
 async function upsertMatchesForRequest(
-  requestDoc: HydratedClientRequest,
+  requestDoc: ClientRequestLike,
   vectorResults: CarSearchResults,
   freeText: string | undefined,
   filters: IClientRequest['filters']
 ) {
   const topResults = vectorResults.slice(0, 10)
+  const requestObjectId = normalizeObjectId(requestDoc._id)
+  const requestId = requestObjectId.toHexString()
   for (const result of topResults) {
     const carId = result.payload?.carId ?? (typeof result.id === 'string' ? result.id : undefined)
     if (!carId) continue
@@ -173,7 +223,7 @@ async function upsertMatchesForRequest(
       const explanation = await explainMatchShort(car, { freeText, filters })
 
       await Match.updateOne(
-        { request: requestDoc._id, car: car._id },
+        { request: requestObjectId, car: car._id },
         {
           $setOnInsert: {
             request: requestDoc._id,
@@ -194,7 +244,7 @@ async function upsertMatchesForRequest(
     } catch (error) {
       if (error instanceof Error) {
         console.error('Match upsert failed', {
-          requestId: requestDoc._id.toString(),
+          requestId,
           carId,
           error: error.message,
         })
@@ -212,8 +262,9 @@ export const GET = withParams<ClientRequestParams>(async (request, { params }) =
 
     const requests = await ClientRequest.find({ client: client._id })
       .sort({ updatedAt: -1 })
+      .lean<ClientRequestLike[]>({})
 
-    const data = requests.map(buildClientRequestResponse)
+    const data = (requests ?? []).map((request: ClientRequestLike) => buildClientRequestResponse(request))
     return NextResponse.json({ success: true, data })
   } catch (err: unknown) {
     if (isHttpError(err)) {
@@ -270,11 +321,16 @@ export const POST = withParams<ClientRequestParams>(async (request, { params }) 
     const toleranceBudget = filters.maxBudgetZar ? filters.maxBudgetZar * 1.2 : undefined
     const toleranceMileage = filters.maxMileageKm ? filters.maxMileageKm * 1.2 : undefined
 
+    const requestObjectId = normalizeObjectId(requestDoc._id as Types.ObjectId | string)
+    const requestClientObjectId = normalizeObjectId(requestDoc.client as Types.ObjectId | string)
+    const requestId = requestObjectId.toHexString()
+    const requestClientId = requestClientObjectId.toHexString()
+
     if (vector) {
       try {
-        await upsertRequestVector(requestDoc._id.toString(), vector, {
-          requestId: requestDoc._id.toString(),
-          clientId: toStringId(requestDoc.client),
+        await upsertRequestVector(requestId, vector, {
+          requestId,
+          clientId: requestClientId,
           createdByPhone: requestDoc.createdByPhone,
           status: requestDoc.status,
           maxBudgetZar: toleranceBudget,
@@ -286,10 +342,16 @@ export const POST = withParams<ClientRequestParams>(async (request, { params }) 
       } catch (error) {
         if (error instanceof Error) {
           console.error('Vector upsert failed', {
-            requestId: requestDoc._id.toString(),
+            requestId,
             error: error.message,
           })
         }
+      }
+
+      const requestDocLean: ClientRequestLike = {
+        ...requestDoc.toObject(),
+        _id: requestObjectId,
+        client: requestClientObjectId,
       }
 
       try {
@@ -302,11 +364,11 @@ export const POST = withParams<ClientRequestParams>(async (request, { params }) 
           seats: filters.seats,
         })
 
-        await upsertMatchesForRequest(requestDoc, vectorResults, freeText, filters)
+        await upsertMatchesForRequest(requestDocLean, vectorResults, freeText, filters)
       } catch (error) {
         if (error instanceof Error) {
           console.error('Vector search failed', {
-            requestId: requestDoc._id.toString(),
+            requestId,
             error: error.message,
           })
         }
