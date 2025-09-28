@@ -544,17 +544,17 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   };
 
-  const filteredCars = activeStatus === 'all'
-    ? cars
-    : activeStatus === 'clients'
-      ? []
-      : activeStatus === 'notifications'
-        ? []
-      : activeStatus === 'todo'
-        ? []
-      : activeStatus === 'demo'
-        ? cars.filter(car => car.demo === true)
-        : cars.filter(car => car.status === activeStatus);
+  const filteredCars = React.useMemo(() => {
+    if (activeStatus === 'all') return cars;
+    if (activeStatus === 'clients' || activeStatus === 'notifications' || activeStatus === 'todo') return [];
+    if (activeStatus === 'demo') {
+      return cars.filter((car) => car.demo === true);
+    }
+    if (activeStatus === 'marketing') {
+      return cars.filter((car) => (car.status === 'in-stock' || car.status === 'reserved') && Array.isArray(car.images) && car.images.length > 0);
+    }
+    return cars.filter((car) => car.status === activeStatus);
+  }, [activeStatus, cars]);
 
   const renderBackButton = () => {
     const hasDetailOpen = !!(selectedCar || selectedClient || selectedDelivery || editingCar || editingClient);
