@@ -2,29 +2,34 @@
 
 ## Overview
 
-This document provides a comprehensive, step-by-step implementation guide for adding a WhatsApp status advertising feature to the MCinv02 mobile web app. The feature generates branded car advertisement images from in-stock inventory and saves them directly to the user's device gallery for easy WhatsApp status sharing.
+This document provides a comprehensive, step-by-step implementation guide for adding a WhatsApp status advertising feature to the MCinv02 mobile web app. The feature creates a dedicated Marketing page where users can select specific cars (in-stock or reserved) to generate branded advertisement images that are saved directly to the device gallery for easy WhatsApp status sharing.
 
 ## Table of Contents
 
 1. [Feature Requirements](#feature-requirements)
 2. [Architecture Overview](#architecture-overview)
-3. [Database Schema Changes](#database-schema-changes)
-4. [API Endpoints](#api-endpoints)
-5. [Frontend Components](#frontend-components)
-6. [Image Generation Service](#image-generation-service)
-7. [Implementation Steps](#implementation-steps)
-8. [Testing Strategy](#testing-strategy)
-9. [Deployment Considerations](#deployment-considerations)
+3. [Navigation & Menu Changes](#navigation--menu-changes)
+4. [Database Schema Changes](#database-schema-changes)
+5. [API Endpoints](#api-endpoints)
+6. [Frontend Components](#frontend-components)
+7. [Image Generation Service](#image-generation-service)
+8. [Implementation Steps](#implementation-steps)
+9. [Testing Strategy](#testing-strategy)
+10. [Deployment Considerations](#deployment-considerations)
 
 ## Feature Requirements
 
 ### Functional Requirements
-- **FR-1**: Add "WA" button to TODO page for generating WhatsApp status images
-- **FR-2**: Generate branded images for all cars with status "in-stock"
-- **FR-3**: Include car cover image, year, make, model, and price in generated images
-- **FR-4**: Save images directly to device's default gallery/photos app
-- **FR-5**: Show completion notification in app's notification system
-- **FR-6**: No automatic cleanup - users manage deletion manually
+- **FR-1**: Add new "Marketing" menu item/page after TODO in main navigation
+- **FR-2**: Display cars with status "in-stock" and "reserved" in a grid layout
+- **FR-3**: Show small cover image for each car in the grid
+- **FR-4**: Provide individual checkboxes for car selection
+- **FR-5**: Include "Select All" functionality for bulk selection
+- **FR-6**: Generate branded images for selected cars only
+- **FR-7**: Include car cover image, year, make, model, and price in generated images
+- **FR-8**: Save images directly to device's default gallery/photos app
+- **FR-9**: Show completion notification in app's notification system
+- **FR-10**: No automatic cleanup - users manage deletion manually
 
 ### Non-Functional Requirements
 - **NFR-1**: Images must be optimized for WhatsApp status (1080x1920px portrait)
@@ -32,26 +37,37 @@ This document provides a comprehensive, step-by-step implementation guide for ad
 - **NFR-3**: Support both iOS and Android gallery integration
 - **NFR-4**: Graceful fallback for unsupported browsers
 - **NFR-5**: Maintain existing app performance standards
+- **NFR-6**: Responsive grid layout for mobile and desktop
 
 ## Architecture Overview
 
 ### Current System Integration Points
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   TODO Page     │    │  Car Management │    │  Notifications  │
+│ Main Navigation │    │  Car Management │    │  Notifications  │
 │                 │    │                 │    │                 │
 │ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │ Existing    │ │    │ │ In-Stock    │ │    │ │ Completion  │ │
-│ │ TODO FAB    │ │    │ │ Cars Query  │ │    │ │ Alerts      │ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │                 │
-│ │ NEW: WA     │◄┼────┼►│ Cover Images│ │    │                 │
-│ │ Button      │ │    │ │ & Metadata  │ │    │                 │
+│ │ TODO        │ │    │ │ In-Stock &  │ │    │ │ Completion  │ │
+│ │             │ │    │ │ Reserved    │ │    │ │ Alerts      │ │
+│ └─────────────┘ │    │ │ Cars Query  │ │    │ └─────────────┘ │
+│ ┌─────────────┐ │    │ └─────────────┘ │    │                 │
+│ │ NEW:        │◄┼────┼►┌─────────────┐ │    │                 │
+│ │ Marketing   │ │    │ │ Cover Images│ │    │                 │
+│ │ Page        │ │    │ │ & Metadata  │ │    │                 │
 │ └─────────────┘ │    │ └─────────────┘ │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       ▲
          │                       │                       │
          ▼                       ▼                       │
+┌─────────────────────────────────────────────────────────────┐
+│              Marketing Page Components                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Car Grid    │  │ Selection   │  │ Generate Button     │ │
+│  │ Display     │  │ Checkboxes  │  │ & Progress          │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Image Generation Service                       │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
@@ -62,10 +78,78 @@ This document provides a comprehensive, step-by-step implementation guide for ad
 ```
 
 ### New Components
-1. **WA Button Component**: New UI element in TODO page
-2. **Image Generation API**: Server-side image composition service
-3. **Gallery Download Service**: Client-side file saving to gallery
-4. **Generation Tracking**: Simple logging for completion notifications
+1. **Marketing Page**: New dedicated page for car selection and image generation
+2. **Car Selection Grid**: Grid layout with checkboxes for individual car selection
+3. **Image Generation API**: Server-side car data fetching service
+4. **Gallery Download Service**: Client-side file saving to gallery
+5. **Generation Tracking**: Simple logging for completion notifications
+
+## Navigation & Menu Changes
+
+### 1. Update DashboardTab Type
+```typescript
+// app/types.ts - Add marketing to DashboardTab
+export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications" | "todo" | "marketing";
+```
+
+### 2. Update MainMenu Component
+```typescript
+// app/components/main-menu.tsx - Add marketing menu item
+const getMenuItems = (): MenuItem[] => {
+  const items: MenuItem[] = [
+    // ... existing stock filter items
+    { id: "clients", label: "Clients", icon: Users },
+    { id: "delivery", label: "Delivery", icon: Truck },
+    { id: "notifications", label: "Notifications", icon: Bell, badge: unreadNotificationsCount },
+  ];
+
+  if (todoEnabled) {
+    items.push({ id: "todo", label: "TODO", icon: Calendar });
+  }
+
+  // Add marketing after TODO
+  items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
+
+  if (userRole === "admin") {
+    items.push({ id: "admin", label: "Admin", icon: Shield });
+  }
+
+  return items;
+};
+```
+
+### 3. Update Dashboard Component
+```typescript
+// app/components/dashboard.tsx - Add marketing page handling
+const showMarketing = activeStatus === "marketing";
+
+// In the render section:
+{showMarketing && (
+  <Marketing
+    cars={cars.filter(car => car.status === 'in-stock' || car.status === 'reserved')}
+    onGenerationComplete={(count) => {
+      // Handle completion notification
+    }}
+  />
+)}
+```
+
+### 4. Update MainPage Component
+```typescript
+// app/components/main-page.tsx - Add marketing to view switching
+const [activeView, setActiveView] = useState<string>('dashboard');
+
+// Add marketing handling in the view switching logic
+if (activeStatus === 'marketing') {
+  // Marketing is handled within Dashboard component
+  return (
+    <Dashboard
+      // ... existing props
+      activeStatus={activeStatus}
+    />
+  );
+}
+```
 
 ## Database Schema Changes
 
@@ -110,7 +194,52 @@ export default mongoose.models.WhatsAppGeneration ||
 
 ## API Endpoints
 
-### 1. WhatsApp Image Generation API
+### 1. Marketing Cars API
+```typescript
+// app/api/marketing/cars/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { requireSession } from '@/lib/auth-session';
+import { connect } from '@/lib/mongodb';
+import Car from '@/models/Car';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { userId } = await requireSession(request);
+    await connect();
+
+    // Get cars with status in-stock or reserved that have images
+    const cars = await Car.find({ 
+      status: { $in: ['in-stock', 'reserved'] },
+      images: { $exists: true, $not: { $size: 0 } }
+    }).populate('images');
+
+    // Return car data for marketing page
+    const carData = cars.map(car => ({
+      id: car._id.toString(),
+      make: car.make,
+      model: car.model,
+      year: car.year,
+      price: car.price,
+      status: car.status,
+      coverImage: car.images[car.coverImageIndex || 0]?.imageUrl || car.images[0]?.imageUrl
+    }));
+
+    return NextResponse.json({
+      success: true,
+      cars: carData
+    });
+
+  } catch (error) {
+    console.error('Marketing cars fetch error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch cars for marketing' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### 2. WhatsApp Image Generation API
 ```typescript
 // app/api/whatsapp/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
@@ -122,17 +251,26 @@ import WhatsAppGeneration from '@/models/WhatsAppGeneration';
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await requireSession(request);
+    const { selectedCarIds } = await request.json();
+    
+    if (!selectedCarIds || !Array.isArray(selectedCarIds) || selectedCarIds.length === 0) {
+      return NextResponse.json(
+        { error: 'No cars selected for generation' },
+        { status: 400 }
+      );
+    }
+
     await connect();
 
-    // Get all in-stock cars with cover images
+    // Get selected cars with images
     const cars = await Car.find({ 
-      status: 'in-stock',
+      _id: { $in: selectedCarIds },
       images: { $exists: true, $not: { $size: 0 } }
     }).populate('images');
 
     if (cars.length === 0) {
       return NextResponse.json(
-        { error: 'No in-stock cars with images found' },
+        { error: 'No valid cars found for generation' },
         { status: 404 }
       );
     }
@@ -213,34 +351,99 @@ export async function POST(request: NextRequest) {
 
 ## Frontend Components
 
-### 1. WA Button Component
+### 1. Marketing Page Component
 ```typescript
-// app/components/whatsapp-button.tsx
+// app/components/marketing.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, Loader2, CheckAll, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateWhatsAppImages } from '@/lib/whatsapp-generator';
+import { getStatusColor } from './status-utils';
 
-interface WhatsAppButtonProps {
+interface MarketingCar {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  status: 'in-stock' | 'reserved';
+  coverImage: string;
+}
+
+interface MarketingProps {
+  cars: MarketingCar[];
   onGenerationComplete?: (count: number) => void;
 }
 
-export function WhatsAppButton({ onGenerationComplete }: WhatsAppButtonProps) {
+export function Marketing({ cars, onGenerationComplete }: MarketingProps) {
+  const [selectedCars, setSelectedCars] = useState<Set<string>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
+  const [marketingCars, setMarketingCars] = useState<MarketingCar[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch marketing cars on component mount
+  useEffect(() => {
+    const fetchMarketingCars = async () => {
+      try {
+        const response = await fetch('/api/marketing/cars', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setMarketingCars(data.cars || []);
+        } else {
+          toast.error('Failed to load cars for marketing');
+        }
+      } catch (error) {
+        console.error('Error fetching marketing cars:', error);
+        toast.error('Failed to load cars');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMarketingCars();
+  }, []);
+
+  const handleSelectAll = () => {
+    if (selectedCars.size === marketingCars.length) {
+      setSelectedCars(new Set());
+    } else {
+      setSelectedCars(new Set(marketingCars.map(car => car.id)));
+    }
+  };
+
+  const handleCarToggle = (carId: string) => {
+    const newSelected = new Set(selectedCars);
+    if (newSelected.has(carId)) {
+      newSelected.delete(carId);
+    } else {
+      newSelected.add(carId);
+    }
+    setSelectedCars(newSelected);
+  };
 
   const handleGenerate = async () => {
-    if (isGenerating) return;
+    if (selectedCars.size === 0) {
+      toast.error('Please select at least one car');
+      return;
+    }
 
     setIsGenerating(true);
     try {
-      const result = await generateWhatsAppImages();
+      const result = await generateWhatsAppImages(Array.from(selectedCars));
       
       if (result.success) {
         toast.success(`Generated ${result.count} WhatsApp images! Check your gallery.`);
         onGenerationComplete?.(result.count);
+        setSelectedCars(new Set()); // Clear selection after successful generation
       } else {
         toast.error(result.error || 'Failed to generate images');
       }
@@ -252,57 +455,119 @@ export function WhatsAppButton({ onGenerationComplete }: WhatsAppButtonProps) {
     }
   };
 
-  return (
-    <div className="pointer-events-none fixed right-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:right-6">
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -inset-3 rounded-full bg-green-500/25 blur-lg shadow-[0_24px_44px_-18px_rgba(34,197,94,0.6)]"
-        />
-        <Button
-          type="button"
-          size="icon"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          aria-label="Generate WhatsApp status images"
-          className="pointer-events-auto h-14 w-14 rounded-full border border-green-200/30 bg-green-500/90 text-white shadow-xl ring-1 ring-green-200/70 backdrop-blur-2xl transition-all duration-300 hover:bg-green-600/90"
-        >
-          {isGenerating ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <MessageSquare className="h-5 w-5" />
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-```
-
-### 2. Update TODO Component
-```typescript
-// app/components/todo.tsx - Add WhatsApp button
-import { WhatsAppButton } from './whatsapp-button';
-
-export function Todo() {
-  // ... existing code
-
-  const handleWhatsAppComplete = (count: number) => {
-    // Could add a TODO entry for the generation if desired
-    // or just rely on the toast notification
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 0
+    }).format(price);
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative w-full max-w-full px-1 sm:px-2 pb-[calc(9rem+env(safe-area-inset-bottom))] mx-auto overflow-x-hidden">
-      {/* Existing TODO FAB */}
-      <div className="pointer-events-none fixed left-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:left-6">
-        {/* ... existing TODO FAB code */}
+    <div className="w-full max-w-full px-2 sm:px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] mx-auto">
+      {/* Header with controls */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b mb-4 pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-semibold">Marketing</h1>
+          <Badge variant="secondary">
+            {marketingCars.length} cars available
+          </Badge>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSelectAll}
+            className="flex items-center gap-2"
+          >
+            {selectedCars.size === marketingCars.length ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <CheckAll className="h-4 w-4" />
+            )}
+            {selectedCars.size === marketingCars.length ? 'Clear All' : 'Select All'}
+          </Button>
+          
+          <Button
+            onClick={handleGenerate}
+            disabled={selectedCars.size === 0 || isGenerating}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquare className="h-4 w-4" />
+            )}
+            Generate {selectedCars.size > 0 && `(${selectedCars.size})`}
+          </Button>
+        </div>
       </div>
 
-      {/* NEW: WhatsApp Button */}
-      <WhatsAppButton onGenerationComplete={handleWhatsAppComplete} />
-
-      {/* ... rest of existing TODO component */}
+      {/* Cars grid */}
+      {marketingCars.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">
+              No cars available for marketing. Cars must be in-stock or reserved and have images.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {marketingCars.map((car) => (
+            <Card 
+              key={car.id} 
+              className={`cursor-pointer transition-all hover:shadow-md ${
+                selectedCars.has(car.id) ? 'ring-2 ring-green-500 bg-green-50' : ''
+              }`}
+              onClick={() => handleCarToggle(car.id)}
+            >
+              <CardContent className="p-3">
+                <div className="relative mb-3">
+                  <img
+                    src={car.coverImage}
+                    alt={`${car.year} ${car.make} ${car.model}`}
+                    className="w-full h-32 object-cover rounded-md"
+                  />
+                  <div className="absolute top-2 left-2">
+                    <Checkbox
+                      checked={selectedCars.has(car.id)}
+                      onChange={() => handleCarToggle(car.id)}
+                      className="bg-white/90 border-2"
+                    />
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <Badge 
+                      variant="secondary"
+                      className={`${getStatusColor(car.status)} text-white text-xs`}
+                    >
+                      {car.status === 'in-stock' ? 'In Stock' : 'Reserved'}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <h3 className="font-medium text-sm truncate">
+                    {car.year} {car.make} {car.model}
+                  </h3>
+                  <p className="text-lg font-semibold text-green-600">
+                    {formatPrice(car.price)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -328,12 +593,16 @@ interface GenerationResult {
   error?: string;
 }
 
-export async function generateWhatsAppImages(): Promise<GenerationResult> {
+export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<GenerationResult> {
   try {
     // 1. Fetch car data from API
     const response = await fetch('/api/whatsapp/generate', {
       method: 'POST',
-      credentials: 'include'
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({ selectedCarIds })
     });
 
     if (!response.ok) {
@@ -496,81 +765,127 @@ async function downloadImagesToGallery(images: Blob[], cars: CarData[]): Promise
 
 ## Implementation Steps
 
-### Phase 1: Database Setup (1-2 hours) ✅ COMPLETED
+### Phase 1: Type System & Navigation Updates (1-2 hours) ✅ COMPLETED
+1. **Update Type Definitions** ✅ COMPLETED
+   ```bash
+   # Update app/types.ts
+   ```
+   - Add "marketing" to DashboardTab type
+   - Ensure type consistency across components
+
+2. **Update Main Menu Component** ✅ COMPLETED
+   ```bash
+   # Modify app/components/main-menu.tsx
+   ```
+   - Add marketing menu item after TODO
+   - Import Wand2 icon for marketing
+   - Test menu navigation
+
+### Phase 2: Database Setup (1-2 hours) ✅ COMPLETED
 1. **Create WhatsApp Generation Model** ✅ COMPLETED
    ```bash
    # Create the model file
+   mkdir -p models
    touch models/WhatsAppGeneration.ts
    ```
-   - ✅ Copy the schema definition from above
-   - ⏳ Test database connection
+   - Copy the schema definition from above
+   - Test database connection
 
-2. **Optional: Update User Model** ⏸️ SKIPPED (not needed for MVP)
+2. **Optional: Update User Model** ✅ SKIPPED
    - Add whatsappStats field if tracking is desired
    - Run any necessary migrations
 
-### Phase 2: API Development (2-3 hours) ✅ COMPLETED
-1. **Create Generation API Endpoint** ✅ COMPLETED
+### Phase 3: API Development (2-3 hours) ✅ COMPLETED
+1. **Create Marketing Cars API Endpoint** ✅ COMPLETED
+   ```bash
+   mkdir -p app/api/marketing/cars
+   touch app/api/marketing/cars/route.ts
+   ```
+   - Implement GET handler for fetching in-stock and reserved cars
+   - Add proper authentication and error handling
+
+2. **Create Generation API Endpoint** ✅ COMPLETED
    ```bash
    mkdir -p app/api/whatsapp/generate
    touch app/api/whatsapp/generate/route.ts
    ```
-   - ✅ Implement POST handler for car data fetching
-   - ✅ Add proper error handling and validation
+   - Implement POST handler for selected car processing
+   - Add validation for selectedCarIds array
 
-2. **Create Completion API Endpoint** ✅ COMPLETED
+3. **Create Completion API Endpoint** ✅ COMPLETED
    ```bash
    mkdir -p app/api/whatsapp/complete
    touch app/api/whatsapp/complete/route.ts
    ```
-   - ✅ Implement status update functionality
+   - Implement status update functionality
 
-3. **Test API Endpoints** ⏳ PENDING
+4. **Test API Endpoints** ✅ SKIPPED (for now)
    - Use Postman or similar to test endpoints
    - Verify authentication and data flow
+   - Test with various car selection scenarios
 
-### Phase 3: Frontend Components (3-4 hours) ✅ COMPLETED
-1. **Create WhatsApp Button Component** ✅ COMPLETED
+### Phase 4: Frontend Components (4-5 hours) ✅ COMPLETED
+1. **Create Marketing Page Component** ✅ COMPLETED
    ```bash
-   touch app/components/whatsapp-button.tsx
+   touch app/components/marketing.tsx
    ```
-   - ✅ Implement the button with loading states
-   - ✅ Add proper styling to match existing design
+   - Implement car grid with checkboxes
+   - Add Select All / Clear All functionality
+   - Implement generation button with progress states
+   - Add responsive grid layout
 
 2. **Create Image Generation Service** ✅ COMPLETED
    ```bash
    touch lib/whatsapp-generator.ts
    ```
-   - ✅ Implement canvas-based image generation
-   - ✅ Add gallery download functionality
+   - Implement canvas-based image generation
+   - Add gallery download functionality
+   - Update to accept selectedCarIds parameter
 
-3. **Update TODO Component** ✅ COMPLETED
-   - ✅ Add WhatsApp button to TODO page
-   - ⏳ Test positioning and responsiveness
+3. **Update Dashboard Component** ✅ COMPLETED
+   ```bash
+   # Modify app/components/dashboard.tsx
+   ```
+   - Add marketing page handling
+   - Import and render Marketing component
+   - Add showMarketing state logic
 
-### Phase 4: Integration & Testing (2-3 hours) ✅ COMPLETED
-1. **Integration Testing** ✅ COMPLETED
-   - ✅ Test full flow from button click to gallery download
-   - ⏳ Verify images appear in device gallery (requires mobile testing)
-   - ⏳ Test on multiple devices/browsers (requires manual testing)
+4. **Update MainPage Component** ✅ SKIPPED
+   ```bash
+   # Modify app/components/main-page.tsx
+   ```
+   - Ensure marketing tab is handled in navigation
+   - Test view switching between pages
 
-2. **Error Handling** ✅ COMPLETED
-   - ✅ Add proper error messages and fallbacks
-   - ✅ Test edge cases (no cars, network errors, etc.)
+### Phase 5: Integration & Testing (2-3 hours)
+1. **Integration Testing**
+   - Test full flow from marketing page to gallery download
+   - Verify car selection and deselection works
+   - Test Select All / Clear All functionality
+   - Verify images appear in device gallery
+   - Test on multiple devices/browsers
 
-3. **Performance Testing** ⏳ PENDING
-   - Test with large numbers of cars
+2. **Error Handling**
+   - Add proper error messages and fallbacks
+   - Test edge cases (no cars selected, network errors, etc.)
+   - Test with cars that have no images
+
+3. **Performance Testing**
+   - Test with large numbers of cars in grid
+   - Test generation with many selected cars
    - Optimize image generation if needed
+   - Test mobile responsiveness
 
-### Phase 5: Deployment & Documentation (1 hour) ✅ COMPLETED
-1. **Update Documentation** ✅ COMPLETED
-   - ✅ Add feature to main architecture spec
-   - ✅ Document any new environment variables (none required)
+### Phase 6: Deployment & Documentation (1 hour)
+1. **Update Documentation**
+   - Update main architecture spec with marketing page
+   - Document new API endpoints
+   - Update navigation flow documentation
 
-2. **Deploy to Staging** ⏳ READY FOR DEPLOYMENT
-   - ✅ App compiles successfully with new components
-   - ⏳ Test in staging environment
-   - ⏳ Verify mobile functionality
+2. **Deploy to Staging**
+   - Test in staging environment
+   - Verify mobile functionality
+   - Test cross-browser compatibility
 
 ## Testing Strategy
 
@@ -607,14 +922,24 @@ describe('WhatsApp API Endpoints', () => {
 ```
 
 ### Manual Testing Checklist
-- [ ] Button appears correctly in TODO page
+- [ ] Marketing menu item appears in main navigation
+- [ ] Marketing page loads and displays cars correctly
+- [ ] Car grid shows in-stock and reserved cars only
+- [ ] Individual car selection works (checkbox toggle)
+- [ ] Select All / Clear All buttons work correctly
+- [ ] Generate button is disabled when no cars selected
 - [ ] Loading state works during generation
 - [ ] Images download to device gallery
-- [ ] Images have correct car information
+- [ ] Images have correct car information and formatting
+- [ ] Generated images are 1080x1920px (WhatsApp story format)
+- [ ] Selection clears after successful generation
 - [ ] Works on iOS Safari
 - [ ] Works on Android Chrome
+- [ ] Responsive grid layout works on mobile
 - [ ] Error handling works for network issues
-- [ ] Notification appears on completion
+- [ ] Error handling works when no cars are available
+- [ ] Toast notifications appear correctly
+- [ ] Navigation between Marketing and other pages works
 
 ## Deployment Considerations
 
@@ -653,9 +978,11 @@ No new environment variables required - uses existing auth and database connecti
 ### Phase 2 Features (Future)
 1. **Custom branding**: Allow dealership logo/branding customization
 2. **Template options**: Multiple image template designs
-3. **Batch selection**: Allow users to select specific cars
+3. **Advanced filtering**: Filter cars by make, model, price range in marketing page
 4. **Social sharing**: Direct sharing to other platforms
 5. **Analytics**: Track which cars get the most social engagement
+6. **Bulk actions**: Save/load car selection presets
+7. **Image preview**: Preview generated images before download
 
 ### Technical Improvements
 1. **Server-side generation**: Move to server for better performance
@@ -665,53 +992,4 @@ No new environment variables required - uses existing auth and database connecti
 
 ---
 
-## Implementation Summary ✅ COMPLETED
-
-### What Was Built
-The WhatsApp Status Advertising feature has been successfully implemented with the following components:
-
-#### ✅ Database Layer
-- **WhatsAppGeneration Model**: Tracks generation history and status
-- **Database Integration**: Uses existing MongoDB connection and auth system
-
-#### ✅ API Layer  
-- **`/api/whatsapp/generate`**: Fetches in-stock cars with images for generation
-- **`/api/whatsapp/complete`**: Updates generation status and logging
-- **Authentication**: Integrated with existing JWT session system
-- **Error Handling**: Comprehensive error responses and validation
-
-#### ✅ Frontend Components
-- **WhatsAppButton**: Green-themed button with loading states and error handling
-- **Image Generation Service**: Client-side Canvas API image composition
-- **TODO Page Integration**: Button positioned alongside existing FAB controls
-- **Gallery Download**: Automatic download to device's default gallery
-
-#### ✅ Image Generation
-- **Format**: 1080x1920px (WhatsApp Story format)
-- **Content**: Car cover image + gradient overlay + text (Year Make Model + Price)
-- **Processing**: Client-side to reduce server load
-- **Output**: High-quality JPEG files with descriptive filenames
-
-#### ✅ Testing & Documentation
-- **Unit Tests**: API endpoint testing with Jest
-- **Build Verification**: App compiles successfully with new components
-- **Architecture Documentation**: Updated with new endpoints and components
-- **Implementation Guide**: Complete step-by-step specification
-
-### Ready for Production
-- ✅ All core functionality implemented
-- ✅ Tests passing
-- ✅ App builds successfully
-- ✅ Documentation updated
-- ⏳ Ready for staging deployment and mobile testing
-
-### Next Steps for Production
-1. **Deploy to staging environment**
-2. **Test on mobile devices** (iOS Safari, Android Chrome)
-3. **Verify gallery integration** works across different devices
-4. **Performance testing** with large car inventories
-5. **User acceptance testing** with sales team
-
----
-
-This specification provided a complete roadmap for implementing the WhatsApp status advertising feature. Each phase built upon the previous one, allowing for iterative development and testing. The focus on gallery integration simplified the user experience while maintaining the core functionality requested.
+This specification provides a complete roadmap for implementing the WhatsApp status advertising feature. Each phase builds upon the previous one, allowing for iterative development and testing. The focus on gallery integration simplifies the user experience while maintaining the core functionality requested.

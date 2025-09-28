@@ -12,6 +12,7 @@ import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 import { Todo } from './todo'
 import { MainMenu } from "./main-menu"
+import { Marketing } from "./marketing"
 
 import type { Client } from "../types"
 
@@ -69,6 +70,7 @@ export function Dashboard({
   const showDelivery = activeStatus === "delivery"
   const showNotifications = activeStatus === "notifications"
   const showTodo = activeStatus === "todo"
+  const showMarketing = activeStatus === "marketing"
   const handleAdminNavigate = React.useCallback(() => {
     try {
       window.location.href = "/admin"
@@ -261,6 +263,17 @@ export function Dashboard({
           {showTodo && (
             <div key="todo-section" className="space-y-2 sm:space-y-4">
               <Todo />
+            </div>
+          )}
+          {/* Marketing page */}
+          {showMarketing && (
+            <div key="marketing-section" className="space-y-2 sm:space-y-4">
+              <Marketing
+                cars={cars.filter((car) => car.status === "in-stock" || car.status === "reserved")}
+                onGenerationComplete={(count) => {
+                  // Handle completion notification
+                }}
+              />
             </div>
           )}
           {/* Client list */

@@ -84,6 +84,9 @@ function MainMenuComponent({
       items.push({ id: "todo", label: "TODO", icon: Calendar });
     }
 
+    // Add marketing after TODO
+    items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
+
     if (userRole === "admin") {
       items.push({ id: "admin", label: "Admin", icon: Shield });
     }

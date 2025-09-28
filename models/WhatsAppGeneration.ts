@@ -18,10 +18,5 @@ const WhatsAppGenerationSchema = new Schema<IWhatsAppGeneration>({
   carIds: [{ type: String }],
 });
 
-// Add index for efficient querying
-WhatsAppGenerationSchema.index({ user: 1, generatedAt: -1 });
-
-const WhatsAppGeneration = mongoose.models.WhatsAppGeneration || 
+export default mongoose.models.WhatsAppGeneration ||
   mongoose.model<IWhatsAppGeneration>('WhatsAppGeneration', WhatsAppGenerationSchema);
-
-export default WhatsAppGeneration;

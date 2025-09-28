@@ -7,17 +7,26 @@ import WhatsAppGeneration from '@/models/WhatsAppGeneration';
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await requireSession(request);
+    const { selectedCarIds } = await request.json();
+
+    if (!selectedCarIds || !Array.isArray(selectedCarIds) || selectedCarIds.length === 0) {
+      return NextResponse.json(
+        { error: 'No cars selected for generation' },
+        { status: 400 }
+      );
+    }
+
     await connect();
 
-    // Get all in-stock cars with images
-    const cars = await Car.find({ 
-      status: 'in-stock',
+    // Get selected cars with images
+    const cars = await Car.find({
+      _id: { $in: selectedCarIds },
       images: { $exists: true, $not: { $size: 0 } }
     }).populate('images');
 
     if (cars.length === 0) {
       return NextResponse.json(
-        { error: 'No in-stock cars with images found' },
+        { error: 'No valid cars found for generation' },
         { status: 404 }
       );
     }
@@ -32,33 +41,14 @@ export async function POST(request: NextRequest) {
     await generation.save();
 
     // Return car data for client-side image generation
-    const carData = cars.map(car => {
-      // Get cover image - check if coverImageIndex exists and is valid
-      let coverImage = null;
-      if (car.images && car.images.length > 0) {
-        const coverIndex = car.coverImageIndex !== null && car.coverImageIndex !== undefined 
-          ? car.coverImageIndex 
-          : 0;
-        const imageAtIndex = car.images[coverIndex];
-        coverImage = imageAtIndex?.imageUrl || car.images[0]?.imageUrl;
-      }
-
-      return {
-        id: car._id.toString(),
-        make: car.make,
-        model: car.model,
-        year: car.year,
-        price: car.price,
-        coverImage
-      };
-    }).filter(car => car.coverImage); // Only include cars with valid cover images
-
-    if (carData.length === 0) {
-      return NextResponse.json(
-        { error: 'No cars with valid cover images found' },
-        { status: 404 }
-      );
-    }
+    const carData = cars.map(car => ({
+      id: car._id.toString(),
+      make: car.make,
+      model: car.model,
+      year: car.year,
+      price: car.price,
+      coverImage: car.images[car.coverImageIndex || 0]?.imageUrl || car.images[0]?.imageUrl
+    }));
 
     return NextResponse.json({
       success: true,

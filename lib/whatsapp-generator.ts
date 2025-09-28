@@ -13,12 +13,16 @@ interface GenerationResult {
   error?: string;
 }
 
-export async function generateWhatsAppImages(): Promise<GenerationResult> {
+export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<GenerationResult> {
   try {
     // 1. Fetch car data from API
     const response = await fetch('/api/whatsapp/generate', {
       method: 'POST',
-      credentials: 'include'
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({ selectedCarIds })
     });
 
     if (!response.ok) {
@@ -29,34 +33,19 @@ export async function generateWhatsAppImages(): Promise<GenerationResult> {
     const { generationId, cars } = await response.json();
 
     // 2. Generate images for each car
-    const generatedImages: { blob: Blob; car: CarData }[] = [];
-    
+    const generatedImages: Blob[] = [];
+
     for (const car of cars) {
       try {
         const imageBlob = await generateCarImage(car);
-        generatedImages.push({ blob: imageBlob, car });
+        generatedImages.push(imageBlob);
       } catch (error) {
         console.error(`Failed to generate image for car ${car.id}:`, error);
       }
     }
 
-    if (generatedImages.length === 0) {
-      // Update generation status as failed
-      await fetch('/api/whatsapp/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          generationId,
-          status: 'failed',
-          errorMessage: 'No images could be generated'
-        })
-      });
-      return { success: false, error: 'No images could be generated' };
-    }
-
     // 3. Download images to gallery
-    await downloadImagesToGallery(generatedImages);
+    await downloadImagesToGallery(generatedImages, cars);
 
     // 4. Update generation status
     await fetch('/api/whatsapp/complete', {
@@ -81,7 +70,7 @@ async function generateCarImage(car: CarData): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    
+
     if (!ctx) {
       reject(new Error('Canvas not supported'));
       return;
@@ -93,15 +82,15 @@ async function generateCarImage(car: CarData): Promise<Blob> {
 
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    
+
     img.onload = () => {
       try {
         // 1. Draw car image (centered, maintaining aspect ratio)
         const imgAspect = img.width / img.height;
         const canvasAspect = canvas.width / canvas.height;
-        
+
         let drawWidth, drawHeight, drawX, drawY;
-        
+
         if (imgAspect > canvasAspect) {
           // Image is wider - fit to height
           drawHeight = canvas.height * 0.7; // Use 70% of canvas height
@@ -122,19 +111,19 @@ async function generateCarImage(car: CarData): Promise<Blob> {
         const gradient = ctx.createLinearGradient(0, canvas.height - 400, 0, canvas.height);
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
-        
+
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // 3. Add text overlay
         ctx.textAlign = 'center';
         ctx.fillStyle = 'white';
-        
+
         // Car details
         ctx.font = 'bold 72px Arial, sans-serif';
         const carTitle = `${car.year} ${car.make} ${car.model}`;
         ctx.fillText(carTitle, canvas.width / 2, canvas.height - 300);
-        
+
         // Price
         ctx.font = 'bold 96px Arial, sans-serif';
         const price = new Intl.NumberFormat('en-ZA', {
@@ -163,28 +152,29 @@ async function generateCarImage(car: CarData): Promise<Blob> {
   });
 }
 
-async function downloadImagesToGallery(images: { blob: Blob; car: CarData }[]): Promise<void> {
+async function downloadImagesToGallery(images: Blob[], cars: CarData[]): Promise<void> {
   for (let i = 0; i < images.length; i++) {
-    const { blob, car } = images[i];
-    
+    const blob = images[i];
+    const car = cars[i];
+
     // Create filename
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
     const filename = `WhatsApp-${car.year}-${car.make}-${car.model}-${timestamp}.jpg`;
-    
+
     // Create download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
-    
+
     // Trigger download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // Cleanup
     URL.revokeObjectURL(url);
-    
+
     // Small delay between downloads to avoid browser blocking
     if (i < images.length - 1) {
       await new Promise(resolve => setTimeout(resolve, 500));

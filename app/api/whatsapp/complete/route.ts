@@ -7,13 +7,13 @@ export async function POST(request: NextRequest) {
   try {
     const { userId } = await requireSession(request);
     const { generationId, status, errorMessage } = await request.json();
-    
+
     await connect();
-    
+
     const generation = await WhatsAppGeneration.findOneAndUpdate(
       { _id: generationId, user: userId },
-      { 
-        status, 
+      {
+        status,
         errorMessage,
         completedAt: status === 'completed' ? new Date() : undefined
       },

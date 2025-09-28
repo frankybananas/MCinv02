@@ -56,7 +56,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
 ### Mobile Navigation Model (Unified)
 - A single, scrollable bottom bar is used on mobile/tablet and is now implemented via the reusable `MainMenu` component (`app/components/main-menu.tsx`).
   - Stock filters first: `All`, `In-Stock`, `Coming`, `Reserved`, `Sold`, `Demo`.
-  - Global sections after filters: `Clients`, `Delivery`, `Notifications`, `TODO` (if enabled for the user), and `Admin` (if role).
+  - Global sections after filters: `Clients`, `Delivery`, `Notifications`, `TODO` (if enabled for the user), `Marketing`, and `Admin` (if role).
   - The menu remains fixed across breakpoints, applies a glassmorphism treatment, respects safe-area insets, and keeps the first filters accessible by default while allowing smooth scroll-to-active behavior when tabs change.
 - The TODO page (`app/components/todo.tsx`) mirrors this treatment with a horizontal day strip that scrolls without visible scrollbars; each day chip highlights when tasks exist and syncs with the monthly calendar above.
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
@@ -126,12 +126,11 @@ API routes (selected):
   - `app/api/todos/route.ts` (GET my todos filtered by date, POST create)
   - `app/api/todos/[id]/route.ts` (PUT update, DELETE) — all routes enforce ownership via JWT user id
   - Entries capture optional HH:mm `time` metadata, used to display precise reminders in the UI.
-- WhatsApp Advertising
-  - `app/api/whatsapp/generate/route.ts` (POST generate images for in-stock cars)
+- Marketing
+  - `app/api/marketing/cars/route.ts` (GET cars for marketing selection)
+- WhatsApp Generation
+  - `app/api/whatsapp/generate/route.ts` (POST generate images for selected cars)
   - `app/api/whatsapp/complete/route.ts` (POST update generation status)
-- Misc
-  - `app/api/uploads/route.ts` (file uploads)
-  - Test/health routes under `app/api/test*/`
 
 Middleware:
 - `middleware.ts` – protects routes except public assets, `/auth`, `/api/auth`, `/docs`. Enforces daily OTP by checking `otpDay`. Injects `x-user-phone` and `x-user-role` headers for downstream routes.
@@ -154,11 +153,12 @@ Top-level components:
   - Top-level tabs: Stock, Clients, Delivery (+ Admin toggle).
   - Secondary tabs for Stock: all/in-stock/coming/reserved/sold/demo.
   - Lists cars/clients/deliveries with status badges and quick actions.
-  - Also renders Notifications and a basic TODO calendar (if enabled per user).
+  - Also renders Notifications, TODO calendar (if enabled per user), and Marketing page.
 - `app/components/car-detail.tsx` — gallery, status change, share flow, audit insights.
 - `app/components/delivery-detail.tsx` — delivery prep, client linking, recon tasks, licensing, doc checklist and uploads (local IndexedDB or R2 uploads).
 - `app/components/add-edit-car.tsx`, `app/components/add-edit-client.tsx` — editors (FormData for car, JSON for client). 
 - `app/components/client-detail.tsx` — client info and linked cars.
+- `app/components/marketing.tsx` — car selection grid for WhatsApp image generation.
 - UI primitives live under `components/ui/*`.
 
 Interaction highlights:
@@ -469,4 +469,3 @@ Record changes to architecture here when updating:
  - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
  - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
-- 2025-09-28: Added WhatsApp Status Advertising feature with image generation for in-stock cars. New components: `WhatsAppButton` in TODO page, `/api/whatsapp/*` endpoints, `WhatsAppGeneration` model, and client-side Canvas API image composition with gallery download integration. Feature generates branded car images (1080x1920px) with car details overlay for social media marketing.
