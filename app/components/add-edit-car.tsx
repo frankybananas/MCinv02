@@ -491,7 +491,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                             type="button"
                             variant="secondary"
                             size="icon"
-                            className="absolute bottom-1 right-1 w-6 h-6 sm:w-7 sm:h-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                            className="absolute bottom-1 left-1 w-6 h-6 sm:w-7 sm:h-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                             aria-label="Edit image roles"
                             onClick={(e) => {
                               e.stopPropagation();
