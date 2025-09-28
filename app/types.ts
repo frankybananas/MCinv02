@@ -136,6 +136,9 @@ export interface Car {
   reservedBy?: string
   createdAt: string
   auditLog: AuditLogEntry[]
+  // Image role indices for persistent ordering
+  coverImageIndex?: number | null
+  vinImageIndex?: number | null
 }
 
 export interface Interaction {

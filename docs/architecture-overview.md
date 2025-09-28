@@ -8,6 +8,17 @@
 - Client-side compression is applied on add (see `docs/image-compression.md`).
 - Order semantics: existing images retain their backend order; newly added images are appended to the end. The first image is labeled "Cover" in the UI.
 
+## Edit Car: Persistent Image Roles
+
+- **Server-side persistence**: Image roles (cover and VIN) are stored as indices in the Car model (`coverImageIndex` and `vinImageIndex`) and persist across all user sessions.
+- **UI controls**: Each image tile shows "Set as Cover" and "Mark as VIN" buttons on hover, allowing users to assign roles without drag-and-drop.
+- **Display ordering**: Images are sorted by role: cover image first, then regular images in original order, then VIN image last.
+- **Default behavior**: If no cover is explicitly set, the first image in the array is treated as the cover. If no VIN is set, no image is forced to the end.
+- **Multi-user consistency**: Role changes are saved to the server immediately and visible to all users viewing/editing the car.
+- **Role exclusivity**: Only one image can be cover at a time, and only one can be VIN. Setting a new cover/VIN automatically removes the role from any previously assigned image.
+- **Index validation**: When images are removed, the system automatically adjusts role indices to maintain validity. If an image with a role is removed, the role is cleared.
+- **Backward compatibility**: Existing cars without role flags will display with the first image as default cover and no forced VIN positioning.
+
 - Data storage: All TODO items are stored on the server in MongoDB using the `models/Todo.ts` schema. Each item has a `user` ObjectId reference to ensure strict per-user isolation. This guarantees the same TODOs are available on any device after login.
 - List/Create: `GET/POST /api/todos` require auth, infer current user id from JWT, and operate only on that user’s records.
 - Update/Delete: `PUT/DELETE /api/todos/[id]` enforce ownership (filter by `{ _id, user }`).

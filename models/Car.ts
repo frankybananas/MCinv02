@@ -33,6 +33,17 @@ const carSchema = new mongoose.Schema({
   images: [{
     type: String, // URLs to images stored in your storage solution
   }],
+  // Image role indices (null if no image has that role)
+  coverImageIndex: {
+    type: Number,
+    default: null,
+    min: 0,
+  },
+  vinImageIndex: {
+    type: Number,
+    default: null,
+    min: 0,
+  },
   documents: [{
     name: String,
     url: String,

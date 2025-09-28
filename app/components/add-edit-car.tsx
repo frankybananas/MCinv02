@@ -213,6 +213,10 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Image role tracking for persistent ordering
+  const [coverImageIndex, setCoverImageIndex] = useState<number | null>(car?.coverImageIndex ?? null);
+  const [vinImageIndex, setVinImageIndex] = useState<number | null>(car?.vinImageIndex ?? null);
+
 
   useEffect(() => {
     try {
@@ -286,7 +290,80 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     if (imageToRemove && imageToRemove.isNew) {
       URL.revokeObjectURL(imageToRemove.url);
     }
-    setDisplayedImages(prev => prev.filter(img => img.id !== idToRemove));
+    setDisplayedImages(prev => {
+      const newImages = prev.filter(img => img.id !== idToRemove);
+      const removedIndex = prev.findIndex(img => img.id === idToRemove);
+
+      // Update role indices if the removed image had a role
+      let newCoverIndex = coverImageIndex;
+      let newVinIndex = vinImageIndex;
+
+      if (coverImageIndex === removedIndex) {
+        newCoverIndex = null;
+      } else if (coverImageIndex !== null && coverImageIndex > removedIndex) {
+        newCoverIndex = coverImageIndex - 1;
+      }
+
+      if (vinImageIndex === removedIndex) {
+        newVinIndex = null;
+      } else if (vinImageIndex !== null && vinImageIndex > removedIndex) {
+        newVinIndex = vinImageIndex - 1;
+      }
+
+      setCoverImageIndex(newCoverIndex);
+      setVinImageIndex(newVinIndex);
+
+      return newImages;
+    });
+  };
+
+  // Handle setting/unsetting image roles
+  const handleSetCover = (index: number) => {
+    setCoverImageIndex(index);
+    // If this image was VIN, unset it
+    if (index === vinImageIndex) {
+      setVinImageIndex(null);
+    }
+  };
+
+  const handleSetVin = (index: number) => {
+    setVinImageIndex(index);
+    // If this image was cover, unset it
+    if (index === coverImageIndex) {
+      setCoverImageIndex(null);
+    }
+  };
+
+  const handleRemoveCover = () => {
+    setCoverImageIndex(null);
+  };
+
+  const handleRemoveVin = () => {
+    setVinImageIndex(null);
+  };
+
+  // Get images sorted by role: cover first, then regular images, then VIN last
+  const getSortedImages = () => {
+    const images = [...displayedImages];
+    const coverIdx = coverImageIndex;
+    const vinIdx = vinImageIndex;
+
+    // If no cover is set, treat the first image as cover by default
+    const effectiveCoverIdx = coverIdx !== null ? coverIdx : (images.length > 0 ? 0 : null);
+
+    const coverImage = effectiveCoverIdx !== null ? images[effectiveCoverIdx] : null;
+    const vinImage = vinIdx !== null ? images[vinIdx] : null;
+
+    const regularImages = images.filter((img, idx) =>
+      idx !== effectiveCoverIdx && idx !== vinIdx
+    );
+
+    const sortedImages = [];
+    if (coverImage) sortedImages.push(coverImage);
+    sortedImages.push(...regularImages);
+    if (vinImage) sortedImages.push(vinImage);
+
+    return sortedImages;
   };
 
 
@@ -322,6 +399,14 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
         data.append('imageOrder', existingId);
       }
     });
+
+    // Add image role flags
+    if (coverImageIndex !== null) {
+      data.append('coverImageIndex', String(coverImageIndex));
+    }
+    if (vinImageIndex !== null) {
+      data.append('vinImageIndex', String(vinImageIndex));
+    }
 
     try {
       await onSave(data);
@@ -362,7 +447,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                   </CardHeader>
                   <CardContent className="overflow-auto">
                     <div className="grid gap-2 sm:gap-3 grid-cols-3">
-                      {displayedImages.map((img, idx) => (
+                      {getSortedImages().map((img, idx) => (
                         <div
                           key={img.id}
                           className="relative group aspect-square cursor-default"
@@ -378,6 +463,12 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           {idx === 0 && (
                             <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
                           )}
+                          {coverImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
+                            <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
+                          )}
+                          {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
+                            <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
+                          )}
                           <Button
                             type="button"
                             variant="destructive"
@@ -390,6 +481,26 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           >
                             <X className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
+                          <div className="absolute bottom-1 left-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="text-xs px-1 py-0.5 h-auto flex-1"
+                              onClick={() => handleSetCover(displayedImages.findIndex(i => i.id === img.id))}
+                            >
+                              {coverImageIndex === displayedImages.findIndex(i => i.id === img.id) ? 'Cover' : 'Set Cover'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="text-xs px-1 py-0.5 h-auto flex-1"
+                              onClick={() => handleSetVin(displayedImages.findIndex(i => i.id === img.id))}
+                            >
+                              {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) ? 'VIN' : 'Set VIN'}
+                            </Button>
+                          </div>
                         </div>
                       ))}
                       <div
