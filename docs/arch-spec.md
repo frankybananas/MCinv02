@@ -58,7 +58,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
   - Stock filters first: `All`, `In-Stock`, `Coming`, `Reserved`, `Sold`, `Demo`.
   - Global sections after filters: `Clients`, `Delivery`, `Notifications`, `TODO` (if enabled for the user), `Marketing`, and `Admin` (if role).
   - The menu remains fixed across breakpoints, applies a glassmorphism treatment, respects safe-area insets, and keeps the first filters accessible by default while allowing smooth scroll-to-active behavior when tabs change.
-- The TODO page (`app/components/todo.tsx`) mirrors this treatment with a horizontal day strip that scrolls without visible scrollbars; each day chip highlights when tasks exist and syncs with the monthly calendar above.
+- The TODO page (`app/components/todo.tsx`) features a monthly calendar for date selection with visual indicators showing which days have entries.
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
 - The bar’s wrapper uses `pointer-events: none` while chips/buttons use `pointer-events: auto`, so content beneath remains scrollable.
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
@@ -578,6 +578,7 @@ Record changes to architecture here when updating:
   - Created comprehensive responsive overflow documentation
 - 2025-09-29: Enhanced architecture spec with detailed security recommendations, performance optimization strategies, and comprehensive improvement roadmap.
 - 2025-09-29: Redesigned Marketing page from grid layout to compact list layout - each car now displays as a single row with checkbox (left), thumbnail (center), and full details (right) for efficient inventory scanning and selection. Includes price, mileage, color, and transmission in one line.
+- 2025-09-29: Removed horizontal day picker strip from TODO page - simplified interface now only uses the monthly calendar for date navigation, eliminating redundant UI.
 
 ---
 

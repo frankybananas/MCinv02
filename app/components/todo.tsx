@@ -204,25 +204,11 @@ export function Todo() {
     } catch (e) {
       setError((e as Error).message);
       // Fallback reload
-      const updated = await load();
-      setMonthOverview((prev) => ({ ...prev, [selectedDate]: updated.length }));
     }
   };
 
-  // Simple 7-day strip navigation
-  const strip = useMemo(() => {
-    const base = new Date(selectedDate + 'T12:00:00.000Z');
-    const days: string[] = [];
-    for (let i = -3; i <= 3; i++) {
-      const d = new Date(base);
-      d.setDate(d.getDate() + i);
-      days.push(toIsoDate(d));
-    }
-    return days;
-  }, [selectedDate]);
-
   const eventsByDate = useMemo(() => {
-    return new Map<string, number>(Object.entries(monthOverview || {}));
+    return new Map<string, number>(Object.entries(monthOverview || {}).map(([date, count]) => [date, Number(count)]));
   }, [monthOverview]);
 
   const selectedDay = useMemo(() => {
@@ -296,38 +282,6 @@ export function Todo() {
         />
       </div>
 
-      {/* Date strip with horizontal scrolling */}
-      <div
-        className="w-full min-w-0 overflow-x-auto pb-2 mx-0 sm:-mx-1 [-ms-overflow-style:none] scrollbar-thin scrollbar-transparent"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        <div className="flex gap-1.5 px-1 w-max" style={{ msOverflowStyle: 'none' }}>
-          {strip.map((iso) => {
-            const isActive = iso === selectedDate;
-            const hasItems = (eventsByDate.get(iso) ?? 0) > 0;
-            const dateObj = new Date(iso + 'T12:00:00.000Z');
-            const dayOfWeek = dateObj.toLocaleDateString(undefined, { weekday: 'short' });
-            const dayOfMonth = dateObj.getDate();
-
-            return (
-              <Button
-                key={iso}
-                size="sm"
-                variant={isActive ? 'default' : 'outline'}
-                className={cn(
-                  'flex flex-col items-center justify-center h-12 w-12 rounded-lg p-0.5 text-xs transition-colors',
-                  hasItems && !isActive && 'border border-blue-400/80 bg-blue-50/60 text-blue-700 shadow-sm',
-                  isActive && 'shadow-md'
-                )}
-                onClick={() => setSelectedDate(iso)}
-              >
-                <span className="text-[0.65rem] font-normal leading-none">{dayOfWeek}</span>
-                <span className="text-sm font-medium leading-none mt-0.5">{dayOfMonth}</span>
-              </Button>
-            );
-          })}
-        </div>
-      </div>
 
       <Card className="mb-3 bg-white/80 shadow-sm w-full min-w-0">
         <CardContent className="p-3 min-w-0">

@@ -8,7 +8,7 @@ Content on the Notifications and TODO pages was overflowing horizontally on mobi
 1. **Missing `min-w-0` constraint**: Flex containers need `min-w-0` at each level to prevent content from forcing the container wider than its parent
 2. **Text truncation failures**: Long text without proper truncation could push containers beyond viewport width
 3. **Calendar component width**: The DayPicker calendar component needed explicit width constraints
-4. **Date strip overflow**: The horizontal scrolling date strip needed proper containment
+4. **Box-sizing inconsistency**: Default `content-box` model adds padding/borders to width, causing overflow
 
 ## Solution
 
@@ -22,11 +22,11 @@ Content on the Notifications and TODO pages was overflowing horizontally on mobi
 - Enhanced body styles with `position: relative`
 - This ensures NO element can ever exceed viewport width
 
-### 3. TODO Component (`app/components/todo.tsx`) - **ENHANCED**
+### 3. TODO Component (`app/components/todo.tsx`) - **ENHANCED & SIMPLIFIED**
 Applied comprehensive width constraints:
 - Root container: Added `min-w-0`
 - Monthly calendar wrapper: Added `min-w-0`
-- Date strip container: Added `min-w-0`, removed `min-w-full` from inner flex
+- **Removed horizontal day strip**: Eliminated redundant date navigation UI that was prone to overflow
 - Day header card: Added `min-w-0` to Card and CardContent
 - Form card: Added `min-w-0` to Card and CardContent
 - Items list card: Added `min-w-0` to Card and CardContent
