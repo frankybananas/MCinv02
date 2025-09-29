@@ -157,6 +157,11 @@ Top-level components:
   - Lists cars/clients/deliveries with status badges and quick actions.
   - Also renders Notifications, TODO calendar (if enabled per user), and Marketing page.
 - `app/components/car-detail.tsx` — gallery, status change, share flow, audit insights.
+- Car detail sharing now uses the Web Share API where available. We assemble share text, download all non-VIN images (last image excluded) with `Promise.allSettled`, then:
+  - Attempt single payload share containing text + all images.
+  - Fallback to batched shares (10 files per batch, text included in first batch).
+  - If files cannot be shared, fall back to text-only share sheet.
+  - Final fallback opens WhatsApp URL prefilled with text and image links.
 - `app/components/delivery-detail.tsx` — delivery prep, client linking, recon tasks, licensing, doc checklist and uploads (local IndexedDB or R2 uploads).
 - `app/components/add-edit-car.tsx`, `app/components/add-edit-client.tsx` — editors (FormData for car, JSON for client). 
 - `app/components/client-detail.tsx` — client info and linked cars.

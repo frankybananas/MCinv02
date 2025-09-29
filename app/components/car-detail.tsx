@@ -45,6 +45,12 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     return () => { mounted = false }
   }, [])
 
+  const shareableImages = useMemo(() => {
+    if (!Array.isArray(images) || images.length === 0) return [] as typeof images
+    if (images.length === 1) return images
+    return images.slice(0, images.length - 1)
+  }, [images])
+
   const buildShareText = useCallback(() => {
     const lines: string[] = []
     const title = `${car.year} ${car.make} ${car.model}`.trim()
@@ -56,7 +62,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     if (car.description) lines.push('', car.description)
 
     // Optional: include a few direct links as references (not required when attaching files)
-    const imgUrls = images.map(i => i.imageUrl).filter(Boolean).slice(0, 3)
+    const imgUrls = shareableImages.map(i => i.imageUrl).filter(Boolean).slice(0, 3)
     if (imgUrls.length) {
       lines.push('', 'Sample Photos:')
       imgUrls.forEach((u, idx) => lines.push(`${idx + 1}. ${u}`))
@@ -70,7 +76,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     }
 
     return lines.join('\n')
-  }, [car, images, dealerInfo])
+  }, [car, shareableImages, dealerInfo])
 
   const chunkFiles = (files: File[], size = 30) => {
     const chunks: File[][] = []
@@ -87,45 +93,65 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     try {
       const navAny = typeof navigator !== 'undefined' ? (navigator as any) : undefined
       if (navAny?.share) {
-        // Attempt to fetch ALL images and attach as files. We'll batch share to respect platform limits.
-        const imgUrls = images.map(i => i.imageUrl).filter(Boolean) as string[]
+        const imgUrls = shareableImages.map(i => i.imageUrl).filter(Boolean) as string[]
         const files: File[] = []
-        for (let i = 0; i < imgUrls.length; i++) {
-          const url = imgUrls[i]
-          try {
-            const resp = await fetch(url, { mode: 'cors' })
-            const blob = await resp.blob()
-            const type = blob.type || 'image/jpeg'
-            const name = `car_${car.make}_${car.model}_${i + 1}.${type.includes('png') ? 'png' : 'jpg'}`
-            files.push(new File([blob], name, { type }))
-          } catch {
-            // If any image fails due to CORS or size, skip that file
+
+        if (imgUrls.length) {
+          const blobResults = await Promise.allSettled(
+            imgUrls.map(async (url, index) => {
+              const resp = await fetch(url, { mode: 'cors' })
+              if (!resp.ok) throw new Error('failed to fetch image')
+              const blob = await resp.blob()
+              const type = blob.type || 'image/jpeg'
+              const name = `car_${car.make}_${car.model}_${index + 1}.${type.includes('png') ? 'png' : 'jpg'}`
+              return new File([blob], name, { type })
+            }),
+          )
+          for (const result of blobResults) {
+            if (result.status === 'fulfilled') {
+              files.push(result.value)
+            }
           }
         }
 
-        // If device supports file sharing, share images in batches first,
-        // then open WhatsApp with the details as a separate text message.
-        if (files.length && navAny.canShare) {
-          const batches = chunkFiles(files, 10)
-          for (const batch of batches) {
-            if (navAny.canShare({ files: batch })) {
-              await navAny.share({
-                title: `${car.year} ${car.make} ${car.model}`,
-                files: batch,
-              })
-            } else {
-              // Fallback: if a batch isn't supported, skip it
-            }
+        const shareTitle = `${car.year} ${car.make} ${car.model}`
+
+        const tryShare = async (payload: ShareData) => {
+          if (typeof navAny.canShare === 'function' && !navAny.canShare(payload)) {
+            return false
           }
-          const wa = `https://wa.me/?text=${encodeURIComponent(text)}`
-          window.open(wa, '_blank')
-          return
-        } else {
-          // If we can't attach files, share text only (native sheet)
-          await navAny.share({
-            title: `${car.year} ${car.make} ${car.model}`,
-            text,
-          })
+          try {
+            await navAny.share(payload)
+            return true
+          } catch (err) {
+            return false
+          }
+        }
+
+        if (files.length) {
+          // Attempt to share all files with the text in one go
+          const allPayload: ShareData = { title: shareTitle, text, files }
+          if (await tryShare(allPayload)) {
+            return
+          }
+
+          // Fallback: share in batches (include text only in the first batch)
+          const batches = chunkFiles(files, 10)
+          let sharedAny = false
+          for (let idx = 0; idx < batches.length; idx++) {
+            const batch = batches[idx]
+            const payload: ShareData = idx === 0 ? { title: shareTitle, text, files: batch } : { title: shareTitle, files: batch }
+            const ok = await tryShare(payload)
+            sharedAny = sharedAny || ok
+          }
+          if (sharedAny) {
+            return
+          }
+        }
+
+        // If no files or share with files failed, fall back to text-only share sheet
+        const textOnlyPayload: ShareData = { title: shareTitle, text }
+        if (await tryShare(textOnlyPayload)) {
           return
         }
       }
@@ -136,7 +162,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     // Fallback: WhatsApp text share (no attachments when Web Share API not available)
     const wa = `https://wa.me/?text=${encodeURIComponent(text)}`
     window.open(wa, '_blank')
-  }, [buildShareText, car.make, car.model, car.year, images])
+  }, [buildShareText, car.make, car.model, car.year, shareableImages])
 
   const goPrev = useCallback(() => {
     if (images.length === 0) return
