@@ -395,11 +395,11 @@ export function Todo() {
               <p className="text-sm text-muted-foreground">No entries for this day.</p>
             </div>
           ) : (
-            <ul className="space-y-2 mt-3">
+            <ul className="space-y-2 mt-3 w-full">
               {items.map((t) => (
                 <li
                   key={t._id}
-                  className="flex items-center justify-between rounded-lg border bg-card p-3"
+                  className="flex items-start rounded-lg border bg-card p-3 w-full max-w-full min-w-0 overflow-hidden"
                   draggable
                   onDragStart={() => onDragStart(t._id)}
                   onDragOver={onDragOver}
@@ -428,9 +428,9 @@ export function Todo() {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 w-full min-w-0">
                         <p className="font-medium text-sm truncate">{t.title}</p>
-                        <div className="flex items-center text-xs text-muted-foreground">
+                        <div className="flex items-center text-xs text-muted-foreground flex-wrap">
                           {t.time && (
                             <span className="inline-flex items-center">
                               <CalendarIcon className="w-3 h-3 mr-1" />
@@ -445,7 +445,7 @@ export function Todo() {
                   </div>
                   
                   {editingId !== t._id && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                       <Button 
                         variant="ghost" 
                         size="icon" 

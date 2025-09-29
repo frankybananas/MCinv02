@@ -570,7 +570,12 @@ Record changes to architecture here when updating:
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
 - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
 - 2025-09-29: Fixed main menu padding asymmetry - removed duplicate padding from scroll container to ensure consistent spacing on both left and right edges. The `<ul>` element now handles all padding, while the scroll container only manages overflow behavior.
-- 2025-09-29: Implemented permanent fix for horizontal overflow on Notifications and TODO pages by applying `min-w-0` constraints throughout flex hierarchy. Added comprehensive responsive overflow documentation.
+- 2025-09-29: Implemented comprehensive permanent fix for horizontal overflow across the entire app:
+  - **Global CSS**: Applied `box-sizing: border-box` to ALL elements to prevent padding/borders from adding to width
+  - **TODO Component**: Enhanced list items with `items-start`, `overflow-hidden`, and `flex-wrap` for date/time display
+  - **All Sections**: Applied `min-w-0` constraints throughout flex hierarchies
+  - Added `width: 100%` and `max-width: 100vw` to html, body, and #__next
+  - Created comprehensive responsive overflow documentation
 - 2025-09-29: Enhanced architecture spec with detailed security recommendations, performance optimization strategies, and comprehensive improvement roadmap.
 
 ---

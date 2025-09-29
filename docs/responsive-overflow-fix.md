@@ -16,20 +16,27 @@ Content on the Notifications and TODO pages was overflowing horizontally on mobi
 - Added `overflow-x-hidden` to body element
 - Wrapped all content in a container with `w-full max-w-full min-w-0 overflow-x-hidden`
 
-### 2. Global CSS (`app/globals.css`)
-- Added `overflow-x: hidden` and `max-width: 100vw` to html element
-- Enhanced body styles with `max-width: 100vw` and `position: relative`
-- Added overflow constraints to `#__next` container
+### 2. Global CSS (`app/globals.css`) - **CRITICAL FIXES**
+- **Box-sizing**: Applied `box-sizing: border-box` to ALL elements (`*`, `*::before`, `*::after`) to ensure padding/borders don't add to width
+- Added `overflow-x: hidden`, `max-width: 100vw`, and `width: 100%` to html, body, and #__next
+- Enhanced body styles with `position: relative`
+- This ensures NO element can ever exceed viewport width
 
-### 3. TODO Component (`app/components/todo.tsx`)
-Applied `min-w-0` to all flex containers:
+### 3. TODO Component (`app/components/todo.tsx`) - **ENHANCED**
+Applied comprehensive width constraints:
 - Root container: Added `min-w-0`
 - Monthly calendar wrapper: Added `min-w-0`
 - Date strip container: Added `min-w-0`, removed `min-w-full` from inner flex
 - Day header card: Added `min-w-0` to Card and CardContent
 - Form card: Added `min-w-0` to Card and CardContent
 - Items list card: Added `min-w-0` to Card and CardContent
-- List items: Changed from `min-w-0` to `flex-1 min-w-0` for proper flex behavior
+- **List items (`<li>`)**: 
+  - Changed from `items-center` to `items-start` (prevents vertical centering from adding width)
+  - Added `w-full max-w-full min-w-0 overflow-hidden` for absolute width control
+  - Changed text container to `flex-1 min-w-0` for proper flex behavior
+  - Added `w-full min-w-0` to inner text wrapper
+  - Made date/time flex container allow wrapping with `flex-wrap`
+  - Made action buttons container `flex-shrink-0` with fixed `ml-2` spacing
 
 ### 4. Dashboard Component (`app/components/dashboard.tsx`)
 Applied `min-w-0` to all section containers:
