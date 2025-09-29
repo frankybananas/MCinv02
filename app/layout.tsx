@@ -47,11 +47,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
-      <body className={inter.className}>
+      <body className={`${inter.className} overflow-x-hidden`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <HeaderBar />
-          {children}
-          <Toaster />
+          <div className="w-full max-w-full min-w-0 overflow-x-hidden">
+            <HeaderBar />
+            {children}
+            <Toaster />
+          </div>
         </ThemeProvider>
       </body>
     </html>

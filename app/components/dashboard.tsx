@@ -215,23 +215,23 @@ export function Dashboard({
 
 
       {/* Main content */}
-      <ScrollArea className="flex-1">
-        <div className={`p-2 sm:p-4 space-y-4 max-w-4xl mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
+      <ScrollArea className="flex-1 min-w-0">
+        <div className={`p-2 sm:p-4 space-y-4 max-w-4xl min-w-0 mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
           {/* Notifications list */}
           {showNotifications && (
-            <div key="notifications-section" className="space-y-2 sm:space-y-4">
+            <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {notifications.length === 0 ? (
                 <div key="no-notifications-found" className="text-center py-12">
                   <Bell className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No notifications</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 w-full min-w-0">
                   {notifications.map((n) => {
                     const created = new Date(n.createdAt).toLocaleString()
                     return (
-                      <Card key={n._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onNotificationSelect?.(n)}>
-                        <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                      <Card key={n._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden w-full min-w-0" onClick={() => onNotificationSelect?.(n)}>
+                        <CardContent className="p-3 sm:p-4 flex items-center gap-3 min-w-0">
                           <div className="w-12 h-12 rounded-md bg-accent/30 flex items-center justify-center flex-shrink-0">
                             {n.type === 'car_new' && <CarIcon className="w-5 h-5 text-foreground/80" />}
                             {n.type === 'car_reserved' && <BookmarkCheck className="w-5 h-5 text-foreground/80" />}
@@ -261,13 +261,13 @@ export function Dashboard({
           )}
           {/* TODO list */}
           {showTodo && (
-            <div key="todo-section" className="space-y-2 sm:space-y-4">
+            <div key="todo-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               <Todo />
             </div>
           )}
           {/* Marketing page */}
           {showMarketing && (
-            <div key="marketing-section" className="space-y-2 sm:space-y-4">
+            <div key="marketing-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               <Marketing
                 cars={cars.filter((car) => car.status === "in-stock" || car.status === "reserved")}
                 onGenerationComplete={(count) => {
@@ -279,7 +279,7 @@ export function Dashboard({
           {/* Client list */
           }
           {showClients && (
-            <div key="clients-section" className="space-y-2 sm:space-y-4">
+            <div key="clients-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {clients.length === 0 ? (
                 <div key="no-clients-found" className="text-center py-12">
                   <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -321,7 +321,7 @@ export function Dashboard({
 
           {/* Delivery list */}
           {showDelivery && (
-            <div key="deliveries-section" className="space-y-2 sm:space-y-4">
+            <div key="deliveries-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {deliveries.length === 0 ? (
                 <div key="no-deliveries-found" className="text-center py-12">
                   <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -396,7 +396,7 @@ export function Dashboard({
 
           {/* Car list */}
           {isStockStatus && (
-            <div key="cars-section" className="space-y-2 sm:space-y-4">
+            <div key="cars-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {cars.length === 0 ? (
                 <div key="no-cars-found" className="text-center py-12">
                   <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />

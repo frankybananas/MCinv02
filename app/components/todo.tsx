@@ -233,7 +233,7 @@ export function Todo() {
   }, [selectedDate]);
 
   return (
-    <div className="relative w-full max-w-full px-1 sm:px-2 pb-[calc(9rem+env(safe-area-inset-bottom))] mx-auto overflow-x-hidden">
+    <div className="relative w-full max-w-full min-w-0 px-1 sm:px-2 pb-[calc(9rem+env(safe-area-inset-bottom))] mx-auto overflow-x-hidden">
       <div className="pointer-events-none fixed left-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))] z-50 sm:left-6">
         <div className="relative">
           <div
@@ -254,7 +254,7 @@ export function Todo() {
       </div>
 
       {/* Monthly calendar - full width but contained */}
-      <div className="w-full max-w-full overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
+      <div className="w-full max-w-full min-w-0 overflow-hidden rounded-lg border bg-white/80 shadow-sm mb-3">
         <DayPicker
           mode="single"
           selected={new Date(selectedDate + 'T12:00:00.000Z')}
@@ -298,10 +298,10 @@ export function Todo() {
 
       {/* Date strip with horizontal scrolling */}
       <div
-        className="w-full overflow-x-auto pb-2 mx-0 sm:-mx-1 [-ms-overflow-style:none] scrollbar-thin scrollbar-transparent"
+        className="w-full min-w-0 overflow-x-auto pb-2 mx-0 sm:-mx-1 [-ms-overflow-style:none] scrollbar-thin scrollbar-transparent"
         style={{ scrollbarWidth: 'none' }}
       >
-        <div className="flex gap-1.5 px-1 w-max min-w-full" style={{ msOverflowStyle: 'none' }}>
+        <div className="flex gap-1.5 px-1 w-max" style={{ msOverflowStyle: 'none' }}>
           {strip.map((iso) => {
             const isActive = iso === selectedDate;
             const hasItems = (eventsByDate.get(iso) ?? 0) > 0;
@@ -329,16 +329,16 @@ export function Todo() {
         </div>
       </div>
 
-      <Card className="mb-3 bg-white/80 shadow-sm">
-        <CardContent className="p-3">
+      <Card className="mb-3 bg-white/80 shadow-sm w-full min-w-0">
+        <CardContent className="p-3 min-w-0">
           <h2 className="text-base font-semibold text-slate-800">{selectedDay.weekday}</h2>
           <p className="text-xs text-muted-foreground">{selectedDay.formatted}</p>
         </CardContent>
       </Card>
 
       {showForm && (
-        <Card className="w-full mb-3">
-          <CardContent className="p-2 space-y-2">
+        <Card className="w-full min-w-0 mb-3">
+          <CardContent className="p-2 space-y-2 min-w-0">
             <form
               className="flex flex-col gap-3"
               onSubmit={(event) => {
@@ -380,8 +380,8 @@ export function Todo() {
         </Card>
       )}
 
-      <Card className="w-full">
-        <CardContent className="p-2 space-y-2">
+      <Card className="w-full min-w-0">
+        <CardContent className="p-2 space-y-2 min-w-0">
           {loading ? (
             <div className="flex justify-center py-4">
               <p className="text-sm text-muted-foreground">Loading...</p>
@@ -405,7 +405,7 @@ export function Todo() {
                   onDragOver={onDragOver}
                   onDrop={() => onDrop(t._id)}
                 >
-                  <div className="min-w-0 pr-2">
+                  <div className="flex-1 min-w-0 pr-2">
                     {editingId === t._id ? (
                       <div className="space-y-2 w-full">
                         <Input
