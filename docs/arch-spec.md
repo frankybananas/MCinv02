@@ -157,11 +157,37 @@ Top-level components:
   - Lists cars/clients/deliveries with status badges and quick actions.
   - Also renders Notifications, TODO calendar (if enabled per user), and Marketing page.
 - `app/components/car-detail.tsx` — gallery, status change, share flow, audit insights.
-- Car detail sharing now uses the Web Share API where available. We assemble share text, download all non-VIN images (last image excluded) with `Promise.allSettled`, then:
-  - Attempt single payload share containing text + all images.
-  - Fallback to batched shares (10 files per batch, text included in first batch).
-  - If files cannot be shared, fall back to text-only share sheet.
-  - Final fallback opens WhatsApp URL prefilled with text and image links.
+
+### WhatsApp Rich Media Car Sharing
+
+The car sharing feature enables dealers to send comprehensive vehicle presentations to clients via WhatsApp, including car details, optimized images (VIN excluded), and dealer contact information.
+
+**Detailed Specification**: See `docs/whatsapp-car-sharing-spec.md` for complete technical documentation.
+
+**High-Level Flow**:
+1. User clicks SHARE button on car details page
+2. System retrieves car data and filters images (excludes VIN image at last index or `vinImageIndex`)
+3. System formats WhatsApp message with vehicle details (year, make, model, price, kilometers, color, transmission) and contact info
+4. System attempts progressive sharing strategy:
+   - **Tier 1**: Web Share API with text + all image files in single payload
+   - **Tier 2**: Batched shares (10 files per batch, text in first batch only)
+   - **Tier 3**: Text-only native share
+   - **Tier 4**: WhatsApp URL fallback with text and embedded image links
+5. Client receives rich media presentation via WhatsApp
+
+**Key Features**:
+- VIN image filtering for privacy protection
+- Mobile-first design using native Web Share API
+- Progressive enhancement with fallback strategies
+- Images compressed at upload time (640px longest side, optimized for mobile)
+- Dealer contact information automatically included
+
+**Implementation**: Client-side only (no backend API required) - see `app/components/car-detail.tsx` lines 48-165.
+
+**Related Files**:
+- Detailed spec: `docs/whatsapp-car-sharing-spec.md`
+- Component: `app/components/car-detail.tsx` (onShare handler, buildShareText)
+- Models: `models/Car.ts` (vinImageIndex field), `models/Picture.js` (image storage)
 - Notifications view uses the same `min-w-0` responsive strategy: cards render within `w-full max-w-full min-w-0`, titles/descriptions use `truncate` + `break-words`, and container padding keeps content inside the viewport on sub-400px screens.
 - `app/components/delivery-detail.tsx` — delivery prep, client linking, recon tasks, licensing, doc checklist and uploads (local IndexedDB or R2 uploads).
 - `app/components/add-edit-car.tsx`, `app/components/add-edit-client.tsx` — editors (FormData for car, JSON for client). 
@@ -588,6 +614,7 @@ Record changes to architecture here when updating:
 - 2025-09-29: Redesigned Marketing page from grid layout to ultra-compact list layout - each row matches image height (1px top/bottom padding) with checkbox (left), thumbnail (center), and two-line details (right). Status changed from badge to colored text. Maximum density for efficient scanning.
 - 2025-09-29: Removed horizontal day picker strip from TODO page - simplified interface now only uses the monthly calendar for date navigation, eliminating redundant UI.
 - 2025-09-29: Hardened Notifications view against horizontal overflow with `min-w-0`, `max-w-full`, and truncation/break-word styles for titles and descriptions inside cards.
+- 2025-09-29: Documented WhatsApp Rich Media Car Sharing feature - comprehensive specification created at `docs/whatsapp-car-sharing-spec.md` detailing the existing client-side sharing implementation, progressive enhancement strategy (Web Share API → WhatsApp URL fallback), VIN image filtering for privacy, and image optimization pipeline.
 
 ---
 
