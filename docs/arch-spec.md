@@ -326,7 +326,13 @@ Package manager: pnpm (per workspace preference).
 
 ## 10) Security & Access Controls
 
+### Authentication & Session Management
 - JWT cookie (`session_token`) is httpOnly with `sameSite: 'lax'` set in OTP verify route.
+- **Security Enhancement Needed**: Consider upgrading to `sameSite: 'strict'` for better CSRF protection, unless cross-site requests are required.
+- **JWT Rotation**: Currently no token rotation mechanism. Consider implementing refresh tokens for long-lived sessions.
+- **Session Timeout**: Daily OTP re-validation provides security but consider adding configurable session timeout (e.g., 30 days max).
+
+### Authorization & Access Control
 - `middleware.ts` enforces:
   - Auth for all non-public routes.
   - Daily OTP re-validation using `otpDay`.
@@ -335,9 +341,35 @@ Package manager: pnpm (per workspace preference).
 - API routes additionally verify JWT from cookies (`/api/clients`, `/api/auth/me`, deliveries routes) and apply user isolation rules.
 - TODO routes strictly scope by `user` id from JWT. Admin Users API controls access with the per-user flag `todoEnabled`.
 - Shared helpers in `lib/auth-session.ts` expose `requireSession()`, `getSession()`, and `isPrivileged()` to ensure all authenticated routes share the same parsing and validation logic.
+
+### Input Validation & Sanitization
 - Client request APIs rely on `lib/validation/client-request.ts` for Zod-based payload validation, input normalization, and sanitization before embeddings are refreshed.
+- **Recommendation**: Extend Zod validation to all API endpoints for consistent input validation.
+- **SQL/NoSQL Injection**: Mongoose provides some protection, but ensure all user inputs are validated before queries.
+
+### Rate Limiting & Abuse Prevention
 - Rate limiting helpers (`lib/rate-limit.ts`) protect mutation-heavy endpoints (client requests, match state changes) to guard against abuse.
+- **Enhancement Needed**: Add rate limiting to OTP endpoints (`/api/auth/otp/send`) to prevent SMS bombing attacks.
+- **Recommendation**: Implement progressive delays or CAPTCHA after multiple failed OTP attempts.
+
+### Audit & Compliance
 - Match status transitions (`/api/matches/[id]/view|contacted|dismiss`) append audit entries (see `Match.auditLog`) for traceability.
+- Cars and deliveries track human-readable audit entries.
+- **Enhancement Needed**: Centralize audit logging across all sensitive operations (user management, deletions, permission changes).
+- **GDPR/POPIA Compliance**: Document data retention policies and implement user data export/deletion capabilities.
+
+### Security Headers & CSP
+- **Missing**: No Content Security Policy (CSP) headers documented.
+- **Recommendation**: Add security headers via Next.js config:
+  - `X-Frame-Options: DENY`
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+  - `Permissions-Policy` for camera/microphone if not needed
+
+### Secrets Management
+- Environment variables store sensitive data (`JWT_SECRET`, Twilio credentials, R2 credentials).
+- **Recommendation**: Use a secrets manager (AWS Secrets Manager, HashiCorp Vault) for production.
+- **Best Practice**: Rotate `JWT_SECRET` periodically and implement graceful token migration.
 
 ---
 
@@ -447,14 +479,81 @@ Before changing API contracts:
 
 ## 15) Improvements & Opportunities
 
+### Code Quality & Type Safety
 - __Type safety across server routes__: Convert JS route files to TS where feasible (`app/api/cars/*.js`, `app/api/clients/*.js`, etc.) for stronger typing.
-- __Centralize auth utilities__: Factor common JWT/cookie parsing into a helper to avoid duplication across routes.
-- __Rate limiting / Abuse protection__: Add rate limiting for OTP endpoints to protect from spam.
-- __Progressive image handling__: Consider next/image or responsive images where possible; currently `images.unoptimized: true` for simplicity.
+- __Centralize auth utilities__: ✅ Already implemented via `lib/auth-session.ts`.
+- __API Response Types__: Create shared TypeScript interfaces for all API responses to ensure type safety across client-server boundary.
+- __Zod Schemas__: Extend Zod validation to all API endpoints, not just client requests.
+
+### Security Enhancements
+- __Rate limiting / Abuse protection__: ⚠️ **HIGH PRIORITY** - Add rate limiting for OTP endpoints to protect from SMS bombing.
+- __CSP Headers__: Implement Content Security Policy to prevent XSS attacks.
+- __JWT Rotation__: Add refresh token mechanism for better security.
+- __Audit Logging__: Centralize and expand audit logging to all sensitive operations.
+- __GDPR/POPIA Compliance__: Implement data export and deletion capabilities.
+
+### Performance & Scalability
+- __Database Indexing__: Document and review all MongoDB indexes for query performance.
+- __API Response Caching__: Consider Redis or in-memory caching for frequently accessed data (car listings, client lists).
+- __Image Optimization__: 
+  - Currently `images.unoptimized: true` - consider enabling Next.js Image Optimization with R2 as source.
+  - Implement lazy loading for images below the fold.
+  - Add WebP format support with fallbacks.
+- __Bundle Size__: Analyze and optimize bundle size (current lazy loading is good, but audit dependencies).
+- __Database Connection Pooling__: Verify Mongoose connection pool settings for production load.
+
+### User Experience
 - __Better error toasts__: Surface API errors in the UI consistently using `sonner`.
-- __E2E tests__: Add Playwright tests for login, reserve flow, and delivery edits.
 - __Loading skeletons__: Replace generic spinners with skeletons to reduce layout shifts.
-- __Server Actions (optional)__: For Next 15+, consider Server Actions for certain mutations if beneficial.
+- __Offline Support__: Consider service worker for offline-first capabilities (especially for TODO and Notifications).
+- __Push Notifications__: Add web push notifications for delivery reminders and important updates.
+- __Optimistic UI Updates__: Implement optimistic updates for better perceived performance.
+
+### Testing & Quality Assurance
+- __E2E tests__: Add Playwright tests for:
+  - Login flow and OTP verification
+  - Reserve flow and client linking
+  - Delivery creation and updates
+  - Image upload and management
+  - TODO CRUD operations
+- __Unit Tests__: Expand unit test coverage for:
+  - API route handlers
+  - Authentication helpers
+  - Validation schemas
+  - Business logic functions
+- __Integration Tests__: Test database operations and external API integrations (Twilio, R2).
+- __Visual Regression Testing__: Add visual regression tests for critical UI components.
+
+### Developer Experience
+- __API Documentation__: Generate OpenAPI/Swagger docs for all API endpoints.
+- __Storybook__: Add Storybook for component development and documentation.
+- __Pre-commit Hooks__: Add Husky + lint-staged for automated linting and formatting.
+- __CI/CD Pipeline__: Document deployment pipeline and add automated testing.
+
+### Monitoring & Observability
+- __Error Tracking__: Integrate Sentry or similar for production error monitoring.
+- __Performance Monitoring__: Add APM (Application Performance Monitoring) to track API response times and bottlenecks.
+- __Logging Strategy__: Implement structured logging with log levels and correlation IDs.
+- __Health Checks__: Add `/api/health` endpoint for monitoring database connectivity and external services.
+- __Metrics Dashboard__: Track key metrics (active users, API response times, error rates).
+
+### Architecture & Patterns
+- __Server Actions__: For Next 15+, evaluate Server Actions for form submissions and mutations.
+- __State Management__: Current local state approach is good for this scale. Consider Zustand or Jotai if global state needs grow.
+- __API Layer Abstraction__: Create a centralized API client with interceptors for auth, error handling, and retries.
+- __Feature Flags__: Implement feature flag system (beyond current `todoEnabled`) for gradual rollouts.
+
+### Mobile & PWA
+- __Install Prompt__: Add custom PWA install prompt with better UX.
+- __App Shortcuts__: Define app shortcuts in manifest for quick actions.
+- __Share Target API__: Allow sharing content to the app from other apps.
+- __Background Sync__: Implement background sync for offline TODO and notification updates.
+
+### Data Management
+- __Backup Strategy__: Document MongoDB backup and restore procedures.
+- __Data Migration Scripts__: Create versioned migration scripts for schema changes.
+- __Soft Deletes__: Consider soft deletes for cars, clients, and deliveries for data recovery.
+- __Data Archival__: Implement archival strategy for old/sold vehicles to maintain performance.
 
 ---
 
@@ -464,9 +563,139 @@ Record changes to architecture here when updating:
 - 2025-09-11: Initial comprehensive architecture overview created.
 - 2025-09-11: Client selection now fetches populated client (merged associated cars). `ClientDetail` list keys made robust and string-ID guards added.
 - 2025-09-11: When a car leaves Reserved, all Delivery records for that car are deleted and the car is unlinked from the client (removed from client's `cars`).
- - 2025-09-11: Reserve dialog is now rendered in all views via `MainPage`, so reserving from Car Detail opens the client selection dialog immediately.
- - 2025-09-12: Unified mobile bottom bar with pull-to-hide handle; added scroll-into-view for selected chip; refined chip styling with subtle icons.
- - 2025-09-12: Updated PWA manifest to reference `public/app-icon.png`, `public/app-icon-512.png`, and `public/app-icon-maskable.png` as the app icons.
- - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
+- 2025-09-11: Reserve dialog is now rendered in all views via `MainPage`, so reserving from Car Detail opens the client selection dialog immediately.
+- 2025-09-12: Unified mobile bottom bar with pull-to-hide handle; added scroll-into-view for selected chip; refined chip styling with subtle icons.
+- 2025-09-12: Updated PWA manifest to reference `public/app-icon.png`, `public/app-icon-512.png`, and `public/app-icon-maskable.png` as the app icons.
+- 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
- - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
+- 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
+- 2025-09-29: Fixed main menu padding asymmetry (rightmost button now has correct spacing).
+- 2025-09-29: Implemented permanent fix for horizontal overflow on Notifications and TODO pages by applying `min-w-0` constraints throughout flex hierarchy. Added comprehensive responsive overflow documentation.
+- 2025-09-29: Enhanced architecture spec with detailed security recommendations, performance optimization strategies, and comprehensive improvement roadmap.
+
+---
+
+## 17) Security Checklist
+
+### Authentication & Authorization
+- [x] JWT-based authentication with httpOnly cookies
+- [x] Daily OTP re-validation
+- [x] Role-based access control (admin/manager/user)
+- [x] User isolation for clients and deliveries
+- [ ] JWT token rotation/refresh mechanism
+- [ ] Session timeout configuration
+- [ ] Upgrade to `sameSite: 'strict'` cookies
+- [ ] Multi-factor authentication (beyond OTP)
+
+### Input Validation & Sanitization
+- [x] Zod validation for client requests
+- [ ] Extend Zod validation to all API endpoints
+- [x] Mongoose schema validation
+- [ ] File upload validation (size, type, content)
+- [ ] XSS prevention in user-generated content
+
+### Rate Limiting & Abuse Prevention
+- [x] Rate limiting on mutation endpoints
+- [ ] **HIGH PRIORITY**: Rate limiting on OTP endpoints
+- [ ] Progressive delays on failed login attempts
+- [ ] CAPTCHA integration for suspicious activity
+- [ ] IP-based blocking for repeated abuse
+
+### Data Protection
+- [x] Environment variables for secrets
+- [ ] Secrets manager integration (production)
+- [ ] Database encryption at rest
+- [ ] Sensitive data encryption in transit (HTTPS enforced)
+- [ ] PII data masking in logs
+- [ ] Regular security audits
+
+### Headers & CSP
+- [ ] Content Security Policy headers
+- [ ] X-Frame-Options: DENY
+- [ ] X-Content-Type-Options: nosniff
+- [ ] Strict-Transport-Security (HSTS)
+- [ ] Referrer-Policy configuration
+
+### Audit & Compliance
+- [x] Audit logging for cars and deliveries
+- [ ] Centralized audit logging for all operations
+- [ ] GDPR/POPIA data export capability
+- [ ] GDPR/POPIA data deletion capability
+- [ ] Data retention policy documentation
+- [ ] Privacy policy and terms of service
+
+### Monitoring & Incident Response
+- [ ] Error tracking (Sentry/similar)
+- [ ] Security event logging
+- [ ] Automated security scanning
+- [ ] Incident response plan
+- [ ] Regular security updates
+
+---
+
+## 18) Performance Optimization Checklist
+
+### Frontend Performance
+- [x] Lazy loading of heavy components
+- [x] Code splitting via dynamic imports
+- [ ] Image optimization (currently disabled)
+- [ ] WebP format with fallbacks
+- [ ] Lazy loading images below fold
+- [ ] Bundle size analysis and optimization
+- [ ] Tree shaking verification
+- [ ] Critical CSS inlining
+
+### Backend Performance
+- [ ] Database query optimization
+- [ ] MongoDB index review and optimization
+- [ ] API response caching (Redis)
+- [ ] Connection pooling configuration
+- [ ] Query result pagination
+- [ ] N+1 query prevention
+
+### Network Performance
+- [ ] HTTP/2 or HTTP/3 support
+- [ ] Compression (gzip/brotli)
+- [ ] CDN for static assets
+- [ ] API response compression
+- [ ] Prefetching critical resources
+
+### Mobile Performance
+- [x] Mobile-first responsive design
+- [x] Touch gesture optimization
+- [ ] Service worker for offline support
+- [ ] Background sync for offline operations
+- [ ] Reduced motion support
+- [ ] Battery usage optimization
+
+---
+
+## 19) Responsive Design Standards
+
+### Viewport Constraints
+- **Critical Rule**: All flex containers containing text or dynamic content MUST have `min-w-0` applied.
+- **Root Containers**: Apply `w-full max-w-full min-w-0 overflow-x-hidden` to page-level containers.
+- **Nested Flex**: Propagate `min-w-0` through each level of flex hierarchy.
+- **Text Truncation**: Use `truncate` class on text that may overflow.
+
+### Breakpoints
+- Mobile: < 640px (sm)
+- Tablet: 640px - 1024px (sm to lg)
+- Desktop: > 1024px (lg+)
+- Narrow phones: < 375px (test target)
+
+### Testing Requirements
+- Test on actual devices, not just browser DevTools
+- Verify on iPhone SE (375px), standard Android (360px), and tablets
+- Check both portrait and landscape orientations
+- Test with browser zoom at 150% and 200%
+- Verify safe-area insets on iOS devices
+
+### Common Pitfalls
+1. Third-party components (DayPicker, etc.) need explicit width constraints
+2. ScrollArea components require `min-w-0` when wrapping flex content
+3. Long text without truncation causes horizontal overflow
+4. Fixed-width elements break narrow viewports
+5. Absolute positioning can escape container bounds
+
+See `docs/responsive-overflow-fix.md` for detailed implementation guide.
