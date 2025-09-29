@@ -162,6 +162,7 @@ Top-level components:
   - Fallback to batched shares (10 files per batch, text included in first batch).
   - If files cannot be shared, fall back to text-only share sheet.
   - Final fallback opens WhatsApp URL prefilled with text and image links.
+- Notifications view uses the same `min-w-0` responsive strategy: cards render within `w-full max-w-full min-w-0`, titles/descriptions use `truncate` + `break-words`, and container padding keeps content inside the viewport on sub-400px screens.
 - `app/components/delivery-detail.tsx` — delivery prep, client linking, recon tasks, licensing, doc checklist and uploads (local IndexedDB or R2 uploads).
 - `app/components/add-edit-car.tsx`, `app/components/add-edit-client.tsx` — editors (FormData for car, JSON for client). 
 - `app/components/client-detail.tsx` — client info and linked cars.
@@ -586,6 +587,7 @@ Record changes to architecture here when updating:
 - 2025-09-29: Enhanced architecture spec with detailed security recommendations, performance optimization strategies, and comprehensive improvement roadmap.
 - 2025-09-29: Redesigned Marketing page from grid layout to ultra-compact list layout - each row matches image height (1px top/bottom padding) with checkbox (left), thumbnail (center), and two-line details (right). Status changed from badge to colored text. Maximum density for efficient scanning.
 - 2025-09-29: Removed horizontal day picker strip from TODO page - simplified interface now only uses the monthly calendar for date navigation, eliminating redundant UI.
+- 2025-09-29: Hardened Notifications view against horizontal overflow with `min-w-0`, `max-w-full`, and truncation/break-word styles for titles and descriptions inside cards.
 
 ---
 
