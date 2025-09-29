@@ -137,10 +137,10 @@ export function Marketing({ cars, onGenerationComplete }: MarketingProps) {
               }`}
               onClick={() => handleCarToggle(car._id)}
             >
-              <CardContent className="p-3 min-w-0">
-                <div className="flex items-center gap-3 w-full min-w-0">
+              <CardContent className="p-0 min-w-0">
+                <div className="flex items-center gap-2.5 w-full min-w-0 py-[1px]">
                   {/* Checkbox */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 pl-3">
                     <input
                       type="checkbox"
                       checked={selectedCars.has(car._id)}
@@ -148,46 +148,44 @@ export function Marketing({ cars, onGenerationComplete }: MarketingProps) {
                         e.stopPropagation();
                         handleCarToggle(car._id);
                       }}
-                      className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-0"
                       aria-label={`Select ${car.year} ${car.make} ${car.model}`}
                     />
                   </div>
 
                   {/* Thumbnail */}
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 py-[1px]">
                     <img
                       src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
                       alt={`${car.year} ${car.make} ${car.model}`}
-                      className="w-20 h-16 object-cover rounded border border-gray-200"
+                      className="w-24 h-16 object-cover rounded border border-gray-200"
                     />
                   </div>
 
-                  {/* Car details */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm truncate">
-                        {car.year} {car.make} {car.model}
-                      </h3>
-                      <Badge
-                        variant="secondary"
-                        className={`${getStatusColor(car.status)} text-white text-xs flex-shrink-0`}
-                      >
-                        {car.status === 'in-stock' ? 'In Stock' : 'Reserved'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-baseline gap-2 text-xs text-muted-foreground flex-wrap">
-                      <p className="font-bold text-base text-green-600 flex-shrink-0">
+                  {/* Car details - compact two-line layout */}
+                  <div className="flex-1 min-w-0 pr-3 py-1 flex flex-col justify-center gap-0.5">
+                    {/* Line 1: Year Make Model */}
+                    <h3 className="font-semibold text-sm leading-tight truncate">
+                      {car.year} {car.make} {car.model}
+                    </h3>
+                    
+                    {/* Line 2: Price • Km • Color • Transmission • Status */}
+                    <div className="flex items-center gap-1 text-xs leading-tight flex-wrap">
+                      <span className="font-bold text-sm text-green-600 flex-shrink-0">
                         {formatPrice(car.price)}
-                      </p>
+                      </span>
                       {car.kilometers != null && (
-                        <span className="flex-shrink-0">• {car.kilometers.toLocaleString()} km</span>
+                        <span className="text-muted-foreground flex-shrink-0">• {car.kilometers.toLocaleString()} km</span>
                       )}
                       {car.color && (
-                        <span className="flex-shrink-0">• {car.color}</span>
+                        <span className="text-muted-foreground flex-shrink-0">• {car.color}</span>
                       )}
                       {car.transmission && (
-                        <span className="flex-shrink-0">• {car.transmission}</span>
+                        <span className="text-muted-foreground flex-shrink-0">• {car.transmission}</span>
                       )}
+                      <span className={`flex-shrink-0 ${car.status === 'reserved' ? 'text-amber-600' : 'text-blue-600'}`}>
+                        • {car.status === 'in-stock' ? 'In Stock' : 'Reserved'}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -159,7 +159,7 @@ Top-level components:
 - `app/components/delivery-detail.tsx` — delivery prep, client linking, recon tasks, licensing, doc checklist and uploads (local IndexedDB or R2 uploads).
 - `app/components/add-edit-car.tsx`, `app/components/add-edit-client.tsx` — editors (FormData for car, JSON for client). 
 - `app/components/client-detail.tsx` — client info and linked cars.
-- `app/components/marketing.tsx` — compact list-based car selection interface for WhatsApp image generation. Each row displays: checkbox (left), small thumbnail (center), and car details including year/make/model, price, kilometers, color, and transmission (right). Optimized for quick scanning and selection of inventory.
+- `app/components/marketing.tsx` — ultra-compact list-based car selection interface for WhatsApp image generation. Each row matches the image height (16px padding constraint) with: checkbox (left), thumbnail (center), and two-line compact details (right). Line 1: Year/Make/Model. Line 2: Price • Kilometers • Color • Transmission • Status (text, color-coded). Optimized for maximum density and quick scanning.
 - UI primitives live under `components/ui/*`.
 
 Interaction highlights:
@@ -577,7 +577,7 @@ Record changes to architecture here when updating:
   - Added `width: 100%` and `max-width: 100vw` to html, body, and #__next
   - Created comprehensive responsive overflow documentation
 - 2025-09-29: Enhanced architecture spec with detailed security recommendations, performance optimization strategies, and comprehensive improvement roadmap.
-- 2025-09-29: Redesigned Marketing page from grid layout to compact list layout - each car now displays as a single row with checkbox (left), thumbnail (center), and full details (right) for efficient inventory scanning and selection. Includes price, mileage, color, and transmission in one line.
+- 2025-09-29: Redesigned Marketing page from grid layout to ultra-compact list layout - each row matches image height (1px top/bottom padding) with checkbox (left), thumbnail (center), and two-line details (right). Status changed from badge to colored text. Maximum density for efficient scanning.
 - 2025-09-29: Removed horizontal day picker strip from TODO page - simplified interface now only uses the monthly calendar for date navigation, eliminating redundant UI.
 
 ---
