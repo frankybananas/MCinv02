@@ -118,7 +118,7 @@ export function Marketing({ cars, onGenerationComplete }: MarketingProps) {
         </div>
       </div>
 
-      {/* Cars grid */}
+      {/* Cars list - Compact one-liner layout */}
       {marketingCars.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
@@ -128,47 +128,68 @@ export function Marketing({ cars, onGenerationComplete }: MarketingProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="space-y-2 w-full max-w-full min-w-0">
           {marketingCars.map((car) => (
             <Card
               key={car._id}
-              className={`cursor-pointer transition-all hover:shadow-md ${
-                selectedCars.has(car._id) ? 'ring-2 ring-green-500 bg-green-50' : ''
+              className={`cursor-pointer transition-all hover:shadow-md w-full max-w-full min-w-0 overflow-hidden ${
+                selectedCars.has(car._id) ? 'ring-2 ring-green-500 bg-green-50/50' : ''
               }`}
               onClick={() => handleCarToggle(car._id)}
             >
-              <CardContent className="p-3">
-                <div className="relative mb-3">
-                  <img
-                    src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
-                    alt={`${car.year} ${car.make} ${car.model}`}
-                    className="w-full h-32 object-cover rounded-md"
-                  />
-                  <div className="absolute top-2 left-2">
+              <CardContent className="p-3 min-w-0">
+                <div className="flex items-center gap-3 w-full min-w-0">
+                  {/* Checkbox */}
+                  <div className="flex-shrink-0">
                     <input
                       type="checkbox"
                       checked={selectedCars.has(car._id)}
-                      onChange={() => handleCarToggle(car._id)}
-                      className="h-4 w-4 rounded border border-white bg-white/90 text-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleCarToggle(car._id);
+                      }}
+                      className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-0"
+                      aria-label={`Select ${car.year} ${car.make} ${car.model}`}
                     />
                   </div>
-                  <div className="absolute top-2 right-2">
-                    <Badge
-                      variant="secondary"
-                      className={`${getStatusColor(car.status)} text-white text-xs`}
-                    >
-                      {car.status === 'in-stock' ? 'In Stock' : 'Reserved'}
-                    </Badge>
-                  </div>
-                </div>
 
-                <div className="space-y-1">
-                  <h3 className="font-medium text-sm truncate">
-                    {car.year} {car.make} {car.model}
-                  </h3>
-                  <p className="text-lg font-semibold text-green-600">
-                    {formatPrice(car.price)}
-                  </p>
+                  {/* Thumbnail */}
+                  <div className="flex-shrink-0">
+                    <img
+                      src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
+                      alt={`${car.year} ${car.make} ${car.model}`}
+                      className="w-20 h-16 object-cover rounded border border-gray-200"
+                    />
+                  </div>
+
+                  {/* Car details */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-sm truncate">
+                        {car.year} {car.make} {car.model}
+                      </h3>
+                      <Badge
+                        variant="secondary"
+                        className={`${getStatusColor(car.status)} text-white text-xs flex-shrink-0`}
+                      >
+                        {car.status === 'in-stock' ? 'In Stock' : 'Reserved'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-baseline gap-2 text-xs text-muted-foreground flex-wrap">
+                      <p className="font-bold text-base text-green-600 flex-shrink-0">
+                        {formatPrice(car.price)}
+                      </p>
+                      {car.kilometers != null && (
+                        <span className="flex-shrink-0">• {car.kilometers.toLocaleString()} km</span>
+                      )}
+                      {car.color && (
+                        <span className="flex-shrink-0">• {car.color}</span>
+                      )}
+                      {car.transmission && (
+                        <span className="flex-shrink-0">• {car.transmission}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
