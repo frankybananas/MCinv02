@@ -59,7 +59,7 @@ This document provides a complete architectural map of the MCinv02 Next.js mobil
   - Global sections after filters: `Clients`, `Delivery`, `Notifications`, `TODO` (if enabled for the user), `Marketing`, and `Admin` (if role).
   - The menu remains fixed across breakpoints, applies a glassmorphism treatment, respects safe-area insets, and keeps the first filters accessible by default while allowing smooth scroll-to-active behavior when tabs change.
 - The TODO page (`app/components/todo.tsx`) features a monthly calendar for date selection with visual indicators showing which days have entries.
-- Main menu scroll container now applies `px-3` + `scroll-px-3` so the first and last chips maintain equal breathing room when scrolled to either edge.
+- Main menu scroll container now applies `px-3` + `scroll-px-3` so the first and last chips maintain equal breathing room when scrolled to either edge. Active tab state is persisted in `localStorage` (`mcinv:last-active-tab`), so a pull-to-refresh or page reload returns to the same section, respecting feature flags (e.g., TODO).
 - The bar hides when not in use and is revealed via swipe-up or tap. It respects safe-area insets and uses generous horizontal padding to avoid clipping.
 - The bar’s wrapper uses `pointer-events: none` while chips/buttons use `pointer-events: auto`, so content beneath remains scrollable.
 - The floating circular back button has been removed from dashboard/list views (Stock, Clients, Delivery). Back navigation remains in detail/editor headers only.
@@ -571,6 +571,7 @@ Record changes to architecture here when updating:
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
 - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
 - 2025-09-29: Fixed main menu padding asymmetry - scroll container now applies balanced horizontal padding (`px-3` with `scroll-px-3`) while the inner list handles vertical spacing. Ensures both leftmost and rightmost chips keep consistent margins when scrolled.
+- 2025-09-29: Persist dashboard tab selection across refresh using `localStorage` (`mcinv:last-active-tab`) with guard rails for feature-flagged tabs (TODO).
 - 2025-09-29: Implemented comprehensive permanent fix for horizontal overflow across the entire app:
   - **Global CSS**: Applied `box-sizing: border-box` to ALL elements to prevent padding/borders from adding to width
   - **TODO Component**: Enhanced list items with `items-start`, `overflow-hidden`, and `flex-wrap` for date/time display

@@ -1,13 +1,32 @@
 "use client";
 
 import React from 'react';
-import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { LoginForm } from './login-form';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+
+const LAST_ACTIVE_TAB_STORAGE_KEY = 'mcinv:last-active-tab';
+
+const PERSISTABLE_TABS: DashboardTab[] = [
+  'all',
+  'in-stock',
+  'coming',
+  'reserved',
+  'sold',
+  'demo',
+  'clients',
+  'delivery',
+  'notifications',
+  'todo',
+  'marketing',
+];
+
+const isPersistableTab = (value: string): value is DashboardTab =>
+  PERSISTABLE_TABS.includes(value as DashboardTab);
 
 // Lazy load heavy components to reduce initial bundle size
 const Dashboard = lazy(() => import('./dashboard').then(module => ({ default: module.Dashboard })));
@@ -49,6 +68,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [notificationsLastSeenAt, setNotificationsLastSeenAt] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
   const [todoEnabled, setTodoEnabled] = useState<boolean>(false);
+  const hasRestoredLastTab = useRef(false);
 
   // Compute unread count consistently on every render (top-level hook)
   const unreadNotificationsCount = useMemo(() => {
@@ -290,6 +310,41 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       void fetchNotifications();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (hasRestoredLastTab.current) return;
+    if (!authChecked) return;
+    if (typeof window === 'undefined') return;
+
+    const storedTab = window.localStorage.getItem(LAST_ACTIVE_TAB_STORAGE_KEY);
+    if (!storedTab || !isPersistableTab(storedTab)) {
+      hasRestoredLastTab.current = true;
+      return;
+    }
+
+    if (storedTab === 'todo' && !todoEnabled) {
+      window.localStorage.setItem(LAST_ACTIVE_TAB_STORAGE_KEY, 'all');
+      hasRestoredLastTab.current = true;
+      return;
+    }
+
+    setActiveStatus(storedTab);
+    hasRestoredLastTab.current = true;
+  }, [authChecked, todoEnabled, setActiveStatus]);
+
+  useEffect(() => {
+    if (!todoEnabled && activeStatus === 'todo') {
+      setActiveStatus('all');
+    }
+  }, [todoEnabled, activeStatus]);
+
+  useEffect(() => {
+    if (!hasRestoredLastTab.current) return;
+    if (typeof window === 'undefined') return;
+    if (activeStatus === 'todo' && !todoEnabled) return;
+
+    window.localStorage.setItem(LAST_ACTIVE_TAB_STORAGE_KEY, activeStatus);
+  }, [activeStatus, todoEnabled]);
 
   // Refresh data when switching to delivery tab
   useEffect(() => {
