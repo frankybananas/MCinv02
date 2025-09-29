@@ -569,7 +569,7 @@ Record changes to architecture here when updating:
 - 2025-09-24: Added user-isolated TODO feature with basic calendar UI; added `todoEnabled` flag (admin-manageable). Bottom nav handle removed and padding reduced; new `Notifications` and `TODO` chips added.
 - 2025-09-25: Centralized auth/session helpers, introduced rate limiting, payload validation for client requests, and match audit logging (`auditLog`).
 - 2025-09-27: TODO client updated to include `credentials: 'include'` on all fetches; docs clarified server-side storage, per-user gating via `todoEnabled`, and Unauthorized troubleshooting. UI already hides TODO tab when the feature is not enabled for the user.
-- 2025-09-29: Fixed main menu padding asymmetry (rightmost button now has correct spacing).
+- 2025-09-29: Fixed main menu padding asymmetry - removed duplicate padding from scroll container to ensure consistent spacing on both left and right edges. The `<ul>` element now handles all padding, while the scroll container only manages overflow behavior.
 - 2025-09-29: Implemented permanent fix for horizontal overflow on Notifications and TODO pages by applying `min-w-0` constraints throughout flex hierarchy. Added comprehensive responsive overflow documentation.
 - 2025-09-29: Enhanced architecture spec with detailed security recommendations, performance optimization strategies, and comprehensive improvement roadmap.
 

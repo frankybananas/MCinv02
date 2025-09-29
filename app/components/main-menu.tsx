@@ -122,7 +122,7 @@ function MainMenuComponent({
         >
           <div
             ref={scrollContainerRef}
-            className="max-[320px]:overflow-visible overflow-x-auto px-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="max-[320px]:overflow-visible overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
             <ul className="flex items-center justify-start gap-1.5 px-2 py-1.5 sm:px-4 sm:py-2 md:justify-center max-[320px]:flex-col max-[320px]:items-stretch">
               {menuItems.map((item) => {
