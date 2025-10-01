@@ -18,27 +18,8 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version ?? "0.0.0",
   },
   serverExternalPackages: ["mongoose"],
-  // Performance optimizations
-  experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-  },
+  // experimental: { optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'] }, // temporarily disabled
   compress: true,
-  webpack: (config, { dev, isServer }) => {
-    config.experiments = {
-      ...config.experiments,
-      topLevelAwait: true,
-    };
-
-    // Disable chunk splitting in development to prevent ChunkLoadError
-    if (dev) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: false,
-      };
-    }
-
-    return config;
-  },
   async headers() {
     return [
       {
@@ -61,12 +42,18 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
     config.experiments = {
       ...config.experiments,
       topLevelAwait: true,
     };
-
+    // Disable chunk splitting in development to prevent ChunkLoadError
+    if (dev) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: false,
+      };
+    }
     return config;
   },
 }
