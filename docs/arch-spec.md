@@ -361,6 +361,42 @@ Package manager: pnpm (per workspace preference).
   - Storage/CDN: Ensure R2 public URLs are served with long-lived cache headers: `Cache-Control: public, max-age=31536000, immutable` and correct `Content-Type`.
   - Future enhancement: persist and use multiple sizes per image (thumb ~200px, medium ~1280–1600px, optional full ~2048–2560px) to reduce bandwidth. UI should use `thumb` for strips/grids and `medium` for hero; open `full` only in zoom/lightbox.
 
+### Cloudflare CDN in front of R2 – Setup and Cache Rules
+
+If the bucket is exposed via a custom domain (e.g., `cdn.yourdomain.com`) in Cloudflare, configure Cache Rules so images are cached at the edge:
+
+1) Where to find Cache Rules
+
+- Cloudflare Dashboard → Rules → Cache Rules → Create rule.
+- If Cache Rules are not available on your plan, use Page Rules (legacy) with "Cache Everything" for the same hostname. Cache Rules are preferred.
+
+2) Create a rule for the R2 CDN hostname
+
+- When incoming requests match…
+  - Field: Hostname
+  - Operator: equals
+  - Value: `cdn.yourdomain.com` (the custom domain mapped to R2)
+
+- Then… (Settings)
+  - Cache eligibility: Cache everything
+  - Edge TTL: Respect origin, or set a long TTL (e.g., 1 month). Since origin sets `Cache-Control: immutable, max-age=31536000`, "Respect origin" is recommended.
+  - Browser TTL: Respect origin
+  - Origin Cache Control: On (honor origin headers we set during upload)
+  - Query string: Normalization can be left default; if you use signed URLs, consider "Ignore query string" only if safe.
+
+3) Verify caching is working
+
+- Open a car image URL in the browser and inspect response headers:
+  - Expect `Cache-Control: public, max-age=31536000, immutable` and `Content-Type: image/webp`.
+  - Expect Cloudflare header `cf-cache-status`: `MISS` on first request, `HIT` on subsequent requests.
+- Thumbnails should be requested from `(image as any).thumbnailUrl` in `app/components/car-detail.tsx`.
+
+4) Troubleshooting
+
+- If `cf-cache-status` is not present, ensure the DNS record for `cdn.yourdomain.com` is proxied (orange cloud) and the domain is attached to the R2 bucket (R2 → Buckets → Public Access → Custom domains).
+- If still no caching, check Cache Rules are enabled and not shadowed by other rules.
+- If images are not served as WebP, verify that the server-side variant generation ran (new uploads) or run a backfill to add WebP medium/thumbnail for older pictures.
+
 ---
 
 ## 10) Security & Access Controls
