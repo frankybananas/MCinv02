@@ -151,27 +151,44 @@ export async function PUT(request, { params }) {
       const updateData = {};
       const newImageIds = [];
 
-      // Handle new image uploads
+      // Handle new image uploads (generate medium + thumbnail WebP variants)
       const imageFiles = data.getAll('images');
       const imageTitles = data.getAll('imageTitles');
       for (const [index, file] of imageFiles.entries()) {
         if (typeof file === 'object' && file.name) {
-          // Lazy-load the S3 client to avoid requiring credentials when no image uploads
+          const arrayBuf = await file.arrayBuffer();
+          const input = Buffer.from(arrayBuf);
+          const sharp = (await import('sharp')).default;
+          const medium = await sharp(input).rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+          const thumb = await sharp(input).rotate().resize({ width: 320, height: 320, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+
+          const idBase = uuidv4();
+          const mediumKey = `pictures/${idBase}_m.webp`;
+          const thumbKey = `pictures/${idBase}_t.webp`;
+
           const { s3 } = await import('@/lib/s3');
-          const buffer = Buffer.from(await file.arrayBuffer());
-          const fileName = `${uuidv4()}-${file.name}`;
+          const CacheControl = 'public, max-age=31536000, immutable';
 
           await s3.send(new PutObjectCommand({
             Bucket: process.env.R2_BUCKET_NAME,
-            Key: fileName,
-            Body: buffer,
-            ContentType: file.type,
+            Key: mediumKey,
+            Body: medium,
+            ContentType: 'image/webp',
+            CacheControl,
+          }));
+          await s3.send(new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: thumbKey,
+            Body: thumb,
+            ContentType: 'image/webp',
+            CacheControl,
           }));
 
-          const imageUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
+          const imageUrl = `${process.env.R2_PUBLIC_URL}/${mediumKey}`;
+          const thumbnailUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
           const newPicture = new Picture({
             imageUrl,
-            fileName,
+            thumbnailUrl,
             title: imageTitles[index] || file.name,
           });
           await newPicture.save();

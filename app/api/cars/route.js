@@ -95,20 +95,56 @@ export async function POST(request) {
     });
 
     if (files && files.length > 0) {
-      const newPictureIds = await Promise.all(files.filter(f => f.size > 0).map(async file => {
-        const newFileName = `${uuidv4()}.${file.name.split('.').pop()}`;
-        const { s3 } = await import('@/lib/s3');
-        await s3.send(new PutObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
-          Key: newFileName,
-          Body: Buffer.from(await file.arrayBuffer()),
-          ContentType: file.type,
-        }));
-        const imageUrl = `${process.env.R2_PUBLIC_URL}/${newFileName}`;
-        const newPicture = new Picture({ title: `${newCar.make} ${newCar.model}`, imageUrl, car: newCar._id });
-        await newPicture.save();
-        return newPicture._id;
-      }));
+      const newPictureIds = await Promise.all(
+        files
+          .filter(f => f.size > 0)
+          .map(async file => {
+            const arrayBuf = await file.arrayBuffer();
+            const input = Buffer.from(arrayBuf);
+            // Lazy-load sharp only on the server
+            const sharp = (await import('sharp')).default;
+
+            // Create medium (hero) variant ~1600px and thumbnail ~320px
+            const medium = await sharp(input).rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+            const thumb = await sharp(input).rotate().resize({ width: 320, height: 320, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+
+            const idBase = uuidv4();
+            const mediumKey = `pictures/${idBase}_m.webp`;
+            const thumbKey = `pictures/${idBase}_t.webp`;
+
+            const { s3 } = await import('@/lib/s3');
+            const CacheControl = 'public, max-age=31536000, immutable';
+
+            // Upload medium
+            await s3.send(new PutObjectCommand({
+              Bucket: process.env.R2_BUCKET_NAME,
+              Key: mediumKey,
+              Body: medium,
+              ContentType: 'image/webp',
+              CacheControl,
+            }));
+            // Upload thumb
+            await s3.send(new PutObjectCommand({
+              Bucket: process.env.R2_BUCKET_NAME,
+              Key: thumbKey,
+              Body: thumb,
+              ContentType: 'image/webp',
+              CacheControl,
+            }));
+
+            const imageUrl = `${process.env.R2_PUBLIC_URL}/${mediumKey}`;
+            const thumbnailUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
+
+            const newPicture = new Picture({
+              title: `${newCar.make} ${newCar.model}`,
+              imageUrl,
+              thumbnailUrl,
+              car: newCar._id,
+            });
+            await newPicture.save();
+            return newPicture._id;
+          })
+      );
       newCar.images.push(...newPictureIds);
       await newCar.save();
     }

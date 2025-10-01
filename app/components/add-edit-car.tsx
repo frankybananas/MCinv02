@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import type { Car } from "../types"
 
@@ -149,14 +149,14 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     }
 
     return () => {
-      // Use the current value of displayedImages in the cleanup
+      // Revoke any object URLs for newly added images and clear state
       setDisplayedImages(prevImages => {
         prevImages.forEach(img => {
           if (img?.isNew && img?.url) {
             URL.revokeObjectURL(img.url);
           }
         });
-        return [];
+        return [] as DisplayImage[];
       });
     };
   }, [car]);
@@ -170,11 +170,31 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     }
   };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
 
-    const newImages: DisplayImage[] = files.map(file => ({
+    // Progressive enhancement: try to compress in the browser; otherwise fall back to originals
+    let processed: File[] = files;
+    try {
+      const mod = await import('./image-compression.client');
+      if (mod && typeof mod.compressImage === 'function') {
+        const out: File[] = [];
+        for (const f of files) {
+          try {
+            const cf = await mod.compressImage(f, { maxDimension: 1920, targetType: 'image/webp', qualityWebp: 0.8, qualityJpeg: 0.85 });
+            out.push(cf);
+          } catch {
+            out.push(f);
+          }
+        }
+        processed = out;
+      }
+    } catch {
+      // dynamic import failed — keep originals
+    }
+
+    const newImages: DisplayImage[] = processed.map(file => ({
       id: uuidv4(),
       url: URL.createObjectURL(file),
       file,

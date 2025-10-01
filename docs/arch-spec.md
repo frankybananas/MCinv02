@@ -5,7 +5,7 @@
 - Page scrolling is preserved while interacting with images.
 - Image reordering is currently disabled on both mobile and desktop to avoid UX conflicts with scrolling/long-press behavior.
 - The previous "Image size" slider and persisted tile-size preference were removed to simplify the UI and improve scrolling ergonomics.
-- Client-side compression is applied on add (see `docs/image-compression.md`).
+- Client-side compression is applied on add (see `docs/image-compression-spec.md`). The helper lives at `app/components/image-compression.client.ts` and is dynamically imported from `app/components/add-edit-car.tsx` to remain SSR-safe.
 - Order semantics: existing images retain their backend order; newly added images are appended to the end. The first image is labeled "Cover" in the UI.
 
 ## Edit Car: Persistent Image Roles
@@ -354,6 +354,12 @@ Package manager: pnpm (per workspace preference).
   - `serverExternalPackages: ['mongoose']` for server bundling.
 - Fetch strategy: cars first, then clients+deliveries in parallel (see `fetchData` in `main-page.tsx`).
 - Mobile-first dashboard with bottom-drawer navigation, touch gestures, and glass UI.
+
+- Image performance (gallery & editors):
+  - Client-side compression before upload via `image-compression.client.ts` (defaults: max 1920px, WebP when available). Integrated in `app/components/add-edit-car.tsx` using a dynamic `import()` inside `handleFileChange()`.
+  - Gallery images use lazy-loading/async decoding where appropriate. In `app/components/car-detail.tsx`, the main image sets `decoding="async"` and `fetchPriority="high"`, while thumbnails and lightbox images use `loading="lazy"` and `decoding="async"`.
+  - Storage/CDN: Ensure R2 public URLs are served with long-lived cache headers: `Cache-Control: public, max-age=31536000, immutable` and correct `Content-Type`.
+  - Future enhancement: persist and use multiple sizes per image (thumb ~200px, medium ~1280–1600px, optional full ~2048–2560px) to reduce bandwidth. UI should use `thumb` for strips/grids and `medium` for hero; open `full` only in zoom/lightbox.
 
 ---
 

@@ -265,6 +265,8 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                       src={images[currentImageIndex]?.imageUrl || "/placeholder.svg"}
                       alt={`${car.year} ${car.make} ${car.model}`}
                       className="w-full object-contain rounded-md cursor-zoom-in"
+                      decoding="async"
+                      fetchPriority="high"
                       onClick={() => setIsLightboxOpen(true)}
                     />
                     {images.length > 1 && (
@@ -304,11 +306,13 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                         {images.map((image, index) => (
                           <img
                             key={image.id || index}
-                            src={image.imageUrl || "/placeholder.svg"}
+                            src={(image as any).thumbnailUrl || image.imageUrl || "/placeholder.svg"}
                             alt={`View ${index + 1}`}
                             className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 flex-shrink-0 ${
                               index === currentImageIndex ? "border-primary" : "border-transparent"
                             }`}
+                            loading="lazy"
+                            decoding="async"
                             onClick={() => setCurrentImageIndex(index)}
                           />
                         ))}
@@ -330,6 +334,8 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                         src={images[currentImageIndex]?.imageUrl || "/placeholder.svg"}
                         alt={`Image ${currentImageIndex + 1}`}
                         className="w-full max-h-[80vh] object-contain rounded-md"
+                        decoding="async"
+                        loading="lazy"
                       />
                       {images.length > 1 && (
                         <>
