@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { connectToDatabase } from '@/lib/mongodb';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import Car from '@/models/Car.js';
 import Picture from '@/models/Picture';
 import Session from '@/models/Session'; // Import Session model
 import Delivery from '@/models/Delivery.ts';
 import Client from '@/models/Client.js';
 import User from '@/models/User.ts';
+import Match from '@/models/Match.ts';
+import WhatsAppGeneration from '@/models/WhatsAppGeneration.ts';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { requireSession, isPrivileged } from '@/lib/auth-session';
 
 // GET handler
 export async function GET(request, { params }) {
@@ -309,14 +312,110 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectToDatabase();
+    // Ensure session and admin privilege
+    const session = await requireSession(request);
+    if (!isPrivileged({ ...session, role: session.role })) {
+      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    }
+
     await request.blob();
     const { id } = params;
-    const car = await Car.findByIdAndDelete(id);
+
+    // Load car with images and owner info first
+    const car = await Car.findById(id).populate('images');
     if (!car) {
       return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
     }
+
+    // Collect picture ids and keys to delete from R2
+    const pictures = Array.isArray(car.images) ? car.images : [];
+    const pictureIds = pictures.map((p) => p._id).filter(Boolean);
+
+    // Compute object keys from URLs by stripping the public base
+    const keys = [];
+    const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+    for (const pic of pictures) {
+      const img = (pic && pic.imageUrl) ? String(pic.imageUrl) : '';
+      const thumb = (pic && pic.thumbnailUrl) ? String(pic.thumbnailUrl) : '';
+      for (const url of [img, thumb]) {
+        if (!url) continue;
+        if (publicBase && url.startsWith(publicBase + '/')) {
+          keys.push(url.substring(publicBase.length + 1));
+        } else {
+          // Fallback: attempt to extract known prefix 'pictures/' if present
+          const idx = url.indexOf('pictures/');
+          if (idx >= 0) keys.push(url.substring(idx));
+        }
+      }
+    }
+
+    // Delete R2 objects (best-effort)
+    try {
+      const { s3 } = await import('@/lib/s3');
+      const Bucket = process.env.R2_BUCKET_NAME;
+      if (Bucket) {
+        await Promise.all(
+          keys.map(async (Key) => {
+            try {
+              await s3.send(new DeleteObjectCommand({ Bucket, Key }));
+            } catch (e) {
+              console.error('Failed to delete R2 object', Key, e);
+            }
+          })
+        );
+      }
+    } catch (e) {
+      console.error('R2 deletion skipped/failed:', e);
+    }
+
+    // Delete Picture documents
+    if (pictureIds.length > 0) {
+      try {
+        await Picture.deleteMany({ _id: { $in: pictureIds } });
+      } catch (e) {
+        console.error('Failed to delete Picture docs for car', id, e);
+      }
+    }
+
+    // Remove deliveries associated with this car
+    try {
+      await Delivery.deleteMany({ car: id });
+    } catch (e) {
+      console.error('Failed to delete Delivery records for car', id, e);
+    }
+
+    // Remove matches associated with this car
+    try {
+      await Match.deleteMany({ car: id });
+    } catch (e) {
+      console.error('Failed to delete Match records for car', id, e);
+    }
+
+    // Unlink from client if linked
+    try {
+      if (car.owner) {
+        await Client.updateOne({ _id: car.owner }, { $pull: { cars: id } });
+      }
+    } catch (e) {
+      console.error('Failed to unlink car from client', id, e);
+    }
+
+    // Pull the car id from WhatsAppGeneration records (do not fail deletion if this errors)
+    try {
+      await WhatsAppGeneration.updateMany(
+        { carIds: { $in: [String(id)] } },
+        { $pull: { carIds: String(id) } }
+      );
+    } catch (e) {
+      console.error('Failed to update WhatsAppGeneration records for car', id, e);
+    }
+
+    // Finally delete the car
+    await Car.findByIdAndDelete(id);
+
     return NextResponse.json({ success: true, data: {} });
   } catch (error) {
+    console.error('Error in DELETE /api/cars/[id]:', error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }

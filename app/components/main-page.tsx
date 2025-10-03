@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useState, useEffect, lazy, Suspense, useMemo, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { LoginForm } from './login-form';
 import type { Car, Client, Interaction, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from '../types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -649,6 +649,35 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         <Suspense fallback={<ComponentLoader />}>
           <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />
         </Suspense>
+        {userRole === 'admin' && editingCar?._id && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const ok = typeof window === 'undefined' ? true : window.confirm('Delete this car and all associated images and deliveries? This cannot be undone.');
+                if (!ok) return;
+                const res = await fetch(`/api/cars/${editingCar._id}`, { method: 'DELETE', credentials: 'include' });
+                if (res.ok) {
+                  toast.success('Car deleted');
+                  await fetchData();
+                  handleBack();
+                } else {
+                  const t = await res.text();
+                  console.error('Delete failed', t);
+                  toast.error('Failed to delete car');
+                }
+              } catch (e) {
+                console.error('Delete error', e);
+                toast.error('Failed to delete car');
+              }
+            }}
+            className="fixed top-4 right-4 z-[70] inline-flex items-center gap-2 rounded-md bg-red-600 text-white hover:bg-red-700 px-3 py-2 shadow-lg"
+            aria-label="Delete car"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="text-sm">Delete</span>
+          </button>
+        )}
         {renderBackButton()}
         {renderReserveDialog()}
       </>
