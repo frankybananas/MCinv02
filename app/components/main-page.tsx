@@ -68,6 +68,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [notificationsLastSeenAt, setNotificationsLastSeenAt] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
   const [todoEnabled, setTodoEnabled] = useState<boolean>(false);
+  const [role, setRole] = useState<string | null>(userRole);
   const hasRestoredLastTab = useRef(false);
 
   // Compute unread count consistently on every render (top-level hook)
@@ -386,7 +387,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; role?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (mounted) {
@@ -395,6 +396,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
             if (name) setCurrentUserName(name);
             if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
             setTodoEnabled(data?.todoEnabled === true);
+            setRole(typeof data?.role === 'string' ? data.role : null);
             setAuthChecked(true);
           }
         } else {
@@ -423,13 +425,14 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; role?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (phone) setCurrentUserPhone(phone);
           if (name) setCurrentUserName(name);
           if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
           setTodoEnabled(data?.todoEnabled === true);
+          setRole(typeof data?.role === 'string' ? data.role : null);
         }
       } catch (error) {
         console.error('Error fetching user data after login:', error);
@@ -649,7 +652,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         <Suspense fallback={<ComponentLoader />}>
           <AddEditCar car={editingCar} onSave={handleSaveCar} onCancel={handleBack} />
         </Suspense>
-        {userRole === 'admin' && editingCar?._id && (
+        {((role === 'admin' || role === 'manager') || (userRole === 'admin' || userRole === 'manager')) && editingCar?._id && (
           <button
             type="button"
             onClick={async () => {
@@ -671,11 +674,12 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                 toast.error('Failed to delete car');
               }
             }}
-            className="fixed top-4 right-4 z-[70] inline-flex items-center gap-2 rounded-md bg-red-600 text-white hover:bg-red-700 px-3 py-2 shadow-lg"
+            className="fixed bottom-24 right-4 z-[999] inline-flex items-center gap-2 rounded-full bg-red-600 text-white hover:bg-red-700 px-4 py-3 shadow-2xl"
             aria-label="Delete car"
+            title="Delete car"
           >
             <Trash2 className="w-4 h-4" />
-            <span className="text-sm">Delete</span>
+            <span className="text-sm font-medium">Delete</span>
           </button>
         )}
         {renderBackButton()}
