@@ -600,24 +600,26 @@ export function Dashboard({
                   onAddClient()
                   setFabOpen(false)
                 }}
-                size="icon"
                 variant="ghost"
-                className="h-10 w-10 rounded-full bg-white/15 text-white hover:bg-white/25"
+                className="h-10 px-0 flex items-center gap-2 rounded-full text-white hover:bg-white/10"
               >
-                <Users className="h-5 w-5" />
+                <div className="h-10 w-10 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-colors">
+                  <Users className="h-5 w-5" />
+                </div>
+                <span className="whitespace-nowrap pr-3">Add client</span>
               </Button>
-              <span className="whitespace-nowrap">Add client</span>
               <div className="h-8 w-px bg-white/20" aria-hidden="true" />
-              <span className="whitespace-nowrap">Add car</span>
               <Button
                 onClick={() => {
                   onAddCar()
                   setFabOpen(false)
                 }}
-                size="icon"
-                className="h-10 w-10 rounded-full bg-orange-500 text-white hover:bg-orange-600"
+                className="h-10 px-0 flex items-center gap-2 rounded-full bg-transparent text-white hover:bg-white/10"
               >
-                <CarLucide className="h-5 w-5" />
+                <span className="whitespace-nowrap pl-3">Add car</span>
+                <div className="h-10 w-10 rounded-full bg-orange-500 flex items-center justify-center hover:bg-orange-600 transition-colors">
+                  <CarLucide className="h-5 w-5" />
+                </div>
               </Button>
             </div>
             <Button
