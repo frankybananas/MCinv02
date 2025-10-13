@@ -44,11 +44,6 @@ const CarSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-  // --- Vector search support fields (optional) ---
-  searchText: { type: String },
-  embeddingVector: { type: [Number] },
-  embeddingModel: { type: String },
-  lastEmbeddedAt: { type: Date },
   price: {
     type: Number,
     required: [true, 'Please provide the car price'],

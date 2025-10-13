@@ -23,11 +23,6 @@ export interface IClientRequest extends Document {
     niceToHave?: string[];
     excludeTerms?: string[];
   };
-  // Embedding metadata (stored in Mongo for portability)
-  requestText?: string; // canonical text used to embed
-  embeddingVector?: number[]; // will mirror vector store representation
-  embeddingModel?: string;
-  lastEmbeddedAt?: Date;
   source?: 'notes' | 'manual' | 'imported';
   priority?: number;
   createdAt: Date;
@@ -57,10 +52,6 @@ const ClientRequestSchema = new Schema<IClientRequest>({
     niceToHave: [{ type: String }],
     excludeTerms: [{ type: String }],
   },
-  requestText: { type: String },
-  embeddingVector: { type: [Number] },
-  embeddingModel: { type: String },
-  lastEmbeddedAt: { type: Date },
   source: { type: String, enum: ['notes', 'manual', 'imported'], default: 'manual' },
   priority: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },

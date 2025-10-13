@@ -8,7 +8,6 @@ import Session from '@/models/Session'; // Import Session model
 import Delivery from '@/models/Delivery.ts';
 import Client from '@/models/Client.js';
 import User from '@/models/User.ts';
-import Match from '@/models/Match.ts';
 import WhatsAppGeneration from '@/models/WhatsAppGeneration.ts';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -382,13 +381,6 @@ export async function DELETE(request, { params }) {
       await Delivery.deleteMany({ car: id });
     } catch (e) {
       console.error('Failed to delete Delivery records for car', id, e);
-    }
-
-    // Remove matches associated with this car
-    try {
-      await Match.deleteMany({ car: id });
-    } catch (e) {
-      console.error('Failed to delete Match records for car', id, e);
     }
 
     // Unlink from client if linked

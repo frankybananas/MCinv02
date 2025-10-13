@@ -3,7 +3,6 @@ import { connect as connectDb } from '@/lib/mongodb'
 import User, { type IUser } from '@/models/User'
 import Car from '@/models/Car'
 import Delivery from '@/models/Delivery'
-import Match, { type IMatch } from '@/models/Match'
 import Todo from '@/models/Todo'
 import { getSession } from '@/lib/auth-session'
 import type { NotificationItem } from '@/app/types'
@@ -52,8 +51,6 @@ interface DeliveryShape {
 }
 
 type DeliveryDoc = HydratedDocument<DeliveryShape>
-
-type MatchDoc = HydratedDocument<IMatch> & { car?: CarDoc | null }
 
 function safeTitle(parts: Array<string | number | null | undefined>): string {
   return parts
@@ -297,39 +294,6 @@ export async function GET(request: Request) {
         const message = error instanceof Error ? error.message : String(error)
         console.warn('Notifications: todo reminders failed', message)
       }
-    }
-
-    // New matches for salesperson
-    try {
-      const matches = await Match.find({
-        createdByPhone: session.phone,
-        createdAt: { $gt: since },
-        status: { $in: ['new', 'notified'] },
-      })
-        .select('car client score explanation createdAt')
-        .sort({ createdAt: -1 })
-        .populate({ path: 'car', select: 'make model year images', populate: { path: 'images' } }) as unknown as MatchDoc[]
-
-      for (const match of matches) {
-        const car = match.car ?? null
-        const title = safeTitle([car?.year, car?.make, car?.model]) || 'Vehicle match'
-        notifications.push({
-          _id: `client_match:${String(match._id)}`,
-          type: 'client_match',
-          title: `New match: ${title}`,
-          description: match.explanation ?? undefined,
-          createdAt: toIso(match.createdAt ?? new Date()),
-          data: {
-            carId: car?._id ? String(car._id) : undefined,
-            clientId: match.client ? String(match.client) : undefined,
-            matchId: String(match._id),
-            imageUrl: car ? firstImageUrl(car.images) : undefined,
-          },
-        })
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      console.warn('Notifications: matches aggregation failed', message)
     }
 
     // Exclude items the user marked as Done

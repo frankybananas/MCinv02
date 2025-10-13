@@ -75,7 +75,6 @@ export type NotificationType =
   | "delivery_update"
   | "delivery_due_soon"
   | "delivery_completed"
-  | "client_match"
   | "todo_reminder";
 
 export interface NotificationItem {
@@ -90,7 +89,6 @@ export interface NotificationItem {
     deliveryId?: string;
     imageUrl?: string;
     clientId?: string;
-    matchId?: string;
     todoId?: string;
   };
   read?: boolean;
@@ -187,32 +185,8 @@ export interface ClientRequest {
     niceToHave?: string[];
     excludeTerms?: string[];
   };
-  requestText?: string;
-  embeddingVector?: number[];
-  embeddingModel?: string;
-  lastEmbeddedAt?: string;
   source?: 'notes' | 'manual' | 'imported';
   priority?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Matches (frontend types)
-export type MatchStatus = 'new' | 'notified' | 'viewed' | 'dismissed' | 'converted';
-
-export interface MatchItem {
-  _id: string;
-  request?: string;
-  car: Car | string;
-  client: string;
-  createdByPhone?: string;
-  score: number;
-  explanation?: string;
-  status: MatchStatus;
-  notifiedAt?: string;
-  viewedAt?: string;
-  dismissedAt?: string;
-  contactedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
