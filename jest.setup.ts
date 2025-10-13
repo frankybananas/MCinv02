@@ -1,5 +1,36 @@
 import '@testing-library/jest-dom';
 
+// Mock bson to avoid ESM parse errors
+jest.mock('bson', () => {
+  const ObjectId = class {
+    constructor(id?: string) {
+      this.id = id || 'mock-object-id';
+    }
+    toString() {
+      return this.id;
+    }
+    id: string;
+  };
+  
+  return {
+    ObjectId,
+    BSON: {},
+    BSONError: Error,
+    BSONRegExp: RegExp,
+    Binary: class {},
+    Code: class {},
+    DBRef: class {},
+    Decimal128: class {},
+    Double: class {},
+    Int32: class {},
+    Long: class {},
+    MaxKey: class {},
+    MinKey: class {},
+    Timestamp: class {},
+    UUID: class {},
+  };
+});
+
 // Basic fetch mock for components
 const fetchMock = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
   const raw = input instanceof URL ? input.toString() : input;

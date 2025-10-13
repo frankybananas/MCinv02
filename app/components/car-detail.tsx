@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2 } from "lucide-react"
+import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2, Download } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
+import { downloadCarImages, type DownloadResult } from "@/lib/image-download"
 
 interface CarDetailProps {
   car: Car
@@ -23,6 +24,8 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [dealerInfo, setDealerInfo] = useState<{ name: string; phone: string; email: string } | null>(null)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
 
   const images = (car.images ?? [])
 
@@ -164,6 +167,52 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     window.open(wa, '_blank')
   }, [buildShareText, car.make, car.model, car.year, shareableImages])
 
+  const onDownloadImages = useCallback(async () => {
+    if (isDownloading || images.length === 0) return
+
+    setIsDownloading(true)
+    setDownloadProgress({ current: 0, total: images.length })
+
+    try {
+      const imageUrls = images.map(img => img.imageUrl).filter(Boolean) as string[]
+      const filenamePrefix = `${car.year}_${car.make}_${car.model}`.replace(/\s+/g, '_')
+
+      const result: DownloadResult = await downloadCarImages({
+        imageUrls,
+        filenamePrefix,
+        onProgress: (current, total) => {
+          setDownloadProgress({ current, total })
+        },
+        onError: (error, url) => {
+          console.error(`Failed to download image from ${url}:`, error)
+        },
+      })
+
+      // Check for partial success (some images failed)
+      if (result.errors.length > 0 && result.filesDownloaded > 0) {
+        alert(`Downloaded ${result.filesDownloaded} image(s). ${result.errors.length} failed.`)
+      } else if (result.success && result.filesDownloaded > 0) {
+        // Full success feedback
+        if (result.method === 'native') {
+          alert(`Successfully shared ${result.filesDownloaded} image(s). You can now save them to your device.`)
+        } else if (result.method === 'zip') {
+          alert(`Downloaded ${result.filesDownloaded} images as ZIP file.`)
+        } else {
+          alert(`Downloaded ${result.filesDownloaded} image(s).`)
+        }
+      } else {
+        // Complete failure
+        alert('Failed to download images. Please try again.')
+      }
+    } catch (error) {
+      console.error('Download error:', error)
+      alert('An error occurred while downloading images. Please try again.')
+    } finally {
+      setIsDownloading(false)
+      setDownloadProgress({ current: 0, total: 0 })
+    }
+  }, [car.make, car.model, car.year, images, isDownloading])
+
   const goPrev = useCallback(() => {
     if (images.length === 0) return
     setCurrentImageIndex((i) => (i - 1 + images.length) % images.length)
@@ -246,6 +295,16 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="h-8" 
+            onClick={onDownloadImages}
+            disabled={isDownloading || images.length === 0}
+          >
+            <Download className="w-4 h-4 mr-1" />
+            {isDownloading ? `${downloadProgress.current}/${downloadProgress.total}` : 'Download'}
+          </Button>
           <Button variant="secondary" size="sm" className="h-8" onClick={onShare}>
             <Share2 className="w-4 h-4 mr-1" />
             Share
