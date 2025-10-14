@@ -96,7 +96,8 @@ describe('CarDetail Share Functionality', () => {
     expect(decodedText).toMatch(/Kilometers: 12[\s,]000 km/)
     expect(decodedText).toContain('Color: Grey')
     expect(decodedText).toContain('Transmission: automatic')
-    expect(decodedText).toContain('📸 *Images downloaded to your device*')
+    // Should NOT contain download instruction
+    expect(decodedText).not.toContain('Images downloaded to your device')
   })
 
   test('should handle download failure gracefully', async () => {
@@ -150,10 +151,11 @@ describe('CarDetail Share Functionality', () => {
     
     // Should still contain car details
     expect(decodedText).toContain('2024 BMW M3 Competition')
-    expect(decodedText).toContain('\ud83d\udcf8 *Images downloaded to your device*')
     
     // Should not crash even without dealer info
     expect(decodedText).not.toContain('undefined')
+    // Should not contain download instruction
+    expect(decodedText).not.toContain('Images downloaded to your device')
   })
 
   test('should not include image URLs in main WhatsApp message', async () => {

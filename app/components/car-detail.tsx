@@ -130,8 +130,8 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
       const carDetailsText = buildShareText(false)
       const contactText = buildContactText()
       
-      // Combine texts with instruction
-      const fullText = `${carDetailsText}\n\n📸 *Images downloaded to your device*\nPlease attach the images from your gallery/downloads.\n\n${contactText}`
+      // Combine texts (no instruction needed - images already downloaded)
+      const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
       
       const wa = `https://wa.me/?text=${encodeURIComponent(fullText)}`
       

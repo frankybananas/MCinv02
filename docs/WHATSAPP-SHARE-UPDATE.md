@@ -81,9 +81,6 @@ ${contactText}`
    Color: Grey
    Transmission: automatic
    
-   📸 *Images downloaded to your device*
-   Please attach the images from your gallery/downloads.
-   
    —
    Your Sales Contact:
    Name: Admin User
