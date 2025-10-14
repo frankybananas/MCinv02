@@ -221,7 +221,7 @@ describe('CarDetail Download Functionality', () => {
 
       await waitFor(() => {
         expect(global.alert).toHaveBeenCalledWith(
-          expect.stringContaining('Downloaded 3 image')
+          expect.stringContaining('Successfully downloaded 3 image')
         )
       })
     })

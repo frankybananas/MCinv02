@@ -217,8 +217,8 @@ export async function downloadCarImages(
 
   // Step 2: Try native methods first (mobile share, file picker)
   try {
-    // On mobile: Try native share API (will save to gallery if user chooses)
-    if (navigator.share && typeof (navigator as any).canShare === 'function') {
+    // On mobile: Try native share API only for small batches (mobile has limits)
+    if (navigator.share && typeof (navigator as any).canShare === 'function' && files.length <= 10) {
       const shareData: ShareData = {
         files,
         title: `${filenamePrefix} Images`,
@@ -231,7 +231,7 @@ export async function downloadCarImages(
     }
 
     // On desktop: Try file system access API (Chrome/Edge)
-    if (files.length > 1) {
+    if (files.length > 1 && typeof (window as any).showDirectoryPicker !== 'undefined') {
       const pickerSuccess = await downloadViaFilePicker(files)
       if (pickerSuccess) {
         return { ...result, success: true, method: 'native' }
@@ -249,20 +249,32 @@ export async function downloadCarImages(
       downloadViaLink(files[0])
       return { ...result, success: true, method: 'link' }
     } else {
-      // Multiple files: create ZIP
-      try {
-        const zipFilename = `${filenamePrefix}_images.zip`
-        const zipFile = await createZipFile(files, zipFilename)
-        downloadViaLink(zipFile)
-        return { ...result, success: true, method: 'zip' }
-      } catch (zipError) {
-        // If ZIP creation fails, download individually
+      // For mobile or many files: download individually (better UX than ZIP on mobile)
+      const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      
+      if (isMobile || files.length > 10) {
+        // Download files individually with delays
         for (const file of files) {
           downloadViaLink(file)
           // Small delay between downloads to avoid browser blocking
-          await new Promise(resolve => setTimeout(resolve, 100))
+          await new Promise(resolve => setTimeout(resolve, 150))
         }
         return { ...result, success: true, method: 'link' }
+      } else {
+        // Desktop with few files: create ZIP
+        try {
+          const zipFilename = `${filenamePrefix}_images.zip`
+          const zipFile = await createZipFile(files, zipFilename)
+          downloadViaLink(zipFile)
+          return { ...result, success: true, method: 'zip' }
+        } catch (zipError) {
+          // If ZIP creation fails, download individually
+          for (const file of files) {
+            downloadViaLink(file)
+            await new Promise(resolve => setTimeout(resolve, 150))
+          }
+          return { ...result, success: true, method: 'link' }
+        }
       }
     }
   } catch (error) {

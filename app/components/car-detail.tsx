@@ -188,9 +188,9 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
         },
       })
 
-      // Check for partial success (some images failed)
+      // Check for partial success (some images failed during fetch)
       if (result.errors.length > 0 && result.filesDownloaded > 0) {
-        alert(`Downloaded ${result.filesDownloaded} image(s). ${result.errors.length} failed.`)
+        alert(`Downloaded ${result.filesDownloaded} image(s). ${result.errors.length} failed to fetch.`)
       } else if (result.success && result.filesDownloaded > 0) {
         // Full success feedback
         if (result.method === 'native') {
@@ -198,8 +198,11 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
         } else if (result.method === 'zip') {
           alert(`Downloaded ${result.filesDownloaded} images as ZIP file.`)
         } else {
-          alert(`Downloaded ${result.filesDownloaded} image(s).`)
+          alert(`Successfully downloaded ${result.filesDownloaded} image(s). Check your Downloads folder or browser notifications.`)
         }
+      } else if (result.filesDownloaded > 0 && !result.success) {
+        // Files were fetched but download method failed
+        alert(`Prepared ${result.filesDownloaded} image(s) but download failed. Please check your browser settings or try again.`)
       } else {
         // Complete failure
         alert('Failed to download images. Please try again.')
