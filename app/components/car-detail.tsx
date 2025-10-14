@@ -133,12 +133,18 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
       // Combine texts (no instruction needed - images already downloaded)
       const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
       
-      const wa = `https://wa.me/?text=${encodeURIComponent(fullText)}`
-      
       // Small delay to ensure download completes
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      window.open(wa, '_blank')
+      // Try to open WhatsApp app directly (works for both WhatsApp and WhatsApp Business)
+      const encodedText = encodeURIComponent(fullText)
+      const appUrl = `whatsapp://send?text=${encodedText}`
+      
+      // On mobile, try to open the app directly
+      // The whatsapp:// scheme works for both regular WhatsApp and WhatsApp Business
+      if (typeof window !== 'undefined') {
+        window.location.href = appUrl
+      }
       
     } catch (error) {
       console.error('Share error:', error)
