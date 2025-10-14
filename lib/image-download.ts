@@ -204,6 +204,8 @@ export async function downloadCarImages(
             files.push(new File([blob], filename, { type: img.type }))
           }
           result.filesDownloaded = files.length
+          // Clear CORS errors since server proxy succeeded
+          result.errors = []
         }
       }
     } catch (proxyErr) {
