@@ -54,7 +54,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     return images.slice(0, images.length - 1)
   }, [images])
 
-  const buildShareText = useCallback(() => {
+  const buildShareText = useCallback((includeImageLinks = false) => {
     const lines: string[] = []
     const title = `${car.year} ${car.make} ${car.model}`.trim()
     lines.push(title)
@@ -64,22 +64,28 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     if (car.transmission) lines.push(`Transmission: ${car.transmission}`)
     if (car.description) lines.push('', car.description)
 
-    // Optional: include a few direct links as references (not required when attaching files)
-    const imgUrls = shareableImages.map(i => i.imageUrl).filter(Boolean).slice(0, 3)
-    if (imgUrls.length) {
-      lines.push('', 'Sample Photos:')
-      imgUrls.forEach((u, idx) => lines.push(`${idx + 1}. ${u}`))
+    // Only include image links if explicitly requested (for fallback)
+    if (includeImageLinks) {
+      const imgUrls = shareableImages.map(i => i.imageUrl).filter(Boolean).slice(0, 3)
+      if (imgUrls.length) {
+        lines.push('', 'Sample Photos:')
+        imgUrls.forEach((u, idx) => lines.push(`${idx + 1}. ${u}`))
+      }
     }
 
+    return lines.join('\n')
+  }, [car, shareableImages])
+
+  const buildContactText = useCallback(() => {
+    const lines: string[] = []
     if (dealerInfo) {
-      lines.push('', '—', 'Your Sales Contact:')
+      lines.push('—', 'Your Sales Contact:')
       if (dealerInfo.name) lines.push(`Name: ${dealerInfo.name}`)
       if (dealerInfo.phone) lines.push(`Mobile: ${dealerInfo.phone}`)
       if (dealerInfo.email) lines.push(`Email: ${dealerInfo.email}`)
     }
-
     return lines.join('\n')
-  }, [car, shareableImages, dealerInfo])
+  }, [dealerInfo])
 
   const chunkFiles = (files: File[], size = 30) => {
     const chunks: File[][] = []
@@ -90,82 +96,58 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   }
 
   const onShare = useCallback(async () => {
-    const text = buildShareText()
-
-    // Try native share with attached image files (best UX on mobile)
+    // Strategy for WhatsApp: Download images first, then open WhatsApp with text
+    // This allows user to attach the downloaded images manually
+    
     try {
-      const navAny = typeof navigator !== 'undefined' ? (navigator as any) : undefined
-      if (navAny?.share) {
-        const imgUrls = shareableImages.map(i => i.imageUrl).filter(Boolean) as string[]
-        const files: File[] = []
-
-        if (imgUrls.length) {
-          const blobResults = await Promise.allSettled(
-            imgUrls.map(async (url, index) => {
-              const resp = await fetch(url, { mode: 'cors' })
-              if (!resp.ok) throw new Error('failed to fetch image')
-              const blob = await resp.blob()
-              const type = blob.type || 'image/jpeg'
-              const name = `car_${car.make}_${car.model}_${index + 1}.${type.includes('png') ? 'png' : 'jpg'}`
-              return new File([blob], name, { type })
-            }),
-          )
-          for (const result of blobResults) {
-            if (result.status === 'fulfilled') {
-              files.push(result.value)
-            }
-          }
-        }
-
-        const shareTitle = `${car.year} ${car.make} ${car.model}`
-
-        const tryShare = async (payload: ShareData) => {
-          if (typeof navAny.canShare === 'function' && !navAny.canShare(payload)) {
-            return false
-          }
-          try {
-            await navAny.share(payload)
-            return true
-          } catch (err) {
-            return false
-          }
-        }
-
-        if (files.length) {
-          // Attempt to share all files with the text in one go
-          const allPayload: ShareData = { title: shareTitle, text, files }
-          if (await tryShare(allPayload)) {
-            return
-          }
-
-          // Fallback: share in batches (include text only in the first batch)
-          const batches = chunkFiles(files, 10)
-          let sharedAny = false
-          for (let idx = 0; idx < batches.length; idx++) {
-            const batch = batches[idx]
-            const payload: ShareData = idx === 0 ? { title: shareTitle, text, files: batch } : { title: shareTitle, files: batch }
-            const ok = await tryShare(payload)
-            sharedAny = sharedAny || ok
-          }
-          if (sharedAny) {
-            return
-          }
-        }
-
-        // If no files or share with files failed, fall back to text-only share sheet
-        const textOnlyPayload: ShareData = { title: shareTitle, text }
-        if (await tryShare(textOnlyPayload)) {
-          return
+      // Step 1: Download all images to device
+      if (images.length > 0) {
+        setIsDownloading(true)
+        
+        const imageUrls = images.map(img => img.imageUrl).filter(Boolean) as string[]
+        const filenamePrefix = `${car.year}_${car.make}_${car.model}`.replace(/\s+/g, '_')
+        
+        const result = await downloadCarImages({
+          imageUrls,
+          filenamePrefix,
+          onProgress: (current, total) => {
+            setDownloadProgress({ current, total })
+          },
+        })
+        
+        setIsDownloading(false)
+        setDownloadProgress({ current: 0, total: 0 })
+        
+        if (!result.success) {
+          alert('Failed to download images. Opening WhatsApp with text only.')
+        } else {
+          // Give user feedback that images are ready
+          alert(`Downloaded ${result.filesDownloaded} image(s). Opening WhatsApp - you can now attach these images from your gallery.`)
         }
       }
-    } catch (_) {
-      // ignore and fall back to WhatsApp URL
+      
+      // Step 2: Open WhatsApp with car details text
+      const carDetailsText = buildShareText(false)
+      const contactText = buildContactText()
+      
+      // Combine texts with instruction
+      const fullText = `${carDetailsText}\n\n📸 *Images downloaded to your device*\nPlease attach the images from your gallery/downloads.\n\n${contactText}`
+      
+      const wa = `https://wa.me/?text=${encodeURIComponent(fullText)}`
+      
+      // Small delay to ensure download completes
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      window.open(wa, '_blank')
+      
+    } catch (error) {
+      console.error('Share error:', error)
+      // Fallback: Just open WhatsApp with text and image links
+      const fallbackText = buildShareText(true) + '\n\n' + buildContactText()
+      const wa = `https://wa.me/?text=${encodeURIComponent(fallbackText)}`
+      window.open(wa, '_blank')
     }
-
-    // Fallback: WhatsApp text share (no attachments when Web Share API not available)
-    const wa = `https://wa.me/?text=${encodeURIComponent(text)}`
-    window.open(wa, '_blank')
-  }, [buildShareText, car.make, car.model, car.year, shareableImages])
+  }, [buildShareText, buildContactText, car.make, car.model, car.year, images])
 
   const onDownloadImages = useCallback(async () => {
     if (isDownloading || images.length === 0) return
