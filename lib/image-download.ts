@@ -175,8 +175,44 @@ export async function downloadCarImages(
 
   result.filesDownloaded = files.length
 
-  if (files.length === 0) {
-    return result
+  // If no files could be fetched (likely CORS), fetch via server proxy
+  if (files.length === 0 && imageUrls.length > 0) {
+    try {
+      const resp = await fetch('/api/download/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: imageUrls }),
+      })
+      
+      if (resp.ok) {
+        const data = await resp.json()
+        if (data.success && Array.isArray(data.images)) {
+          // Convert base64 data URLs to File objects
+          for (let i = 0; i < data.images.length; i++) {
+            const img = data.images[i]
+            const dataUrl = img.data
+            const base64 = dataUrl.split(',')[1]
+            const byteString = atob(base64)
+            const ab = new ArrayBuffer(byteString.length)
+            const ia = new Uint8Array(ab)
+            for (let j = 0; j < byteString.length; j++) {
+              ia[j] = byteString.charCodeAt(j)
+            }
+            const blob = new Blob([ab], { type: img.type })
+            const ext = img.type.includes('png') ? 'png' : img.type.includes('webp') ? 'webp' : 'jpg'
+            const filename = `${filenamePrefix}_${img.index + 1}.${ext}`
+            files.push(new File([blob], filename, { type: img.type }))
+          }
+          result.filesDownloaded = files.length
+        }
+      }
+    } catch (proxyErr) {
+      console.warn('Server image proxy failed:', proxyErr)
+    }
+    
+    if (files.length === 0) {
+      return result
+    }
   }
 
   // Step 2: Try native methods first (mobile share, file picker)

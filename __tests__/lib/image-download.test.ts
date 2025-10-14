@@ -488,5 +488,39 @@ describe('Image Download Utility', () => {
       expect(onProgress).toHaveBeenCalledTimes(3)
       expect(onError).not.toHaveBeenCalled()
     })
+
+    test('should use server proxy when CORS blocks direct fetches', async () => {
+      // Mock direct image fetches failing (CORS)
+      const mockImageBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh' // base64 of 'fake image data'
+
+      ;(global.fetch as jest.Mock)
+        .mockRejectedValueOnce(new Error('CORS'))
+        .mockRejectedValueOnce(new Error('CORS'))
+        // Server proxy call succeeds
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            images: [
+              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+            ],
+          }),
+        })
+
+      const options: ImageDownloadOptions = {
+        imageUrls: ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg'],
+        filenamePrefix: 'car_test',
+      }
+
+      const result = await downloadCarImages(options)
+
+      expect(result.filesDownloaded).toBe(2)
+      expect(result.success).toBe(true)
+      expect(global.fetch).toHaveBeenCalledWith('/api/download/images', expect.objectContaining({
+        method: 'POST',
+      }))
+    })
   })
 })
