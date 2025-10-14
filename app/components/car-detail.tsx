@@ -275,45 +275,51 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
             {car.year} {car.make} {car.model}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Badge
-                className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
-              >
-                {formatStatusLabel(car.status)}
-              </Badge>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
-                <DropdownMenuItem
-                  key={statusOption}
-                  onClick={() => onStatusChange(statusOption)}
-                >
-                  {formatStatusLabel(statusOption)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button 
-            variant="secondary" 
-            size="sm" 
-            className="h-8" 
-            onClick={onDownloadImages}
-            disabled={isDownloading || images.length === 0}
-          >
-            <Download className="w-4 h-4 mr-1" />
-            {isDownloading ? `${downloadProgress.current}/${downloadProgress.total}` : 'Download'}
-          </Button>
-          <Button variant="secondary" size="sm" className="h-8" onClick={onShare}>
-            <Share2 className="w-4 h-4 mr-1" />
-            Share
-          </Button>
-        </div>
+        <div className="flex items-center gap-2" />
       </header>
 
       <ScrollArea className="flex-1">
         <div className="p-3 sm:p-4 md:p-6 max-w-6xl mx-auto">
+          <div className="mb-3 sm:mb-4 flex justify-center">
+            <div className="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-full shadow-sm px-2 py-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Badge className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap rounded-full px-3 py-1`}>
+                    {formatStatusLabel(car.status)}
+                  </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
+                    <DropdownMenuItem
+                      key={statusOption}
+                      onClick={() => onStatusChange(statusOption)}
+                    >
+                      {formatStatusLabel(statusOption)}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-full px-3"
+                onClick={onDownloadImages}
+                disabled={isDownloading || images.length === 0}
+              >
+                <Download className="w-4 h-4 mr-1" />
+                {isDownloading ? `${downloadProgress.current}/${downloadProgress.total}` : 'Download'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 rounded-full px-3"
+                onClick={onShare}
+              >
+                <Share2 className="w-4 h-4 mr-1" />
+                Share
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               {/* Image Gallery */}
