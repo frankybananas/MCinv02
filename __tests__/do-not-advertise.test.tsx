@@ -354,7 +354,7 @@ describe('Do Not Advertise Feature', () => {
       expect(dnaBadge).toHaveClass('bg-white');
       expect(dnaBadge).toHaveClass('text-black');
       expect(dnaBadge).toHaveClass('font-bold');
-      expect(dnaBadge).toHaveClass('border-red-600');
+      expect(dnaBadge).toHaveClass('shadow-md');
     });
 
     it('should handle rapid checkbox toggling', async () => {

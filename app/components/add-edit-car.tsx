@@ -300,7 +300,12 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
 
     Object.entries(submissionData).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {
-        data.append(key, String(value));
+        // Handle boolean fields explicitly
+        if (typeof value === 'boolean') {
+          data.append(key, value ? 'true' : 'false');
+        } else {
+          data.append(key, String(value));
+        }
       }
     });
 
@@ -390,7 +395,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                             <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
                           )}
                           {formData.doNotAdvertise && (
-                            <span className="absolute top-8 left-1 bg-white text-black font-bold text-xs sm:text-sm px-2 py-1 rounded border-2 border-red-600" data-testid="dna-badge">DNA</span>
+                            <span className="absolute top-8 left-1 bg-white text-black font-bold text-xs sm:text-sm px-2 py-1 rounded shadow-md" data-testid="dna-badge">DNA</span>
                           )}
                           <Button
                             type="button"

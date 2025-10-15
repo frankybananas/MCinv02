@@ -96,20 +96,19 @@ Code Quality: 10.0/10
   - Position: `top-2 left-2 sm:top-4 sm:left-4`
   - Background: White
   - Text: Black, bold
-  - Border: 2px red
-  - Shadow: Large shadow for visibility
+  - Shadow: Large shadow for visibility (shadow-lg)
 
 - **Thumbnail Badge**:
   - Position: `top-0.5 left-0.5`
   - Background: White
   - Text: Black, bold, 8px font
-  - Border: 1px red
+  - Shadow: Standard shadow
 
 - **Edit Page Badge**:
   - Position: `top-8 left-1`
   - Background: White
   - Text: Black, bold
-  - Border: 2px red
+  - Shadow: Medium shadow (shadow-md)
 
 ### Checkbox Styling
 - Red accent color (`text-red-600`, `focus:ring-red-500`)

@@ -326,7 +326,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                       onClick={() => setIsLightboxOpen(true)}
                     />
                     {car.doNotAdvertise && (
-                      <span className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white text-black font-bold text-sm sm:text-base px-3 py-1.5 rounded border-2 border-red-600 shadow-lg" data-testid="dna-badge">DNA</span>
+                      <span className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white text-black font-bold text-sm sm:text-base px-3 py-1.5 rounded shadow-lg" data-testid="dna-badge">DNA</span>
                     )}
                     {images.length > 1 && (
                       <>
@@ -375,7 +375,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                               onClick={() => setCurrentImageIndex(index)}
                             />
                             {car.doNotAdvertise && (
-                              <span className="absolute top-0.5 left-0.5 bg-white text-black font-bold text-[8px] px-1 py-0.5 rounded border border-red-600">DNA</span>
+                              <span className="absolute top-0.5 left-0.5 bg-white text-black font-bold text-[8px] px-1 py-0.5 rounded shadow">DNA</span>
                             )}
                           </div>
                         ))}
