@@ -217,15 +217,17 @@ export function Dashboard({
       {/* Main content */}
       <ScrollArea className="flex-1 min-w-0">
         <div className={`p-2 sm:p-4 space-y-4 w-full max-w-4xl min-w-0 mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
-          {/* Notifications list */}
+          {/* Notifications list - displays user notifications with responsive card layout */}
           {showNotifications && (
             <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full max-w-full min-w-0">
               {notifications.length === 0 ? (
+                // Empty state with centered icon and message
                 <div key="no-notifications-found" className="text-center py-12">
                   <Bell className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No notifications</p>
                 </div>
               ) : (
+                // Notification cards with proper text wrapping to prevent overflow
                 <div className="flex flex-col gap-3 w-full max-w-full min-w-0">
                   {notifications.map((n) => {
                     const created = new Date(n.createdAt).toLocaleString()
@@ -235,7 +237,8 @@ export function Dashboard({
                         className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden w-full max-w-full min-w-0"
                         onClick={() => onNotificationSelect?.(n)}
                       >
-                        <CardContent className="p-3 sm:p-4 flex items-start gap-3 w-full max-w-full min-w-0">
+                        <CardContent className="p-3 sm:p-4 flex items-start gap-3 w-full max-w-full min-w-0 overflow-hidden">
+                          {/* Icon container - displays type-specific icon */}
                           <div className="w-12 h-12 rounded-md bg-accent/30 flex items-center justify-center flex-shrink-0">
                             {n.type === 'car_new' && <CarIcon className="w-5 h-5 text-foreground/80" />}
                             {n.type === 'car_reserved' && <BookmarkCheck className="w-5 h-5 text-foreground/80" />}
@@ -243,23 +246,28 @@ export function Dashboard({
                             {n.type === 'delivery_due_soon' && <Clock className="w-5 h-5 text-foreground/80" />}
                             {n.type === 'delivery_completed' && <CheckCircle className="w-5 h-5 text-foreground/80" />}
                             {n.type === 'delivery_update' && <Truck className="w-5 h-5 text-foreground/80" />}
+                            {/* Default bell icon for unknown notification types */}
                             {!(
                               n.type === 'car_new' || n.type === 'car_reserved' || n.type === 'car_sold' ||
                               n.type === 'delivery_due_soon' || n.type === 'delivery_completed' || n.type === 'delivery_update'
                             ) && <Bell className="w-5 h-5 text-foreground/80" />}
                           </div>
-                          <div className="flex-1 min-w-0 max-w-full space-y-1">
+                          {/* Content area with responsive text wrapping */}
+                          <div className="flex-1 min-w-0 max-w-full space-y-1 overflow-hidden">
                             <div className="flex items-start justify-between gap-2 min-w-0">
-                              <h3 className="font-semibold text-base truncate min-w-0">
+                              {/* Title with break-words to handle long text without overflow */}
+                              <h3 className="font-semibold text-base break-words overflow-wrap-anywhere min-w-0 max-w-full">
                                 {n.title}
                               </h3>
                             </div>
+                            {/* Optional description with text wrapping */}
                             {n.description && (
-                              <p className="text-sm text-muted-foreground truncate break-words">
+                              <p className="text-sm text-muted-foreground break-words overflow-wrap-anywhere max-w-full">
                                 {n.description}
                               </p>
                             )}
-                            <p className="text-xs text-muted-foreground">{created}</p>
+                            {/* Timestamp display */}
+                            <p className="text-xs text-muted-foreground break-words">{created}</p>
                           </div>
                         </CardContent>
                       </Card>
