@@ -33,8 +33,15 @@ export async function POST(req: Request) {
 
     // For real users, check if they exist in the database
     const user = await User.findOne({ phone });
+    console.log(`Looking up user with phone: ${phone}, found:`, user ? `${user.profile?.firstName} ${user.profile?.lastName}` : 'NOT FOUND');
     if (!user) {
       return NextResponse.json({ error: 'This phone number is not authorized.' }, { status: 403 });
+    }
+    
+    // Check if user is authorized
+    if (!user.isAuthorized) {
+      console.log(`User ${phone} exists but is not authorized`);
+      return NextResponse.json({ error: 'This account is not authorized to login.' }, { status: 403 });
     }
 
     // Use Twilio Verify to send OTP
@@ -62,6 +69,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Error in /api/auth/otp/send:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return NextResponse.json({ error: 'Failed to send OTP.', details: errorMessage }, { status: 500 });
+    const isDev = !process.env.NODE_ENV || process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ 
+      error: 'Failed to send OTP.', 
+      details: isDev ? errorMessage : undefined 
+    }, { status: 500 });
   }
 }

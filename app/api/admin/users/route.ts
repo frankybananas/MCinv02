@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connect as dbConnect } from '@/lib/mongodb';
 import User from '@/models/User';
 import { headers } from 'next/headers';
+import parsePhoneNumber from 'libphonenumber-js';
 
 export async function GET(request: Request) {
   const requestHeaders = request.headers;
@@ -38,11 +39,18 @@ export async function POST(request: Request) {
     await dbConnect();
 
     const body = await request.json();
-    const { phone, firstName, lastName, department, role } = body;
+    const { phone: rawPhone, firstName, lastName, department, role } = body;
 
-    if (!phone || !firstName || !lastName || !department || !role) {
+    if (!rawPhone || !firstName || !lastName || !department || !role) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
+
+    // Normalize phone number to E.164 format
+    const phoneNumber = parsePhoneNumber(rawPhone, 'ZA');
+    if (!phoneNumber || !phoneNumber.isValid()) {
+      return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
+    }
+    const phone = phoneNumber.format('E.164');
 
     // Check if user already exists
     const existingUser = await User.findOne({ phone });
@@ -79,7 +87,7 @@ export async function PATCH(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { userId, matchingEnabled, todoEnabled, marketingEnabled, role, department, firstName, lastName, phone } = body || {};
+    const { userId, matchingEnabled, todoEnabled, marketingEnabled, role, department, firstName, lastName, phone: rawPhone } = body || {};
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
@@ -90,7 +98,14 @@ export async function PATCH(request: Request) {
     if (typeof marketingEnabled === 'boolean') set.marketingEnabled = marketingEnabled;
     if (role && ['admin', 'user', 'manager'].includes(role)) set.role = role;
     if (department && ['new', 'used'].includes(department)) set.department = department;
-    if (phone) set.phone = phone;
+    if (rawPhone) {
+      // Normalize phone number to E.164 format
+      const phoneNumber = parsePhoneNumber(rawPhone, 'ZA');
+      if (!phoneNumber || !phoneNumber.isValid()) {
+        return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
+      }
+      set.phone = phoneNumber.format('E.164');
+    }
     if (firstName || lastName) {
       if (firstName) set['profile.firstName'] = firstName;
       if (lastName) set['profile.lastName'] = lastName;
