@@ -513,7 +513,31 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   };
 
   const handleClientDelete = async (clientId: string) => {
-    // API call to delete client
+    try {
+      const confirmed = window.confirm('Are you sure you want to delete this client? This action cannot be undone.');
+      if (!confirmed) return;
+
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete client');
+      }
+
+      toast.success('Client deleted successfully');
+      
+      // Remove the client from the local state
+      setClients((prevClients) => prevClients.filter((c) => c._id !== clientId));
+      
+      // Refresh data to ensure consistency
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete client');
+    }
   };
 
   const handleBack = () => {
