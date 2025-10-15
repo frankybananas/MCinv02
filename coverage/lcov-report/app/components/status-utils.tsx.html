@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">9.09% </span>
+                <span class="strong">63.63% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>1/11</span>
+                <span class='fraction'>7/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">20% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/5</span>
+                <span class='fraction'>1/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">10% </span>
+                <span class="strong">60% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>1/10</span>
+                <span class='fraction'>6/10</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line medium'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -96,21 +96,21 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -125,28 +125,28 @@
 &nbsp;
 import type { CarState } from "../types";
 &nbsp;
-export const <span class="cstat-no" title="statement not covered" >STATUS_OPTIONS:</span> CarState[] = [
+export const STATUS_OPTIONS: CarState[] = [
   "in-stock",
   "coming",
   "reserved",
   "sold",
 ];
 &nbsp;
-export function <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >formatStatusLabel(</span></span>status: CarState): string {
-<span class="cstat-no" title="statement not covered" >  return status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ");</span>
+export function formatStatusLabel(status: CarState): string {
+  return status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ");
 }
 &nbsp;
-export function <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >getStatusColor(</span></span>status: CarState): string {
-<span class="cstat-no" title="statement not covered" >  switch (status) {</span>
+export function getStatusColor(status: CarState): string {
+  switch (status) {
     case "in-stock":
-<span class="cstat-no" title="statement not covered" >      return "bg-green-100 text-green-800";</span>
-    case "coming":
+      return "bg-green-100 text-green-800";
+<span class="branch-1 cbranch-no" title="branch not covered" >    case "coming":</span>
 <span class="cstat-no" title="statement not covered" >      return "bg-blue-100 text-blue-800";</span>
-    case "reserved":
+<span class="branch-2 cbranch-no" title="branch not covered" >    case "reserved":</span>
 <span class="cstat-no" title="statement not covered" >      return "bg-yellow-100 text-yellow-800";</span>
-    case "sold":
+<span class="branch-3 cbranch-no" title="branch not covered" >    case "sold":</span>
 <span class="cstat-no" title="statement not covered" >      return "bg-gray-100 text-gray-800";</span>
-    default:
+<span class="branch-4 cbranch-no" title="branch not covered" >    default:</span>
 <span class="cstat-no" title="statement not covered" >      return "bg-gray-100 text-gray-800";</span>
   }
 }
@@ -157,7 +157,7 @@ export function <span class="cstat-no" title="statement not covered" ><span clas
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-15T11:21:40.049Z
+                at 2025-10-15T14:12:24.629Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

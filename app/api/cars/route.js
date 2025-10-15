@@ -55,6 +55,8 @@ export async function POST(request) {
       if (['year', 'price', 'kilometers'].includes(key)) {
         const num = key === 'price' ? Number(value) : parseInt(String(value), 10);
         if (!Number.isNaN(num)) carData[key] = num;
+      } else if (['demo', 'doNotAdvertise'].includes(key)) {
+        carData[key] = value === 'true' || value === true;
       } else {
         carData[key] = value;
       }

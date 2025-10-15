@@ -149,10 +149,13 @@ jest.mock('next/navigation', () => {
   };
 });
 
-Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
-  writable: true,
-  value: jest.fn(),
-});
+// Only define window-specific mocks in jsdom environment
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
+    writable: true,
+    value: jest.fn(),
+  });
+}
 
 if (typeof URL.createObjectURL !== 'function') {
   Object.defineProperty(global.URL, 'createObjectURL', {
@@ -176,8 +179,10 @@ class ResizeObserverMock {
   disconnect() {}
 }
 
-Object.defineProperty(window, 'ResizeObserver', {
-  writable: true,
-  configurable: true,
-  value: ResizeObserverMock,
-});
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'ResizeObserver', {
+    writable: true,
+    configurable: true,
+    value: ResizeObserverMock,
+  });
+}

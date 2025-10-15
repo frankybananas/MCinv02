@@ -20,7 +20,10 @@ export function Marketing({ cars, onGenerationComplete }: MarketingProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const marketingCars = useMemo(() => {
-    return cars.filter((car) => car.status === 'in-stock' || car.status === 'reserved');
+    return cars.filter((car) => 
+      (car.status === 'in-stock' || car.status === 'reserved') && 
+      !car.doNotAdvertise
+    );
   }, [cars]);
 
   const handleSelectAll = () => {

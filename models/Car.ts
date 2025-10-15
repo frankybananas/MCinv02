@@ -56,6 +56,10 @@ const carSchema = new mongoose.Schema({
     cost: Number,
     mileage: Number,
   }],
+  doNotAdvertise: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

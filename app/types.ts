@@ -131,6 +131,7 @@ export interface Car {
   features?: string[]
   status: CarState
   demo?: boolean
+  doNotAdvertise?: boolean
   reservedBy?: string
   createdAt: string
   auditLog: AuditLogEntry[]

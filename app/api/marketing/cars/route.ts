@@ -8,10 +8,14 @@ export async function GET(request: NextRequest) {
     const { userId } = await requireSession(request);
     await connect();
 
-    // Get cars with status in-stock or reserved that have images
+    // Get cars with status in-stock or reserved that have images and are not marked as Do Not Advertise
     const cars = await Car.find({
       status: { $in: ['in-stock', 'reserved'] },
-      images: { $exists: true, $not: { $size: 0 } }
+      images: { $exists: true, $not: { $size: 0 } },
+      $or: [
+        { doNotAdvertise: { $exists: false } },
+        { doNotAdvertise: false }
+      ]
     }).populate('images');
 
     // Return car data for marketing page

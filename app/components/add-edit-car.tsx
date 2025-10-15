@@ -57,6 +57,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     vin: car?.vin ?? '',
     notes: car?.notes ?? '',
     demo: car?.demo ?? false,
+    doNotAdvertise: car?.doNotAdvertise ?? false,
   });
 
   // MRU suggestions for Make/Model
@@ -388,6 +389,9 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                           {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
                             <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
                           )}
+                          {formData.doNotAdvertise && (
+                            <span className="absolute top-8 left-1 bg-white text-black font-bold text-xs sm:text-sm px-2 py-1 rounded border-2 border-red-600" data-testid="dna-badge">DNA</span>
+                          )}
                           <Button
                             type="button"
                             variant="destructive"
@@ -595,6 +599,20 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       />
                       <label htmlFor="demo" className="text-xs sm:text-sm font-medium text-gray-900">
                         Dealership Demo Vehicle
+                      </label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="doNotAdvertise"
+                        checked={formData.doNotAdvertise}
+                        onChange={(e) => handleInputChange("doNotAdvertise", e.target.checked)}
+                        className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                        data-testid="do-not-advertise-checkbox"
+                      />
+                      <label htmlFor="doNotAdvertise" className="text-xs sm:text-sm font-medium text-gray-900">
+                        Do Not Advertise
                       </label>
                     </div>
                   </CardContent>

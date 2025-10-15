@@ -204,10 +204,12 @@ export async function PUT(request, { params }) {
 
       // Handle other form fields
       for (const [key, value] of data.entries()) {
-        if (key !== 'images' && key !== 'existingImages' && key !== 'imageTitles') {
+        if (key !== 'images' && key !== 'existingImages' && key !== 'imageTitles' && key !== 'imageOrder') {
           if (['year', 'price', 'kilometers'].includes(key)) {
             const num = key === 'price' ? Number(value) : parseInt(String(value), 10);
             if (!Number.isNaN(num)) updateData[key] = num;
+          } else if (['demo', 'doNotAdvertise'].includes(key)) {
+            updateData[key] = value === 'true' || value === true;
           } else {
             updateData[key] = value;
           }

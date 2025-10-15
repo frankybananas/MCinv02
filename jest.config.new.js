@@ -11,4 +11,7 @@ const createJestConfig = nextJest({
 /** @type {import('jest').Config} */
 module.exports = createJestConfig({
   testMatch: ['**/__tests__/**/*.test.(ts|tsx|js)'],
+  testEnvironmentOptions: {
+    customExportConditions: ['node', 'node-addons'],
+  },
 });

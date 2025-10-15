@@ -325,6 +325,9 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                       fetchPriority="high"
                       onClick={() => setIsLightboxOpen(true)}
                     />
+                    {car.doNotAdvertise && (
+                      <span className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white text-black font-bold text-sm sm:text-base px-3 py-1.5 rounded border-2 border-red-600 shadow-lg" data-testid="dna-badge">DNA</span>
+                    )}
                     {images.length > 1 && (
                       <>
                         {/* Index badge */}
@@ -360,17 +363,21 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     <ScrollArea className="mt-2 sm:mt-4">
                       <div className="flex gap-2 pb-2">
                         {images.map((image, index) => (
-                          <img
-                            key={image.id || index}
-                            src={(image as any).thumbnailUrl || image.imageUrl || "/placeholder.svg"}
-                            alt={`View ${index + 1}`}
-                            className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 flex-shrink-0 ${
-                              index === currentImageIndex ? "border-primary" : "border-transparent"
-                            }`}
-                            loading="lazy"
-                            decoding="async"
-                            onClick={() => setCurrentImageIndex(index)}
-                          />
+                          <div key={image.id || index} className="relative flex-shrink-0">
+                            <img
+                              src={(image as any).thumbnailUrl || image.imageUrl || "/placeholder.svg"}
+                              alt={`View ${index + 1}`}
+                              className={`w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md cursor-pointer border-2 ${
+                                index === currentImageIndex ? "border-primary" : "border-transparent"
+                              }`}
+                              loading="lazy"
+                              decoding="async"
+                              onClick={() => setCurrentImageIndex(index)}
+                            />
+                            {car.doNotAdvertise && (
+                              <span className="absolute top-0.5 left-0.5 bg-white text-black font-bold text-[8px] px-1 py-0.5 rounded border border-red-600">DNA</span>
+                            )}
+                          </div>
                         ))}
                       </div>
                       <ScrollBar orientation="horizontal" />
