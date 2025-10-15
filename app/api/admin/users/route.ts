@@ -79,7 +79,7 @@ export async function PATCH(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const { userId, matchingEnabled, todoEnabled } = body || {};
+    const { userId, matchingEnabled, todoEnabled, marketingEnabled, role, department, firstName, lastName, phone } = body || {};
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
@@ -87,6 +87,14 @@ export async function PATCH(request: Request) {
     const set: Record<string, any> = {};
     if (typeof matchingEnabled === 'boolean') set.matchingEnabled = matchingEnabled;
     if (typeof todoEnabled === 'boolean') set.todoEnabled = todoEnabled;
+    if (typeof marketingEnabled === 'boolean') set.marketingEnabled = marketingEnabled;
+    if (role && ['admin', 'user', 'manager'].includes(role)) set.role = role;
+    if (department && ['new', 'used'].includes(department)) set.department = department;
+    if (phone) set.phone = phone;
+    if (firstName || lastName) {
+      if (firstName) set['profile.firstName'] = firstName;
+      if (lastName) set['profile.lastName'] = lastName;
+    }
     if (Object.keys(set).length === 0) {
       return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 });
     }
@@ -97,7 +105,35 @@ export async function PATCH(request: Request) {
     }
     return NextResponse.json({ success: true, user: updated });
   } catch (error) {
-    console.error('Error updating user flags:', error);
+    console.error('Error updating user:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const requestHeaders = request.headers;
+  const userRole = requestHeaders.get('x-user-role');
+  if (userRole !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
+  }
+
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    const deleted = await User.findByIdAndDelete(userId);
+    if (!deleted) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    
+    return NextResponse.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

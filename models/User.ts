@@ -8,6 +8,7 @@ export interface IUser extends Document {
   department: 'new' | 'used';
   matchingEnabled?: boolean;
   todoEnabled?: boolean;
+  marketingEnabled?: boolean;
   notificationsDoneIds?: string[];
   profile?: {
     firstName?: string;
@@ -33,6 +34,7 @@ const UserSchema = new Schema<IUser>({
   department: { type: String, enum: ['new', 'used'], required: true },
   matchingEnabled: { type: Boolean, default: true },
   todoEnabled: { type: Boolean, default: false },
+  marketingEnabled: { type: Boolean, default: false },
   notificationsDoneIds: { type: [String], default: [] },
   profile: {
     firstName: { type: String, trim: true },
