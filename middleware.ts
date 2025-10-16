@@ -39,17 +39,21 @@ export async function middleware(request: NextRequest) {
     const secret = new TextEncoder().encode(jwtSecret);
     const { payload } = await jwtVerify(token, secret);
 
-    // Enforce daily OTP: if the token's otpDay is not today (ZA timezone), force re-auth
-    // Use Intl.DateTimeFormat to avoid parsing localized strings back into Date objects
-    const todayZa = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Africa/Johannesburg',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date()); // en-CA yields YYYY-MM-DD
-    const tokenOtpDay = (payload as any).otpDay as string | undefined;
-    if (!tokenOtpDay || tokenOtpDay !== todayZa) {
-      // Clear cookie and redirect to login for fresh OTP
+    // Enforce 7-day OTP: if more than 7 days have passed since lastOtpAt, force re-auth
+    const tokenLastOtpAt = (payload as any).lastOtpAt as number | undefined;
+    if (!tokenLastOtpAt) {
+      // Token missing lastOtpAt (old format), force re-auth
+      const res = redirectToLogin(request);
+      res.cookies.delete('session_token');
+      return res;
+    }
+    
+    const now = Date.now();
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+    const timeSinceLastOtp = now - tokenLastOtpAt;
+    
+    if (timeSinceLastOtp >= sevenDaysInMs) {
+      // More than 7 days have passed, clear cookie and redirect to login for fresh OTP
       const res = redirectToLogin(request);
       res.cookies.delete('session_token');
       return res;

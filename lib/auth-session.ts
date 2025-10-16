@@ -6,7 +6,7 @@ export interface SessionData {
   phone: string
   role: string | null
   userId: string | null
-  otpDay?: string | null
+  lastOtpAt?: number | null
   payload: JWTPayload
 }
 
@@ -46,14 +46,14 @@ export async function getSession(request: Request): Promise<SessionData | null> 
 
     const role = typeof payload.role === 'string' ? payload.role : null
     const userId = typeof payload.userId === 'string' ? payload.userId : null
-    const otpDay = typeof payload.otpDay === 'string' ? payload.otpDay : null
+    const lastOtpAt = typeof payload.lastOtpAt === 'number' ? payload.lastOtpAt : null
 
     return {
       token,
       phone,
       role,
       userId,
-      otpDay,
+      lastOtpAt,
       payload,
     }
   } catch (err) {

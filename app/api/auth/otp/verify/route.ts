@@ -102,16 +102,11 @@ export async function POST(request: Request) {
       const jwtId = uuidv4();
       const secret = new TextEncoder().encode(jwtSecret);
 
-      // Compute the current day in the primary usage timezone (Africa/Johannesburg)
-      // Use Intl.DateTimeFormat to reliably get YYYY-MM-DD without reparsing
-      const otpDay = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Africa/Johannesburg',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date()); // en-CA yields YYYY-MM-DD
+      // Store the timestamp when OTP was verified for 7-day validation
+      const now = new Date();
+      const lastOtpAt = now.getTime(); // Unix timestamp in milliseconds
 
-      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role, otpDay })
+      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role, lastOtpAt })
         .setProtectedHeader({ alg: 'HS256' })
         .setJti(jwtId)
         .setIssuedAt()
@@ -119,7 +114,6 @@ export async function POST(request: Request) {
         .sign(secret);
 
       // 5. Create a new session record with device tracking
-      const now = new Date();
       const newSession = new Session({
         phoneNumber: phone,
         userId: user._id,
