@@ -11,16 +11,15 @@ jest.mock('@/lib/image-download', () => ({
 }))
 
 // Mock window.open
-const mockWindowOpen = jest.fn()
-global.window.open = mockWindowOpen
+const mockWindowOpen = jest.fn<Window | null, [string, string]>(() => ({
+  closed: false,
+  close: jest.fn(),
+} as any))
+global.window.open = mockWindowOpen as any
 
-// Mock global.alert
-global.alert = jest.fn()
-
-// Note: We can't easily mock window.location.href in jsdom
-// So we'll just verify the code compiles and runs without errors
-// The actual WhatsApp URL opening will be tested manually on device
-let capturedWhatsAppUrl = ''
+// Mock console methods
+global.console.warn = jest.fn()
+global.console.error = jest.fn()
 
 const mockCar: Car = {
   _id: '1',
@@ -52,8 +51,10 @@ const mockProps = {
 describe('CarDetail Share Functionality', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    // Reset captured WhatsApp URL
-    capturedWhatsAppUrl = ''
+    mockWindowOpen.mockReturnValue({
+      closed: false,
+      close: jest.fn(),
+    } as any)
     ;(imageDownload.downloadCarImages as jest.Mock).mockResolvedValue({
       success: true,
       filesDownloaded: 3,
@@ -79,18 +80,26 @@ describe('CarDetail Share Functionality', () => {
       )
     })
 
-    // Should show success alert
+    // Should open WhatsApp with proper URL
     await waitFor(() => {
-      expect(global.alert).toHaveBeenCalledWith(
-        expect.stringContaining('Downloaded 3 image(s)')
-      )
+      expect(mockWindowOpen).toHaveBeenCalled()
     })
 
-    // Should complete without errors (actual WhatsApp opening tested manually)
-    await waitFor(() => {
-      // Just verify the function completed
-      expect(global.alert).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    expect(mockWindowOpen).toHaveBeenCalledWith(
+      expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+      '_blank'
+    )
+    
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    
+    // Decode and verify the message content
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
+    expect(decodedText).toContain('2024 BMW M3 Competition')
+    expect(decodedText).toMatch(/Price:\s*R\s*1\s*899\s*000/)
+    expect(decodedText).toMatch(/Kilometers:\s*12\s*000\s*km/)
+    expect(decodedText).toContain('Color: Grey')
+    expect(decodedText).toContain('Transmission: automatic')
   })
 
   test('should handle download failure gracefully', async () => {
@@ -107,16 +116,22 @@ describe('CarDetail Share Functionality', () => {
     const shareButton = screen.getByRole('button', { name: /share/i })
     fireEvent.click(shareButton)
 
-    // Should show failure alert
+    // Should log warning about download failure
     await waitFor(() => {
-      expect(global.alert).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to download images')
+      expect(console.warn).toHaveBeenCalledWith(
+        'Image download failed:',
+        expect.arrayContaining([{ url: 'https://example.com/img1.jpg', error: 'Failed' }])
       )
     })
 
-    // Should still attempt to open WhatsApp app (even if download failed)
-    // Note: Uses window.location.href which we can't easily test in jsdom
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Should still attempt to open WhatsApp (even if download failed)
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    expect(whatsappUrl).toMatch(/^whatsapp:\/\/send\?text=/)
   })
 
   test('should work without contact details when dealer info not loaded', async () => {
@@ -131,11 +146,18 @@ describe('CarDetail Share Functionality', () => {
     const shareButton = screen.getByRole('button', { name: /share/i })
     fireEvent.click(shareButton)
 
-    // Should complete without errors
+    // Should still open WhatsApp without contact info
     await waitFor(() => {
-      // Function should complete
-      expect(true).toBe(true)
-    }, { timeout: 3000 })
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
+    
+    // Should have car details but no contact section
+    expect(decodedText).toContain('2024 BMW M3 Competition')
+    expect(decodedText).not.toContain('Your Sales Contact:')
   })
 
   test('should not include image URLs in main WhatsApp message', async () => {
@@ -144,10 +166,17 @@ describe('CarDetail Share Functionality', () => {
     const shareButton = screen.getByRole('button', { name: /share/i })
     fireEvent.click(shareButton)
 
-    // Should complete without errors
     await waitFor(() => {
-      expect(true).toBe(true)
-    }, { timeout: 3000 })
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
+    
+    // Should NOT include image URLs (images are downloaded separately)
+    expect(decodedText).not.toContain('Sample Photos:')
+    expect(decodedText).not.toContain('https://example.com/img1.jpg')
   })
 
   test('should fallback to image links if download throws error', async () => {
@@ -163,8 +192,9 @@ describe('CarDetail Share Functionality', () => {
       expect(mockWindowOpen).toHaveBeenCalled()
     })
 
-    const whatsappUrl = mockWindowOpen.mock.calls[0][0] as string
-    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1])
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     
     // Fallback should include image links
     expect(decodedText).toContain('Sample Photos:')
@@ -179,13 +209,17 @@ describe('CarDetail Share Functionality', () => {
     const shareButton = screen.getByRole('button', { name: /share/i })
     fireEvent.click(shareButton)
 
-    // Should complete without errors (no download attempt since no images)
-    await waitFor(() => {
-      expect(true).toBe(true)
-    }, { timeout: 3000 })
-    
     // Verify download was not called since there are no images
     expect(imageDownload.downloadCarImages).not.toHaveBeenCalled()
+    
+    // Should still open WhatsApp with text
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    expect(whatsappUrl).toMatch(/^whatsapp:\/\/send\?text=/)
   })
 
   test('should show download progress while downloading', async () => {
@@ -217,5 +251,96 @@ describe('CarDetail Share Functionality', () => {
       const progressText = screen.queryByText(/3\/3/)
       expect(progressText).toBeInTheDocument()
     })
+    
+    // Should eventually open WhatsApp
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+  })
+
+  test('should fallback to web WhatsApp if app URL fails to open', async () => {
+    // Mock window.open to return null (blocked popup)
+    mockWindowOpen.mockReturnValueOnce(null)
+
+    render(<CarDetail {...mockProps} />)
+    
+    const shareButton = screen.getByRole('button', { name: /share/i })
+    fireEvent.click(shareButton)
+
+    // Should try to open app URL first
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
+    })
+
+    // Should fallback to web WhatsApp after delay
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:\/\/wa\.me\/\?text=/),
+        '_blank'
+      )
+    }, { timeout: 1000 })
+  })
+
+  test('should include contact details when dealer info is loaded', async () => {
+    // Mock the /api/auth/me endpoint to return dealer info BEFORE rendering
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          firstName: 'John',
+          lastName: 'Doe',
+          phone: '+27824544656',
+          email: 'john@example.com',
+        },
+      }),
+    })
+
+    render(<CarDetail {...mockProps} />)
+    
+    // Wait for dealer info to load (useEffect completes)
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/auth/me')
+    })
+
+    // Give extra time for state update
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const shareButton = screen.getByRole('button', { name: /share/i })
+    fireEvent.click(shareButton)
+
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
+    
+    // Should include contact section
+    expect(decodedText).toContain('Your Sales Contact:')
+    expect(decodedText).toContain('Name: John Doe')
+    expect(decodedText).toContain('Mobile: +27824544656')
+    expect(decodedText).toContain('Email: john@example.com')
+  })
+
+  test('should include car description in WhatsApp message', async () => {
+    render(<CarDetail {...mockProps} />)
+    
+    const shareButton = screen.getByRole('button', { name: /share/i })
+    fireEvent.click(shareButton)
+
+    await waitFor(() => {
+      expect(mockWindowOpen).toHaveBeenCalled()
+    })
+
+    const whatsappUrl = mockWindowOpen.mock.calls[0]?.[0] as string
+    expect(whatsappUrl).toBeDefined()
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
+    
+    expect(decodedText).toContain('Stunning performance sedan')
   })
 })

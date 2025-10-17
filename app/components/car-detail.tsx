@@ -119,10 +119,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
         setDownloadProgress({ current: 0, total: 0 })
         
         if (!result.success) {
-          alert('Failed to download images. Opening WhatsApp with text only.')
-        } else {
-          // Give user feedback that images are ready
-          alert(`Downloaded ${result.filesDownloaded} image(s). Opening WhatsApp - you can now attach these images from your gallery.`)
+          console.warn('Image download failed:', result.errors)
         }
       }
       
@@ -132,23 +129,29 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
       
       // Combine texts (no instruction needed - images already downloaded)
       const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
-      
-      // Small delay to ensure download completes
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Try to open WhatsApp app directly (works for both WhatsApp and WhatsApp Business)
       const encodedText = encodeURIComponent(fullText)
-      const appUrl = `whatsapp://send?text=${encodedText}`
       
-      // On mobile, try to open the app directly
-      // The whatsapp:// scheme works for both regular WhatsApp and WhatsApp Business
-      if (typeof window !== 'undefined') {
-        window.location.href = appUrl
+      // Try multiple WhatsApp URL schemes for better compatibility
+      // 1. Try whatsapp:// (works on most mobile devices)
+      // 2. Fallback to https://wa.me/ (works on all platforms)
+      const whatsappUrl = `whatsapp://send?text=${encodedText}`
+      const webWhatsappUrl = `https://wa.me/?text=${encodedText}`
+      
+      // Use window.open() instead of window.location.href for better mobile compatibility
+      // This works more reliably after async operations
+      const opened = window.open(whatsappUrl, '_blank')
+      
+      // If window.open was blocked or failed, try web WhatsApp as fallback
+      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+        // Small delay before fallback
+        setTimeout(() => {
+          window.open(webWhatsappUrl, '_blank')
+        }, 500)
       }
       
     } catch (error) {
       console.error('Share error:', error)
-      // Fallback: Just open WhatsApp with text and image links
+      // Final fallback: Just open web WhatsApp with text and image links
       const fallbackText = buildShareText(true) + '\n\n' + buildContactText()
       const wa = `https://wa.me/?text=${encodeURIComponent(fallbackText)}`
       window.open(wa, '_blank')
