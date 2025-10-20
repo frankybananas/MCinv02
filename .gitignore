@@ -25,3 +25,6 @@ yarn-error.log*
 next-env.d.ts
 # Local Netlify folder
 .netlify
+
+# Ignore Coverage Output
+coverage/
