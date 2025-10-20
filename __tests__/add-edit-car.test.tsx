@@ -116,9 +116,56 @@ describe('AddEditCar image interactions', () => {
     expect(entries.some(([key]) => key === 'images')).toBe(true);
   });
 
+  it('moves selected image to first when using Set as Cover', async () => {
+    render(<AddEditCar {...baseProps()} />);
+
+    // Initially, first tile should be img-1
+    const before = screen.getAllByTestId('car-image-tile');
+    expect(before[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+
+    // Open role modal on second image (img-2)
+    const editBtn = within(before[1]).getByRole('button', { name: /edit image roles/i });
+    fireEvent.click(editBtn);
+
+    // Click Set as Cover
+    const setCover = await screen.findByRole('button', { name: /set as cover/i });
+    fireEvent.click(setCover);
+
+    // After action, first tile should now be img-2
+    const after = screen.getAllByTestId('car-image-tile');
+    expect(after[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
+  });
+
+  it('persists new order after Set as Cover on save', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    render(<AddEditCar {...baseProps({ onSave })} />);
+
+    // Make second image cover
+    const tiles = screen.getAllByTestId('car-image-tile');
+    const editBtn = within(tiles[1]).getByRole('button', { name: /edit image roles/i });
+    fireEvent.click(editBtn);
+    const setCover = await screen.findByRole('button', { name: /set as cover/i });
+    fireEvent.click(setCover);
+
+    // Save
+    fireEvent.click(screen.getByRole('button', { name: /save car/i }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const formDataArg = onSave.mock.calls[0][0] as FormData;
+    const entries = Array.from(formDataArg.entries());
+    const imageOrder = entries.filter(([key]) => key === 'imageOrder').map(([, value]) => String(value));
+
+    // New order should start with img-2 then img-1 then img-3
+    expect(imageOrder.slice(0, 3)).toEqual([
+      expect.stringContaining('img-2'),
+      expect.stringContaining('img-1'),
+      expect.stringContaining('img-3'),
+    ]);
+  });
+});
+
   // Reordering delay/threshold tests removed.
 
   // Reordering cancellation test removed.
 
   // Reordering small-movement test removed.
-});

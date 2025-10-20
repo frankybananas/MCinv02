@@ -239,10 +239,19 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
 
   // Handle setting/unsetting image roles
   const handleSetCover = (index: number) => {
-    setCoverImageIndex(index);
-    // If this image was VIN, unset it
+    setDisplayedImages((prev) => {
+      if (index < 0 || index >= prev.length) return prev;
+      const selected = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      const next = [selected, ...rest];
+      return next;
+    });
+
+    setCoverImageIndex(0);
     if (index === vinImageIndex) {
       setVinImageIndex(null);
+    } else if (vinImageIndex !== null && vinImageIndex < index) {
+      setVinImageIndex(vinImageIndex + 1);
     }
   };
 
