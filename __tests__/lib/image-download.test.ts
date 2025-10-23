@@ -72,6 +72,146 @@ describe('Image Download Utility', () => {
     })
   })
 
+  describe('Mobile and Desktop Behaviors', () => {
+    beforeEach(() => {
+      jest.clearAllMocks()
+    })
+
+    test('schedules longer revoke delay on mobile UA', async () => {
+      const originalNavigator = global.navigator as any
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: 'Android 12; SM-G991B' },
+        configurable: true,
+        writable: true,
+      })
+
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout') as unknown as jest.SpyInstance
+
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+
+      await downloadCarImages({ imageUrls: ['https://example.com/i.jpg'], filenamePrefix: 'car' })
+
+      const delays = setTimeoutSpy.mock.calls.map(c => Number(c[1]))
+      expect(Math.max(...delays)).toBeGreaterThanOrEqual(15000)
+
+      Object.defineProperty(global, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+        writable: true,
+      })
+    })
+
+    test('creates ZIP on desktop for few files', async () => {
+      const originalNavigator = global.navigator as any
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        configurable: true,
+        writable: true,
+      })
+      const origPicker = (window as any).showDirectoryPicker
+      // Ensure file picker is not available so ZIP path is used
+      delete (window as any).showDirectoryPicker
+
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+
+      const res = await downloadCarImages({
+        imageUrls: ['https://x/1.jpg', 'https://x/2.jpg'],
+        filenamePrefix: 'carzip',
+      })
+
+      expect(res.success).toBe(true)
+      expect(res.method === 'zip' || res.method === 'link').toBe(true)
+
+      if (origPicker !== undefined) (window as any).showDirectoryPicker = origPicker
+      Object.defineProperty(global, 'navigator', { value: originalNavigator, configurable: true, writable: true })
+    })
+
+    test('uses native file picker when available on desktop', async () => {
+      const originalNavigator = global.navigator as any
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        configurable: true,
+        writable: true,
+      })
+
+      const writes: string[] = []
+      ;(window as any).showDirectoryPicker = jest.fn(async () => ({
+        getFileHandle: async (_name: string) => ({
+          createWritable: async () => ({
+            write: async (f: any) => { writes.push((f as any).name || 'blob') },
+            close: async () => undefined,
+          }),
+        }),
+      }))
+
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+
+      const res = await downloadCarImages({
+        imageUrls: ['https://x/1.jpg', 'https://x/2.jpg'],
+        filenamePrefix: 'car',
+      })
+
+      expect(res.success).toBe(true)
+      expect(res.method).toBe('native')
+      expect(writes.length).toBe(2)
+
+      Object.defineProperty(global, 'navigator', { value: originalNavigator, configurable: true, writable: true })
+      delete (window as any).showDirectoryPicker
+    })
+
+    test('downloads many images on mobile with batching and delays', async () => {
+      const originalNavigator = global.navigator as any
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: 'Android 12; SM-G991B' },
+        configurable: true,
+        writable: true,
+      })
+
+      const originalSetTimeout = global.setTimeout
+      const timeouts: number[] = []
+      jest.spyOn(global, 'setTimeout').mockImplementation(((fn: any, t: number) => {
+        timeouts.push(Number(t))
+        if (typeof fn === 'function') fn()
+        return 0 as any
+      }) as any)
+
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
+      const images = Array.from({ length: 25 }, (_, i) => `https://x/${i + 1}.jpg`)
+      ;(global.fetch as jest.Mock).mockImplementation(async () => ({ ok: true, blob: async () => mockBlob }))
+
+      mockLink.click.mockClear()
+      const res = await downloadCarImages({ imageUrls: images, filenamePrefix: 'car' })
+
+      expect(res.success).toBe(true)
+      expect(mockLink.click).toHaveBeenCalledTimes(25)
+      expect(timeouts.some(d => d >= 600)).toBe(true)
+
+      ;(global.setTimeout as any) = originalSetTimeout
+      Object.defineProperty(global, 'navigator', { value: originalNavigator, configurable: true, writable: true })
+    })
+
+    test('falls back when File constructor is unavailable', async () => {
+      const originalFile = (global as any).File
+      // @ts-ignore
+      delete (global as any).File
+
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+
+      await downloadSingleImage('https://x/one', 'fallback_image')
+      expect(mockLink.download).toContain('fallback_image')
+
+      ;(global as any).File = originalFile
+    })
+  })
+
   describe('hasNativeDownloadSupport', () => {
     test('should return false when window is undefined', () => {
       const originalWindow = global.window

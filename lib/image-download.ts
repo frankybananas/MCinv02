@@ -41,6 +41,20 @@ export interface DownloadResult {
   method: 'native' | 'link' | 'zip' | 'failed'
 }
 
+function makeFileFromBlob(blob: Blob, filename: string, type: string): File {
+  try {
+    return new File([blob], filename, { type })
+  } catch {
+    const wrapped = new Blob([blob], { type }) as any
+    try {
+      Object.defineProperty(wrapped, 'name', { value: filename, configurable: true })
+    } catch {
+      ;(wrapped as any).name = filename
+    }
+    return wrapped as File
+  }
+}
+
 /**
  * Fetch an image from URL and convert to File object
  */
@@ -66,7 +80,7 @@ async function fetchImageAsFile(
   const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'
   const finalFilename = filename.endsWith(`.${ext}`) ? filename : `${filename}.${ext}`
 
-  return new File([blob], finalFilename, { type })
+  return makeFileFromBlob(blob, finalFilename, type)
 }
 
 /**
@@ -102,7 +116,7 @@ async function fetchImagesViaProxy(
         const blob = new Blob([ab], { type: img.type })
         const ext = img.type.includes('png') ? 'png' : img.type.includes('webp') ? 'webp' : 'jpg'
         const filename = `${filenamePrefix}_${img.index + 1}.${ext}`
-        files.push(new File([blob], filename, { type: img.type }))
+        files.push(makeFileFromBlob(blob, filename, img.type))
       }
     }
     return files
@@ -154,26 +168,12 @@ function downloadViaLink(file: File): void {
   document.body.removeChild(link)
 
   // Clean up blob URL after a delay
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  const revokeDelay = isMobile ? 15000 : 3000
+  setTimeout(() => URL.revokeObjectURL(url), revokeDelay)
 }
 
-/**
- * Create a ZIP file from multiple images (requires JSZip)
- */
-async function createZipFile(files: File[], zipFilename: string): Promise<File> {
-  // Dynamic import to avoid bundling if not used
-  const JSZip = (await import('jszip')).default
-
-  const zip = new JSZip()
-
-  for (const file of files) {
-    const arrayBuffer = await file.arrayBuffer()
-    zip.file(file.name, arrayBuffer)
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' })
-  return new File([blob], zipFilename, { type: 'application/zip' })
-}
+ 
 
 /**
  * Main function to download all images from a car
@@ -195,65 +195,39 @@ export async function downloadCarImages(
     return { ...result, success: true, method: 'native' }
   }
 
-  // Step 1: Fetch all images as File objects
+  // Step 1: Fetch all images as File objects directly first
   const files: File[] = []
   const abortController = new AbortController()
-
-  // Partition URLs: same-origin can be fetched directly; cross-origin go via proxy first
-  const locOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-  const sameOrigin: Array<{ url: string; index: number }> = []
-  const crossOrigin: Array<{ url: string; index: number }> = []
+  const failedDirect: Array<{ url: string; index: number }> = []
 
   for (let i = 0; i < imageUrls.length; i++) {
     const url = imageUrls[i]
     try {
-      const u = new URL(url)
-      if (locOrigin && u.origin === locOrigin) {
-        sameOrigin.push({ url, index: i })
-      } else {
-        crossOrigin.push({ url, index: i })
-      }
-    } catch {
-      // Malformed URL, treat as cross-origin so proxy handles/filters it
-      crossOrigin.push({ url, index: i })
-    }
-  }
-
-  // 1) Fetch cross-origin via proxy (avoids CORS entirely)
-  if (crossOrigin.length > 0) {
-    const proxiedFiles = await fetchImagesViaProxy(
-      crossOrigin.map(c => c.url),
-      filenamePrefix
-    )
-    files.push(...proxiedFiles)
-    // Record errors for any proxied URLs that didn't return
-    if (proxiedFiles.length < crossOrigin.length) {
-      const returned = new Set(
-        proxiedFiles.map(f => f.name.replace(/^.*_(\d+)\.[^.]+$/, '$1'))
-      )
-      for (const c of crossOrigin) {
-        const idxStr = String(c.index + 1)
-        if (!returned.has(idxStr)) {
-          result.errors.push({ url: c.url, error: 'Proxy fetch failed' })
-          onError?.(new Error('Proxy fetch failed'), c.url)
-        }
-      }
-    }
-    // Update progress as if fetched all cross-origin first
-    onProgress?.(Math.min(crossOrigin.length, imageUrls.length), imageUrls.length)
-  }
-
-  // 2) Fetch same-origin directly
-  for (const item of sameOrigin) {
-    try {
-      const filename = `${filenamePrefix}_${item.index + 1}`
-      const file = await fetchImageAsFile(item.url, filename, abortController.signal)
+      const filename = `${filenamePrefix}_${i + 1}`
+      const file = await fetchImageAsFile(url, filename, abortController.signal)
       files.push(file)
       onProgress?.(Math.min(files.length, imageUrls.length), imageUrls.length)
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
-      result.errors.push({ url: item.url, error: err.message })
-      onError?.(err, item.url)
+      failedDirect.push({ url, index: i })
+      result.errors.push({ url, error: err.message })
+      onError?.(err, url)
+    }
+  }
+
+  // Step 1b: Attempt to fetch any failed URLs via server proxy
+  if (failedDirect.length > 0) {
+    try {
+      const proxiedFiles = await fetchImagesViaProxy(
+        failedDirect.map(f => f.url),
+        filenamePrefix
+      )
+      if (proxiedFiles.length > 0) {
+        files.push(...proxiedFiles)
+        onProgress?.(Math.min(files.length, imageUrls.length), imageUrls.length)
+      }
+    } catch {
+      // ignore, errors already recorded above
     }
   }
 
@@ -281,7 +255,8 @@ export async function downloadCarImages(
   // Step 2: Try native methods first (mobile share, file picker)
   try {
     // On mobile: Try native share API only for small batches (mobile has limits)
-    if (navigator.share && typeof (navigator as any).canShare === 'function' && files.length <= 10) {
+    const isMobileUA = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    if (isMobileUA && navigator.share && typeof (navigator as any).canShare === 'function' && files.length <= 10) {
       const shareData: ShareData = {
         files,
         title: `${filenamePrefix} Images`,
@@ -316,28 +291,22 @@ export async function downloadCarImages(
       const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
       
       if (isMobile || files.length > 10) {
-        // Download files individually with delays
-        for (const file of files) {
+        const perDelay = isMobile ? 600 : 200
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
           downloadViaLink(file)
-          // Small delay between downloads to avoid browser blocking
-          await new Promise(resolve => setTimeout(resolve, 150))
+          await new Promise(resolve => setTimeout(resolve, perDelay))
+          if (isMobile && (i + 1) % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 1200))
+          }
         }
         return { ...result, success: true, method: 'link' }
       } else {
-        // Desktop with few files: create ZIP
-        try {
-          const zipFilename = `${filenamePrefix}_images.zip`
-          const zipFile = await createZipFile(files, zipFilename)
-          downloadViaLink(zipFile)
-          return { ...result, success: true, method: 'zip' }
-        } catch (zipError) {
-          // If ZIP creation fails, download individually
-          for (const file of files) {
-            downloadViaLink(file)
-            await new Promise(resolve => setTimeout(resolve, 150))
-          }
-          return { ...result, success: true, method: 'link' }
+        for (const file of files) {
+          downloadViaLink(file)
+          await new Promise(resolve => setTimeout(resolve, 200))
         }
+        return { ...result, success: true, method: 'link' }
       }
     }
   } catch (error) {

@@ -61,9 +61,20 @@ if (typeof (global as any).Response === 'undefined') {
   class SimpleResponse {
     status: number;
     private _body: any;
+    headers: { get: (k: string) => string | null };
     constructor(body?: any, init?: { status?: number }) {
       this._body = body ?? '';
       this.status = init?.status ?? 200;
+      const hdrs = new Map<string, string>();
+      const incoming: any = (init as any)?.headers || {};
+      if (incoming && typeof incoming.forEach === 'function') {
+        incoming.forEach((v: any, k: string) => hdrs.set(String(k).toLowerCase(), String(v)));
+      } else if (Array.isArray(incoming)) {
+        for (const [k, v] of incoming) hdrs.set(String(k).toLowerCase(), String(v));
+      } else {
+        Object.entries(incoming).forEach(([k, v]) => hdrs.set(k.toLowerCase(), String(v as any)));
+      }
+      this.headers = { get: (k: string) => hdrs.get(k.toLowerCase()) ?? null };
     }
     get ok() { return this.status >= 200 && this.status < 300; }
     async json() {
@@ -73,6 +84,14 @@ if (typeof (global as any).Response === 'undefined') {
     async text() {
       if (typeof this._body === 'string') return this._body;
       try { return JSON.stringify(this._body ?? {}); } catch { return ''; }
+    }
+    async blob() {
+      if (typeof Blob !== 'undefined') {
+        if (this._body instanceof Blob) return this._body as Blob;
+        if (typeof this._body === 'string') return new Blob([this._body]);
+        try { return new Blob([JSON.stringify(this._body ?? {})]); } catch { return new Blob(['']); }
+      }
+      return this._body as any;
     }
   }
   ;(global as any).Response = SimpleResponse as any;
@@ -137,6 +156,21 @@ jest.mock('next/server', () => {
     },
   };
 });
+
+// Lightweight JSZip mock
+jest.mock('jszip', () => {
+  class JSZipMock {
+    private files: Record<string, ArrayBuffer | string> = {}
+    file(name: string, data: ArrayBuffer | string) {
+      this.files[name] = data
+    }
+    async generateAsync(_: { type: 'blob' | string }) {
+      const content = Object.keys(this.files).join(',') || 'zip'
+      return new Blob([content], { type: 'application/zip' })
+    }
+  }
+  return { __esModule: true, default: JSZipMock }
+}, { virtual: true })
 
 // next/navigation mocks for components rendered in tests
 jest.mock('next/navigation', () => {
