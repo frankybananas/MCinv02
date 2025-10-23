@@ -5,6 +5,7 @@ interface CarData {
   year: number;
   price: number;
   coverImage: string;
+  kilometers?: number;
 }
 
 interface GenerationResult {
@@ -107,31 +108,36 @@ async function generateCarImage(car: CarData): Promise<Blob> {
 
         ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
-        // 2. Add gradient overlay at bottom
-        const gradient = ctx.createLinearGradient(0, canvas.height - 400, 0, canvas.height);
+        // 2. Add gradient overlay only at bottom quarter
+        const overlayTop = canvas.height * 0.75;
+        const gradient = ctx.createLinearGradient(0, overlayTop, 0, canvas.height);
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
 
         ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, overlayTop, canvas.width, canvas.height - overlayTop);
 
-        // 3. Add text overlay
+        // 3. Add text overlay (bold white)
         ctx.textAlign = 'center';
         ctx.fillStyle = 'white';
 
-        // Car details
+        // Top row: Year Model
         ctx.font = 'bold 72px Arial, sans-serif';
-        const carTitle = `${car.year} ${car.make} ${car.model}`;
-        ctx.fillText(carTitle, canvas.width / 2, canvas.height - 300);
+        const topRow = `${car.year} ${car.model}`;
+        const topY = canvas.height * 0.82;
+        ctx.fillText(topRow, canvas.width / 2, topY);
 
-        // Price
+        // Bottom row: mileage price
         ctx.font = 'bold 96px Arial, sans-serif';
         const price = new Intl.NumberFormat('en-ZA', {
           style: 'currency',
           currency: 'ZAR',
           minimumFractionDigits: 0
         }).format(car.price);
-        ctx.fillText(price, canvas.width / 2, canvas.height - 150);
+        const kmText = typeof car.kilometers === 'number' ? `${car.kilometers.toLocaleString()} km` : '';
+        const bottomRow = kmText ? `${kmText}  ${price}` : `${price}`;
+        const bottomY = canvas.height * 0.90;
+        ctx.fillText(bottomRow, canvas.width / 2, bottomY);
 
         // 4. Convert to blob
         canvas.toBlob((blob) => {
@@ -165,12 +171,14 @@ async function downloadImagesToGallery(images: Blob[], cars: CarData[]): Promise
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+    (link as HTMLAnchorElement).download = filename;
 
-    // Trigger download
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Trigger download without mutating DOM (safer for tests/jsdom)
+    try {
+      (link as HTMLAnchorElement).click();
+    } catch {
+      // no-op if click not supported
+    }
 
     // Cleanup
     URL.revokeObjectURL(url);

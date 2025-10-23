@@ -124,6 +124,33 @@ describe('POST /api/whatsapp/generate', () => {
       expect(response.status).toBe(400);
       expect(data.error).toBe('No cars selected for generation');
     });
+
+    it('should include kilometers when available', async () => {
+      // picture for car_km
+      picturesStore.push({
+        _id: 'pic_km',
+        imageUrl: 'https://example.com/km.jpg',
+        title: 'KM Picture',
+        car: 'car_km'
+      });
+
+      carsStore.push({
+        _id: 'car_km',
+        make: 'VW',
+        model: 'Golf',
+        year: 2022,
+        price: 350000,
+        kilometers: 18000,
+        images: ['pic_km']
+      });
+
+      const request = createMockRequest({ selectedCarIds: ['car_km'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.cars[0].kilometers).toBe(18000);
+    });
   });
 
   describe('Car Validation', () => {

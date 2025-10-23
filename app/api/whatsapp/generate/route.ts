@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         model: car.model,
         year: car.year,
         price: car.price,
+        kilometers: car.kilometers,
         coverImage
       };
     });
