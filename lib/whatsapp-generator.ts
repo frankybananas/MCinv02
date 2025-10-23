@@ -45,10 +45,14 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
       }
     }
 
+    if (generatedImages.length === 0) {
+      return { success: false, error: 'No images could be generated. The car images may be unavailable or blocked by CORS.' };
+    }
+
     // 3. Download images to gallery
     await downloadImagesToGallery(generatedImages, cars);
 
-    // 4. Update generation status
+    // 4. Update generation status (only if something was generated)
     await fetch('/api/whatsapp/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -68,7 +72,7 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
 }
 
 async function generateCarImage(car: CarData): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
@@ -154,7 +158,16 @@ async function generateCarImage(car: CarData): Promise<Blob> {
     };
 
     img.onerror = () => reject(new Error('Failed to load car image'));
-    img.src = car.coverImage;
+    try {
+      // Prefetch the image as a blob to avoid canvas tainting and handle CORS
+      const resp = await fetch(car.coverImage, { credentials: 'omit', mode: 'cors' as RequestMode });
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      img.src = url;
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error('Failed to fetch car image'));
+      return;
+    }
   });
 }
 
@@ -172,12 +185,34 @@ async function downloadImagesToGallery(images: Blob[], cars: CarData[]): Promise
     const link = document.createElement('a');
     link.href = url;
     (link as HTMLAnchorElement).download = filename;
+    (link as HTMLAnchorElement).rel = 'noopener';
 
-    // Trigger download without mutating DOM (safer for tests/jsdom)
+    // Trigger download; appending to DOM improves reliability in Chrome/Safari
     try {
-      (link as HTMLAnchorElement).click();
+      if (document && typeof document.body?.appendChild === 'function') {
+        document.body.appendChild(link);
+        (link as HTMLAnchorElement).click();
+        document.body.removeChild(link);
+      } else {
+        (link as HTMLAnchorElement).click();
+      }
     } catch {
-      // no-op if click not supported
+      // best-effort fallback
+      try { (link as HTMLAnchorElement).click(); } catch {}
+      try {
+        const anyWin: any = window as any;
+        if (typeof anyWin.showSaveFilePicker === 'function') {
+          const handle = await anyWin.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        } else {
+          window.open?.(url, '_blank', 'noopener,noreferrer');
+        }
+      } catch {}
     }
 
     // Cleanup
