@@ -70,6 +70,48 @@ async function fetchImageAsFile(
 }
 
 /**
+ * Fetch multiple images via server proxy to bypass CORS
+ */
+async function fetchImagesViaProxy(
+  urls: string[],
+  filenamePrefix: string
+): Promise<File[]> {
+  if (urls.length === 0) return []
+  try {
+    const resp = await fetch('/api/download/images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls }),
+    })
+
+    if (!resp.ok) return []
+
+    const data = await resp.json()
+    const files: File[] = []
+    if (data?.success && Array.isArray(data.images)) {
+      for (let i = 0; i < data.images.length; i++) {
+        const img = data.images[i]
+        const dataUrl: string = img.data
+        const base64 = dataUrl.split(',')[1]
+        const byteString = atob(base64)
+        const ab = new ArrayBuffer(byteString.length)
+        const ia = new Uint8Array(ab)
+        for (let j = 0; j < byteString.length; j++) {
+          ia[j] = byteString.charCodeAt(j)
+        }
+        const blob = new Blob([ab], { type: img.type })
+        const ext = img.type.includes('png') ? 'png' : img.type.includes('webp') ? 'webp' : 'jpg'
+        const filename = `${filenamePrefix}_${img.index + 1}.${ext}`
+        files.push(new File([blob], filename, { type: img.type }))
+      }
+    }
+    return files
+  } catch {
+    return []
+  }
+}
+
+/**
  * Download images using native file picker (best for desktop)
  */
 async function downloadViaFilePicker(files: File[]): Promise<boolean> {
@@ -157,56 +199,75 @@ export async function downloadCarImages(
   const files: File[] = []
   const abortController = new AbortController()
 
+  // Partition URLs: same-origin can be fetched directly; cross-origin go via proxy first
+  const locOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+  const sameOrigin: Array<{ url: string; index: number }> = []
+  const crossOrigin: Array<{ url: string; index: number }> = []
+
   for (let i = 0; i < imageUrls.length; i++) {
     const url = imageUrls[i]
-
     try {
-      onProgress?.(i + 1, imageUrls.length)
+      const u = new URL(url)
+      if (locOrigin && u.origin === locOrigin) {
+        sameOrigin.push({ url, index: i })
+      } else {
+        crossOrigin.push({ url, index: i })
+      }
+    } catch {
+      // Malformed URL, treat as cross-origin so proxy handles/filters it
+      crossOrigin.push({ url, index: i })
+    }
+  }
 
-      const filename = `${filenamePrefix}_${i + 1}`
-      const file = await fetchImageAsFile(url, filename, abortController.signal)
+  // 1) Fetch cross-origin via proxy (avoids CORS entirely)
+  if (crossOrigin.length > 0) {
+    const proxiedFiles = await fetchImagesViaProxy(
+      crossOrigin.map(c => c.url),
+      filenamePrefix
+    )
+    files.push(...proxiedFiles)
+    // Record errors for any proxied URLs that didn't return
+    if (proxiedFiles.length < crossOrigin.length) {
+      const returned = new Set(
+        proxiedFiles.map(f => f.name.replace(/^.*_(\d+)\.[^.]+$/, '$1'))
+      )
+      for (const c of crossOrigin) {
+        const idxStr = String(c.index + 1)
+        if (!returned.has(idxStr)) {
+          result.errors.push({ url: c.url, error: 'Proxy fetch failed' })
+          onError?.(new Error('Proxy fetch failed'), c.url)
+        }
+      }
+    }
+    // Update progress as if fetched all cross-origin first
+    onProgress?.(Math.min(crossOrigin.length, imageUrls.length), imageUrls.length)
+  }
+
+  // 2) Fetch same-origin directly
+  for (const item of sameOrigin) {
+    try {
+      const filename = `${filenamePrefix}_${item.index + 1}`
+      const file = await fetchImageAsFile(item.url, filename, abortController.signal)
       files.push(file)
+      onProgress?.(Math.min(files.length, imageUrls.length), imageUrls.length)
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
-      result.errors.push({ url, error: err.message })
-      onError?.(err, url)
+      result.errors.push({ url: item.url, error: err.message })
+      onError?.(err, item.url)
     }
   }
 
   result.filesDownloaded = files.length
 
-  // If no files could be fetched (likely CORS), fetch via server proxy
+  // If no files could be fetched (safety net), fetch via server proxy
   if (files.length === 0 && imageUrls.length > 0) {
     try {
-      const resp = await fetch('/api/download/images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls: imageUrls }),
-      })
-      
-      if (resp.ok) {
-        const data = await resp.json()
-        if (data.success && Array.isArray(data.images)) {
-          // Convert base64 data URLs to File objects
-          for (let i = 0; i < data.images.length; i++) {
-            const img = data.images[i]
-            const dataUrl = img.data
-            const base64 = dataUrl.split(',')[1]
-            const byteString = atob(base64)
-            const ab = new ArrayBuffer(byteString.length)
-            const ia = new Uint8Array(ab)
-            for (let j = 0; j < byteString.length; j++) {
-              ia[j] = byteString.charCodeAt(j)
-            }
-            const blob = new Blob([ab], { type: img.type })
-            const ext = img.type.includes('png') ? 'png' : img.type.includes('webp') ? 'webp' : 'jpg'
-            const filename = `${filenamePrefix}_${img.index + 1}.${ext}`
-            files.push(new File([blob], filename, { type: img.type }))
-          }
-          result.filesDownloaded = files.length
-          // Clear CORS errors since server proxy succeeded
-          result.errors = []
-        }
+      const proxied = await fetchImagesViaProxy(imageUrls, filenamePrefix)
+      files.push(...proxied)
+      result.filesDownloaded = files.length
+      if (proxied.length > 0) {
+        // Clear accumulated errors on success
+        result.errors = []
       }
     } catch (proxyErr) {
       console.warn('Server image proxy failed:', proxyErr)
