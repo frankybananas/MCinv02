@@ -169,7 +169,7 @@ function downloadViaLink(file: File): void {
 
   // Clean up blob URL after a delay
   const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  const revokeDelay = isMobile ? 15000 : 3000
+  const revokeDelay = isMobile ? 30000 : 5000
   setTimeout(() => URL.revokeObjectURL(url), revokeDelay)
 }
 
@@ -252,22 +252,8 @@ export async function downloadCarImages(
     }
   }
 
-  // Step 2: Try native methods first (mobile share, file picker)
+  // Step 2: Try native methods first (file picker)
   try {
-    // On mobile: Try native share API only for small batches (mobile has limits)
-    const isMobileUA = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    if (isMobileUA && navigator.share && typeof (navigator as any).canShare === 'function' && files.length <= 10) {
-      const shareData: ShareData = {
-        files,
-        title: `${filenamePrefix} Images`,
-      }
-
-      if ((navigator as any).canShare(shareData)) {
-        await navigator.share(shareData)
-        return { ...result, success: true, method: 'native' }
-      }
-    }
-
     // On desktop: Try file system access API (Chrome/Edge)
     if (files.length > 1 && typeof (window as any).showDirectoryPicker !== 'undefined') {
       const pickerSuccess = await downloadViaFilePicker(files)
@@ -287,23 +273,35 @@ export async function downloadCarImages(
       downloadViaLink(files[0])
       return { ...result, success: true, method: 'link' }
     } else {
-      // For mobile or many files: download individually (better UX than ZIP on mobile)
+      // For mobile or many files: download individually
       const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
       
       if (isMobile || files.length > 10) {
-        const perDelay = isMobile ? 600 : 200
+        const perDelay = isMobile ? 800 : 200
         for (let i = 0; i < files.length; i++) {
           const file = files[i]
-          downloadViaLink(file)
+          try {
+            downloadViaLink(file)
+          } catch (e) {
+            // ignore single-file download errors and continue
+          }
           await new Promise(resolve => setTimeout(resolve, perDelay))
           if (isMobile && (i + 1) % 10 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1200))
+            await new Promise(resolve => setTimeout(resolve, 1500))
+            if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+              const cont = window.confirm('Continue downloading the next batch of images?')
+              if (!cont) break
+            }
           }
         }
         return { ...result, success: true, method: 'link' }
       } else {
         for (const file of files) {
-          downloadViaLink(file)
+          try {
+            downloadViaLink(file)
+          } catch (e) {
+            // ignore single-file download errors and continue
+          }
           await new Promise(resolve => setTimeout(resolve, 200))
         }
         return { ...result, success: true, method: 'link' }
