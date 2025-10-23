@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth-session';
 import { connect } from '@/lib/mongodb';
 import Car from '@/models/Car';
+import User from '@/models/User';
 import WhatsAppGeneration from '@/models/WhatsAppGeneration';
 
 export async function POST(request: NextRequest) {
   try {
     const trace = `whatsgen:${Date.now().toString(36)}:${Math.random().toString(36).slice(2,8)}`;
-    const { userId } = await requireSession(request);
+    const { userId, phone } = await requireSession(request);
     const { selectedCarIds } = await request.json();
     console.log(trace, 'request', { count: Array.isArray(selectedCarIds) ? selectedCarIds.length : 0 });
 
@@ -23,15 +24,38 @@ export async function POST(request: NextRequest) {
 
     // Validate and normalize userId -> ObjectId
     const { Types } = (await import('mongoose'));
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    let effectiveUserId = userId as string | null;
+    if (!effectiveUserId && phone) {
+      // Backward compatibility: derive userId from phone when absent in JWT
+      let e164 = phone;
+      try {
+        const lib = await import('libphonenumber-js');
+        const parsed = lib.default(phone, 'ZA');
+        if (parsed && parsed.isValid()) {
+          e164 = parsed.format('E.164');
+        }
+      } catch {}
+
+      const candidates = Array.from(new Set([
+        e164,
+        phone,
+        phone.replace(/\s+/g, ''),
+        phone.startsWith('+') ? phone.slice(1) : phone,
+      ].filter(Boolean)));
+
+      const found = await User.findOne({ phone: { $in: candidates } }).select({ _id: 1 }).lean();
+      if (found?._id) {
+        effectiveUserId = String(found._id);
+      }
     }
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let userObjectId;
     try {
-      userObjectId = new Types.ObjectId(userId);
+      userObjectId = new Types.ObjectId(effectiveUserId);
     } catch {
       return NextResponse.json(
         { error: 'Invalid user id' },

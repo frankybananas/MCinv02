@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       const now = new Date();
       const lastOtpAt = now.getTime(); // Unix timestamp in milliseconds
 
-      const token = await new SignJWT({ phone: user.phone, userId: user._id, role: user.role, lastOtpAt })
+      const token = await new SignJWT({ phone: user.phone, userId: String(user._id), role: user.role, lastOtpAt })
         .setProtectedHeader({ alg: 'HS256' })
         .setJti(jwtId)
         .setIssuedAt()

@@ -45,7 +45,12 @@ export async function getSession(request: Request): Promise<SessionData | null> 
     if (!phone) return null
 
     const role = typeof payload.role === 'string' ? payload.role : null
-    const userId = typeof payload.userId === 'string' ? payload.userId : null
+    let userId: string | null = null
+    if (typeof (payload as any).userId === 'string') {
+      userId = (payload as any).userId
+    } else if ((payload as any).userId && typeof (payload as any).userId.toString === 'function') {
+      try { userId = (payload as any).userId.toString() } catch { userId = null }
+    }
     const lastOtpAt = typeof payload.lastOtpAt === 'number' ? payload.lastOtpAt : null
 
     return {
