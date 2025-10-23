@@ -6,8 +6,10 @@ import WhatsAppGeneration from '@/models/WhatsAppGeneration';
 
 export async function POST(request: NextRequest) {
   try {
+    const trace = `whatsgen:${Date.now().toString(36)}:${Math.random().toString(36).slice(2,8)}`;
     const { userId } = await requireSession(request);
     const { selectedCarIds } = await request.json();
+    console.log(trace, 'request', { count: Array.isArray(selectedCarIds) ? selectedCarIds.length : 0 });
 
     if (!selectedCarIds || !Array.isArray(selectedCarIds) || selectedCarIds.length === 0) {
       return NextResponse.json(
@@ -17,12 +19,46 @@ export async function POST(request: NextRequest) {
     }
 
     await connect();
+    console.log(trace, 'db:connected');
 
-    // Get selected cars with images
-    const cars = await Car.find({
-      _id: { $in: selectedCarIds },
-      images: { $exists: true, $not: { $size: 0 } }
-    }).populate('images');
+    // Validate and normalize userId -> ObjectId
+    const { Types } = (await import('mongoose'));
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    let userObjectId;
+    try {
+      userObjectId = new Types.ObjectId(userId);
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid user id' },
+        { status: 400 }
+      );
+    }
+    console.log(trace, 'session:userId:ok');
+
+    // Dedupe IDs
+    const uniqueIds = Array.from(new Set(selectedCarIds));
+
+    // Get selected cars attempting populate first (for Picture refs),
+    // but remain compatible with schemas where images are string URLs
+    let cars: any[] = [];
+    try {
+      cars = await Car.find({
+        _id: { $in: uniqueIds },
+        images: { $exists: true, $not: { $size: 0 } }
+      }).populate('images');
+    } catch (e) {
+      console.error(trace, 'populate_failed', e);
+      cars = await Car.find({
+        _id: { $in: uniqueIds },
+        images: { $exists: true, $not: { $size: 0 } }
+      });
+    }
+    console.log(trace, 'cars:fetched', { count: cars.length });
 
     if (cars.length === 0) {
       return NextResponse.json(
@@ -31,15 +67,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter cars that have valid populated images
-    const validCars = cars.filter(car => {
-      return car.images && 
-             Array.isArray(car.images) && 
-             car.images.length > 0 &&
-             car.images[0] &&
-             typeof car.images[0] === 'object' &&
-             'imageUrl' in car.images[0];
+    // Filter cars that have a usable cover image: either a string URL
+    // or a populated object with imageUrl
+    const validCars = cars.filter((car) => {
+      const first = car?.images?.[0];
+      if (!first) return false;
+      if (typeof first === 'string') return first.length > 0;
+      return typeof first === 'object' && 'imageUrl' in first && typeof first.imageUrl === 'string';
     });
+    console.log(trace, 'cars:valid', { count: validCars.length });
 
     if (validCars.length === 0) {
       return NextResponse.json(
@@ -50,20 +86,23 @@ export async function POST(request: NextRequest) {
 
     // Create generation log
     const generation = new WhatsAppGeneration({
-      user: userId,
+      user: userObjectId,
       carCount: validCars.length,
       carIds: validCars.map(car => car._id.toString()),
       status: 'pending'
     });
     await generation.save();
+    console.log(trace, 'generation:saved', { id: String(generation._id), carCount: generation.carCount });
 
     // Return car data for client-side image generation
-    const carData = validCars.map(car => {
-      // Get the first image from the populated images array
+    const carData = validCars.map((car) => {
       const firstImage = car.images[0];
-      const coverImage = firstImage && typeof firstImage === 'object' && 'imageUrl' in firstImage
-        ? firstImage.imageUrl
-        : '';
+      let coverImage = '';
+      if (typeof firstImage === 'string') {
+        coverImage = firstImage;
+      } else if (firstImage && typeof firstImage === 'object' && 'imageUrl' in firstImage) {
+        coverImage = (firstImage as any).imageUrl || '';
+      }
 
       return {
         id: car._id.toString(),
