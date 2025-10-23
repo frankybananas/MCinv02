@@ -223,8 +223,11 @@ export async function downloadCarImages(
         filenamePrefix
       )
       if (proxiedFiles.length > 0) {
-        files.push(...proxiedFiles)
-        onProgress?.(Math.min(files.length, imageUrls.length), imageUrls.length)
+        const base = files.length
+        for (let i = 0; i < proxiedFiles.length; i++) {
+          files.push(proxiedFiles[i])
+          onProgress?.(Math.min(base + i + 1, imageUrls.length), imageUrls.length)
+        }
       }
     } catch {
       // ignore, errors already recorded above
@@ -232,6 +235,10 @@ export async function downloadCarImages(
   }
 
   result.filesDownloaded = files.length
+
+  if (files.length === imageUrls.length) {
+    result.errors = []
+  }
 
   // If no files could be fetched (safety net), fetch via server proxy
   if (files.length === 0 && imageUrls.length > 0) {
