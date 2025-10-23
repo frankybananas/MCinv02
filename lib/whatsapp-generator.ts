@@ -159,8 +159,9 @@ async function generateCarImage(car: CarData): Promise<Blob> {
 
     img.onerror = () => reject(new Error('Failed to load car image'));
     try {
-      // Prefetch the image as a blob to avoid canvas tainting and handle CORS
-      const resp = await fetch(car.coverImage, { credentials: 'omit', mode: 'cors' as RequestMode });
+      // Prefetch image via same-origin proxy to avoid CORS and tainted canvas
+      const proxied = `/api/image-proxy?src=${encodeURIComponent(car.coverImage)}`;
+      const resp = await fetch(proxied, { credentials: 'include', mode: 'cors' as RequestMode });
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       img.src = url;
