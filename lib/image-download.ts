@@ -133,7 +133,6 @@ async function downloadViaFilePicker(files: File[]): Promise<boolean> {
 
   // Check if File System Access API is available (Chrome, Edge)
   const showDirectoryPicker = (window as any).showDirectoryPicker
-
   if (!showDirectoryPicker) return false
 
   try {
@@ -253,8 +252,9 @@ export async function downloadCarImages(
           onProgress?.(Math.min(base + i + 1, imageUrls.length), imageUrls.length)
         }
       }
-    } catch {
-      // ignore, errors already recorded above
+    } catch (error) {
+      // Log the error but continue with available files
+      console.warn('Error fetching via proxy:', error)
     }
   }
 
@@ -271,7 +271,6 @@ export async function downloadCarImages(
       files.push(...proxied)
       result.filesDownloaded = files.length
       if (proxied.length > 0) {
-        // Clear accumulated errors on success
         result.errors = []
       }
     } catch (proxyErr) {
