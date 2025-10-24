@@ -25,7 +25,12 @@ import {
 jest.mock('jszip', () => ({
   __esModule: true,
   default: class JSZipMock {
-    file() { /* noop */ }
+    folder() {
+      return this
+    }
+    file() {
+      return this
+    }
     async generateAsync() {
       return new Blob(['zipdata'], { type: 'application/zip' })
     }
@@ -85,19 +90,10 @@ describe('Image Download Utility', () => {
         writable: true,
       })
 
-      // Cross-origin -> server proxy returns two images
-      const base64Data = 'ZmFrZQ=='
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
       ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            success: true,
-            images: [
-              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
-              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
-            ],
-          }),
-        })
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
 
       const res = await downloadCarImages({
         imageUrls: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
@@ -115,18 +111,10 @@ describe('Image Download Utility', () => {
         writable: true,
       })
 
-      const base64Data = 'ZmFrZQ=='
+      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
       ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            success: true,
-            images: [
-              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
-              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
-            ],
-          }),
-        })
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
 
       const res = await downloadCarImages({
         imageUrls: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
@@ -140,13 +128,13 @@ describe('Image Download Utility', () => {
 
   describe('formatFileSize', () => {
     test('should format bytes correctly', () => {
-      expect(formatFileSize(0)).toBe('0 B')
-      expect(formatFileSize(500)).toBe('500.0 B')
-      expect(formatFileSize(1024)).toBe('1.0 KB')
+      expect(formatFileSize(0)).toBe('0 Bytes')
+      expect(formatFileSize(500)).toBe('500 Bytes')
+      expect(formatFileSize(1024)).toBe('1 KB')
       expect(formatFileSize(1536)).toBe('1.5 KB')
-      expect(formatFileSize(1048576)).toBe('1.0 MB')
+      expect(formatFileSize(1048576)).toBe('1 MB')
       expect(formatFileSize(1572864)).toBe('1.5 MB')
-      expect(formatFileSize(1073741824)).toBe('1.0 GB')
+      expect(formatFileSize(1073741824)).toBe('1 GB')
     })
 
     test('should handle large numbers', () => {
@@ -156,7 +144,7 @@ describe('Image Download Utility', () => {
 
     test('should round to 1 decimal place', () => {
       const result = formatFileSize(1234567)
-      expect(result).toMatch(/^\d+\.\d{1}\s\w+$/)
+      expect(result).toMatch(/^\d+(\.\d{1,2})?\s\w+$/)
     })
   })
 

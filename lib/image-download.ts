@@ -172,7 +172,6 @@ function downloadViaLink(file: File): void {
   setTimeout(() => URL.revokeObjectURL(url), revokeDelay)
 }
 
-<<<<<<< HEAD
 /**
  * Create a ZIP file from multiple images (requires JSZip)
  */
@@ -188,9 +187,6 @@ async function createZipFile(files: File[], zipFilename: string): Promise<File> 
   const content = await zip.generateAsync({ type: 'blob' })
   return new File([content], zipFilename, { type: 'application/zip' })
 }
-=======
- 
->>>>>>> 739c6dcd94d2f3d3b06189ce6252fd2d86a8f791
 
 
 /**
@@ -256,14 +252,9 @@ export async function downloadCarImages(
           onProgress?.(Math.min(base + i + 1, imageUrls.length), imageUrls.length)
         }
       }
-<<<<<<< HEAD
     } catch (error) {
       // Log the error but continue with available files
       console.warn('Error fetching via proxy:', error)
-=======
-    } catch {
-      // ignore, errors already recorded above
->>>>>>> 739c6dcd94d2f3d3b06189ce6252fd2d86a8f791
     }
   }
 
@@ -307,84 +298,55 @@ export async function downloadCarImages(
 
   // Step 3: Fallback to link-based download
   try {
-<<<<<<< HEAD
-    const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    
-    if (isMobile) {
-      // Mobile: download files individually to gallery/downloads
-      for (const file of files) {
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+    const recordDownloadError = (err: unknown, fileName: string) => {
+      const error = err instanceof Error ? err : new Error(String(err))
+      onError?.(error, fileName)
+      result.errors.push({
+        url: fileName,
+        error: error.message || 'Download failed',
+      })
+    }
+
+    const downloadSequentially = async (delay: number) => {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
         try {
           downloadViaLink(file)
-          // Small delay between downloads to avoid browser blocking
-          await new Promise(resolve => setTimeout(resolve, 150))
         } catch (err) {
-          const error = err instanceof Error ? err : new Error(String(err))
-          onError?.(error, file.name)
-          result.errors.push({
-            url: file.name,
-            error: error.message || 'Download failed',
-          })
+          recordDownloadError(err, file.name)
+        }
+        await new Promise(resolve => setTimeout(resolve, delay))
+        if (isMobile && (i + 1) % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1500))
         }
       }
+    }
+
+    if (files.length === 1) {
+      downloadViaLink(files[0])
       return { ...result, success: true, method: 'link' }
-    } else {
-      // Desktop: prefer single ZIP for multi-file downloads
+    }
+
+    if (!isMobile && files.length > 1) {
       try {
         const zipFilename = `${filenamePrefix}_images.zip`
         const zipFile = await createZipFile(files, zipFilename)
         downloadViaLink(zipFile)
         return { ...result, success: true, method: 'zip' }
       } catch (zipError) {
-        // If ZIP creation fails, fall back to individual downloads
-        for (const file of files) {
-          try {
-            downloadViaLink(file)
-            await new Promise(resolve => setTimeout(resolve, 150))
-          } catch (err) {
-            const error = err instanceof Error ? err : new Error(String(err))
-            onError?.(error, file.name)
-            result.errors.push({
-              url: file.name,
-              error: error.message || 'Download failed',
-            })
-          }
-=======
-    if (files.length === 1) {
-      // Single file: direct download
-      downloadViaLink(files[0])
-      return { ...result, success: true, method: 'link' }
-    } else {
-      // For mobile or many files: download individually
-      const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      
-      if (isMobile || files.length > 10) {
-        const perDelay = isMobile ? 800 : 200
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i]
-          try {
-            downloadViaLink(file)
-          } catch (e) {
-            // ignore single-file download errors and continue
-          }
-          await new Promise(resolve => setTimeout(resolve, perDelay))
-          if (isMobile && (i + 1) % 10 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1500))
-          }
-        }
-        return { ...result, success: true, method: 'link' }
-      } else {
-        for (const file of files) {
-          try {
-            downloadViaLink(file)
-          } catch (e) {
-            // ignore single-file download errors and continue
-          }
-          await new Promise(resolve => setTimeout(resolve, 200))
->>>>>>> 739c6dcd94d2f3d3b06189ce6252fd2d86a8f791
-        }
-        return { ...result, success: true, method: 'link' }
+        const err = zipError instanceof Error ? zipError : new Error(String(zipError))
+        console.warn('ZIP creation failed, falling back to individual downloads:', err)
+        onError?.(err, 'zip')
       }
     }
+
+    const perDelay = isMobile ? 800 : files.length > 10 ? 200 : 150
+    await downloadSequentially(perDelay)
+    return { ...result, success: true, method: 'link' }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     onError?.(err, 'Download failed')
