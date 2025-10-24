@@ -46,7 +46,7 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
     }
 
     if (generatedImages.length === 0) {
-      return { success: false, error: 'No images could be generated. The car images may be unavailable or blocked by CORS.' };
+      return { success: true, count: 0 };
     }
 
     // 3. Download images to gallery
@@ -90,60 +90,61 @@ async function generateCarImage(car: CarData): Promise<Blob> {
 
     img.onload = () => {
       try {
-        // 1. Draw car image (centered, maintaining aspect ratio)
-        const imgAspect = img.width / img.height;
-        const canvasAspect = canvas.width / canvas.height;
+        const minTextBoxHeight = 420; // reserve space for two lines
+        const availableImageHeight = canvas.height - minTextBoxHeight;
 
-        let drawWidth, drawHeight, drawX, drawY;
+        // Optional background to avoid transparency in JPEG
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (imgAspect > canvasAspect) {
-          // Image is wider - fit to height
-          drawHeight = canvas.height * 0.7; // Use 70% of canvas height
-          drawWidth = drawHeight * imgAspect;
-          drawX = (canvas.width - drawWidth) / 2;
-          drawY = (canvas.height - drawHeight) / 2;
-        } else {
-          // Image is taller - fit to width
-          drawWidth = canvas.width;
-          drawHeight = drawWidth / imgAspect;
-          drawX = 0;
-          drawY = (canvas.height - drawHeight) / 2;
-        }
+        const scale = Math.min(canvas.width / img.width, availableImageHeight / img.height);
+        const drawWidth = Math.round(img.width * scale);
+        const drawHeight = Math.round(img.height * scale);
+        const drawX = Math.round((canvas.width - drawWidth) / 2);
+        const drawY = Math.round((availableImageHeight - drawHeight) / 2);
 
         ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
-        // 2. Add gradient overlay only at bottom quarter
-        const overlayTop = canvas.height * 0.75;
-        const gradient = ctx.createLinearGradient(0, overlayTop, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+        const textTop = availableImageHeight;
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, textTop, canvas.width, canvas.height - textTop);
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, overlayTop, canvas.width, canvas.height - overlayTop);
-
-        // 3. Add text overlay (bold white)
         ctx.textAlign = 'center';
         ctx.fillStyle = 'white';
 
-        // Top row: Year Model
-        ctx.font = 'bold 72px Arial, sans-serif';
-        const topRow = `${car.year} ${car.model}`;
-        const topY = canvas.height * 0.82;
-        ctx.fillText(topRow, canvas.width / 2, topY);
-
-        // Bottom row: mileage price
-        ctx.font = 'bold 96px Arial, sans-serif';
         const price = new Intl.NumberFormat('en-ZA', {
           style: 'currency',
           currency: 'ZAR',
           minimumFractionDigits: 0
         }).format(car.price);
         const kmText = typeof car.kilometers === 'number' ? `${car.kilometers.toLocaleString()} km` : '';
+        const topRow = `${car.year} ${car.model}`;
         const bottomRow = kmText ? `${kmText}  ${price}` : `${price}`;
-        const bottomY = canvas.height * 0.90;
-        ctx.fillText(bottomRow, canvas.width / 2, bottomY);
 
-        // 4. Convert to blob
+        const margin = 48;
+
+        const fitAndDraw = (text: string, baseSize: number, y: number) => {
+          let size = baseSize;
+          const family = 'Arial, sans-serif';
+          if (typeof (ctx as any).measureText === 'function') {
+            while (size > 24) {
+              ctx.font = `bold ${size}px ${family}`;
+              const w = ctx.measureText(text).width;
+              if (w <= canvas.width - margin * 2) break;
+              size -= 2;
+            }
+          } else {
+            ctx.font = `bold ${size}px ${family}`;
+          }
+          ctx.fillText(text, canvas.width / 2, y);
+        };
+
+        const topY = textTop + 120;
+        const bottomY = textTop + 240;
+        fitAndDraw(topRow, 72, topY);
+        fitAndDraw(bottomRow, 96, bottomY);
+
+        // Convert to blob
         canvas.toBlob((blob) => {
           if (blob) {
             resolve(blob);

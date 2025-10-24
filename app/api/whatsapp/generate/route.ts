@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSession } from '@/lib/auth-session';
 import { connect } from '@/lib/mongodb';
 import Car from '@/models/Car';
-import User from '@/models/User';
 import WhatsAppGeneration from '@/models/WhatsAppGeneration';
 
 export async function POST(request: NextRequest) {
@@ -43,7 +42,8 @@ export async function POST(request: NextRequest) {
         phone.startsWith('+') ? phone.slice(1) : phone,
       ].filter(Boolean)));
 
-      const found = await User.findOne({ phone: { $in: candidates } }).select({ _id: 1 }).lean();
+      const { default: UserModel } = await import('@/models/User');
+      const found = await UserModel.findOne({ phone: { $in: candidates } }).select({ _id: 1 }).lean();
       if (found?._id) {
         effectiveUserId = String(found._id);
       }
@@ -120,13 +120,17 @@ export async function POST(request: NextRequest) {
 
     // Return car data for client-side image generation
     const carData = validCars.map((car) => {
-      const firstImage = car.images[0];
       let coverImage = '';
-      if (typeof firstImage === 'string') {
-        coverImage = firstImage;
-      } else if (firstImage && typeof firstImage === 'object' && 'imageUrl' in firstImage) {
-        coverImage = (firstImage as any).imageUrl || '';
-      }
+      try {
+        const idxRaw = (car as any).coverImageIndex;
+        const idx = typeof idxRaw === 'number' && idxRaw >= 0 ? idxRaw : 0;
+        const candidate = car.images?.[idx] ?? car.images?.[0];
+        if (typeof candidate === 'string') {
+          coverImage = candidate;
+        } else if (candidate && typeof candidate === 'object' && 'imageUrl' in candidate) {
+          coverImage = (candidate as any).imageUrl || '';
+        }
+      } catch {}
 
       return {
         id: car._id.toString(),

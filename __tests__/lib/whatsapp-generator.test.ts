@@ -31,6 +31,8 @@ function setupCanvasAndImage(successImageLoad = true) {
     return document.createElement(tag as any);
   });
 
+  
+
   // Mock Image
   const imageOnLoadHandlers: Array<() => void> = [];
   const imageOnErrorHandlers: Array<() => void> = [];
