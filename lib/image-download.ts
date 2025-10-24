@@ -172,6 +172,7 @@ function downloadViaLink(file: File): void {
   setTimeout(() => URL.revokeObjectURL(url), revokeDelay)
 }
 
+<<<<<<< HEAD
 /**
  * Create a ZIP file from multiple images (requires JSZip)
  */
@@ -187,6 +188,9 @@ async function createZipFile(files: File[], zipFilename: string): Promise<File> 
   const content = await zip.generateAsync({ type: 'blob' })
   return new File([content], zipFilename, { type: 'application/zip' })
 }
+=======
+ 
+>>>>>>> 739c6dcd94d2f3d3b06189ce6252fd2d86a8f791
 
 
 /**
@@ -252,9 +256,14 @@ export async function downloadCarImages(
           onProgress?.(Math.min(base + i + 1, imageUrls.length), imageUrls.length)
         }
       }
+<<<<<<< HEAD
     } catch (error) {
       // Log the error but continue with available files
       console.warn('Error fetching via proxy:', error)
+=======
+    } catch {
+      // ignore, errors already recorded above
+>>>>>>> 739c6dcd94d2f3d3b06189ce6252fd2d86a8f791
     }
   }
 
@@ -298,6 +307,7 @@ export async function downloadCarImages(
 
   // Step 3: Fallback to link-based download
   try {
+<<<<<<< HEAD
     const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
     
     if (isMobile) {
@@ -338,6 +348,39 @@ export async function downloadCarImages(
               error: error.message || 'Download failed',
             })
           }
+=======
+    if (files.length === 1) {
+      // Single file: direct download
+      downloadViaLink(files[0])
+      return { ...result, success: true, method: 'link' }
+    } else {
+      // For mobile or many files: download individually
+      const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      
+      if (isMobile || files.length > 10) {
+        const perDelay = isMobile ? 800 : 200
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          try {
+            downloadViaLink(file)
+          } catch (e) {
+            // ignore single-file download errors and continue
+          }
+          await new Promise(resolve => setTimeout(resolve, perDelay))
+          if (isMobile && (i + 1) % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 1500))
+          }
+        }
+        return { ...result, success: true, method: 'link' }
+      } else {
+        for (const file of files) {
+          try {
+            downloadViaLink(file)
+          } catch (e) {
+            // ignore single-file download errors and continue
+          }
+          await new Promise(resolve => setTimeout(resolve, 200))
+>>>>>>> 739c6dcd94d2f3d3b06189ce6252fd2d86a8f791
         }
         return { ...result, success: true, method: 'link' }
       }
