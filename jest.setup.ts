@@ -44,6 +44,27 @@ const fetchMock = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) =
 global.fetch = fetchMock as unknown as typeof fetch;
 
 // Minimal web platform polyfills for Node test env
+// Base64 helpers used by image proxy
+if (typeof (global as any).atob !== 'function') {
+  ;(global as any).atob = (input: string) => Buffer.from(input, 'base64').toString('binary');
+}
+if (typeof (global as any).btoa !== 'function') {
+  ;(global as any).btoa = (input: string) => Buffer.from(input, 'binary').toString('base64');
+}
+
+// File constructor polyfill (jsdom may not provide it depending on Node/env)
+if (typeof (global as any).File === 'undefined') {
+  class FilePolyfill extends Blob {
+    name: string;
+    lastModified: number;
+    constructor(chunks: any[], filename: string, options?: { type?: string; lastModified?: number }) {
+      super(chunks, { type: options?.type });
+      this.name = filename;
+      this.lastModified = options?.lastModified ?? Date.now();
+    }
+  }
+  ;(global as any).File = FilePolyfill as any;
+}
 if (typeof (global as any).Headers === 'undefined') {
   class SimpleHeaders {
     private m = new Map<string, string>();

@@ -173,7 +173,22 @@ function downloadViaLink(file: File): void {
   setTimeout(() => URL.revokeObjectURL(url), revokeDelay)
 }
 
- 
+/**
+ * Create a ZIP file from multiple images (requires JSZip)
+ */
+async function createZipFile(files: File[], zipFilename: string): Promise<File> {
+  const { default: JSZip } = await import('jszip')
+  const zip = new JSZip()
+  const folder = zip.folder('car_images') || zip
+
+  files.forEach((file) => {
+    folder.file(file.name, file)
+  })
+
+  const content = await zip.generateAsync({ type: 'blob' })
+  return new File([content], zipFilename, { type: 'application/zip' })
+}
+
 
 /**
  * Main function to download all images from a car
@@ -284,46 +299,57 @@ export async function downloadCarImages(
 
   // Step 3: Fallback to link-based download
   try {
-    if (files.length === 1) {
-      // Single file: direct download
-      downloadViaLink(files[0])
+    const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      // Mobile: download files individually to gallery/downloads
+      for (const file of files) {
+        try {
+          downloadViaLink(file)
+          // Small delay between downloads to avoid browser blocking
+          await new Promise(resolve => setTimeout(resolve, 150))
+        } catch (err) {
+          const error = err instanceof Error ? err : new Error(String(err))
+          onError?.(error, file.name)
+          result.errors.push({
+            url: file.name,
+            error: error.message || 'Download failed',
+          })
+        }
+      }
       return { ...result, success: true, method: 'link' }
     } else {
-      // For mobile or many files: download individually
-      const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      
-      if (isMobile || files.length > 10) {
-        const perDelay = isMobile ? 800 : 200
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i]
-          try {
-            downloadViaLink(file)
-          } catch (e) {
-            // ignore single-file download errors and continue
-          }
-          await new Promise(resolve => setTimeout(resolve, perDelay))
-          if (isMobile && (i + 1) % 10 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1500))
-          }
-        }
-        return { ...result, success: true, method: 'link' }
-      } else {
+      // Desktop: prefer single ZIP for multi-file downloads
+      try {
+        const zipFilename = `${filenamePrefix}_images.zip`
+        const zipFile = await createZipFile(files, zipFilename)
+        downloadViaLink(zipFile)
+        return { ...result, success: true, method: 'zip' }
+      } catch (zipError) {
+        // If ZIP creation fails, fall back to individual downloads
         for (const file of files) {
           try {
             downloadViaLink(file)
-          } catch (e) {
-            // ignore single-file download errors and continue
+            await new Promise(resolve => setTimeout(resolve, 150))
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err))
+            onError?.(error, file.name)
+            result.errors.push({
+              url: file.name,
+              error: error.message || 'Download failed',
+            })
           }
-          await new Promise(resolve => setTimeout(resolve, 200))
         }
         return { ...result, success: true, method: 'link' }
       }
     }
   } catch (error) {
-    console.error('All download methods failed:', error)
+    const err = error instanceof Error ? error : new Error(String(error))
+    onError?.(err, 'Download failed')
+    return result
+  } finally {
+    abortController.abort()
   }
-
-  return result
 }
 
 /**
@@ -354,11 +380,9 @@ export function hasNativeDownloadSupport(): {
     return { share: false, filePicker: false }
   }
 
-  const navAny = navigator as any
-
   return {
-    share: !!(navAny?.share && typeof navAny.canShare === 'function'),
-    filePicker: !!((window as any)?.showDirectoryPicker),
+    share: 'share' in navigator,
+    filePicker: 'showDirectoryPicker' in window,
   }
 }
 
@@ -366,32 +390,40 @@ export function hasNativeDownloadSupport(): {
  * Estimate total download size from image URLs
  */
 export async function estimateDownloadSize(imageUrls: string[]): Promise<number> {
-  let totalSize = 0
+  if (!imageUrls.length) return 0
 
-  for (const url of imageUrls) {
-    try {
-      const response = await fetch(url, { method: 'HEAD', mode: 'cors' })
-      const contentLength = response.headers.get('content-length')
-      if (contentLength) {
-        totalSize += parseInt(contentLength, 10)
-      }
-    } catch {
-      // Ignore errors, just skip this file
-    }
+  try {
+    // Sample first few images to estimate average size
+    const sampleSize = Math.min(3, imageUrls.length)
+    const sampleUrls = imageUrls.slice(0, sampleSize)
+    
+    const sizes = await Promise.all(
+      sampleUrls.map(async (url) => {
+        try {
+          const response = await fetch(url, { method: 'HEAD' })
+          const contentLength = response.headers.get('content-length')
+          return contentLength ? parseInt(contentLength, 10) : 0
+        } catch {
+          return 0
+        }
+      })
+    )
+
+    const avgSize = sizes.reduce((sum, size) => sum + size, 0) / sampleSize
+    return Math.ceil(avgSize * imageUrls.length)
+  } catch {
+    return 0
   }
-
-  return totalSize
 }
 
 /**
  * Format file size for display
  */
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  if (bytes === 0) return '0 Bytes'
 
   const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
 }

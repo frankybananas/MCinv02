@@ -96,17 +96,30 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   }
 
   const onShare = useCallback(async () => {
-    // Strategy for WhatsApp: Download images first, then open WhatsApp with text
-    // This allows user to attach the downloaded images manually
-    
+    // Strategy for WhatsApp: pre-open a tab synchronously to avoid popup blocking,
+    // download images, then navigate the pre-opened tab to WhatsApp with the text.
+    let shareWindow: Window | null = null
     try {
+      // Precompute message and URLs up-front (sync with user gesture)
+      const carDetailsText = buildShareText(false)
+      const contactText = buildContactText()
+      const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
+      const encodedText = encodeURIComponent(fullText)
+      const whatsappUrl = `whatsapp://send?text=${encodedText}`
+      const webWhatsappUrl = `https://wa.me/?text=${encodedText}`
+
+      // Pre-open a blank window within the user gesture to avoid popup blockers
+      try {
+        shareWindow = window.open('about:blank', '_blank')
+      } catch {}
+
       // Step 1: Download all images to device
       if (images.length > 0) {
         setIsDownloading(true)
-        
+
         const imageUrls = images.map(img => img.imageUrl).filter(Boolean) as string[]
         const filenamePrefix = `${car.year}_${car.make}_${car.model}`.replace(/\s+/g, '_')
-        
+
         const result = await downloadCarImages({
           imageUrls,
           filenamePrefix,
@@ -114,47 +127,49 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
             setDownloadProgress({ current, total })
           },
         })
-        
+
         setIsDownloading(false)
         setDownloadProgress({ current: 0, total: 0 })
-        
+
         if (!result.success) {
           console.warn('Image download failed:', result.errors)
         }
       }
-      
-      // Step 2: Open WhatsApp with car details text
-      const carDetailsText = buildShareText(false)
-      const contactText = buildContactText()
-      
-      // Combine texts (no instruction needed - images already downloaded)
-      const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
-      const encodedText = encodeURIComponent(fullText)
-      
-      // Try multiple WhatsApp URL schemes for better compatibility
-      // 1. Try whatsapp:// (works on most mobile devices)
-      // 2. Fallback to https://wa.me/ (works on all platforms)
-      const whatsappUrl = `whatsapp://send?text=${encodedText}`
-      const webWhatsappUrl = `https://wa.me/?text=${encodedText}`
-      
-      // Use window.open() instead of window.location.href for better mobile compatibility
-      // This works more reliably after async operations
-      const opened = window.open(whatsappUrl, '_blank')
-      
-      // If window.open was blocked or failed, try web WhatsApp as fallback
-      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
-        // Small delay before fallback
-        setTimeout(() => {
-          window.open(webWhatsappUrl, '_blank')
-        }, 500)
+
+      // Step 2: Navigate pre-opened tab (or fall back) to WhatsApp
+      if (shareWindow && !shareWindow.closed) {
+        try {
+          // Use location to navigate the already-opened tab
+          shareWindow.location.href = whatsappUrl
+        } catch {
+          const opened = window.open(whatsappUrl, '_blank')
+          if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+            setTimeout(() => { window.open(webWhatsappUrl, '_blank') }, 500)
+          }
+        }
+      } else {
+        // Pre-open failed or was blocked; try opening WhatsApp directly
+        const opened = window.open(whatsappUrl, '_blank')
+        if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+          // Fallback to web WhatsApp
+          setTimeout(() => { window.open(webWhatsappUrl, '_blank') }, 500)
+        }
       }
-      
+
     } catch (error) {
       console.error('Share error:', error)
       // Final fallback: Just open web WhatsApp with text and image links
       const fallbackText = buildShareText(true) + '\n\n' + buildContactText()
       const wa = `https://wa.me/?text=${encodeURIComponent(fallbackText)}`
-      window.open(wa, '_blank')
+      if (shareWindow && !shareWindow.closed) {
+        try {
+          shareWindow.location.href = wa
+        } catch {
+          window.open(wa, '_blank')
+        }
+      } else {
+        window.open(wa, '_blank')
+      }
     }
   }, [buildShareText, buildContactText, car.make, car.model, car.year, images])
 

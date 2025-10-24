@@ -21,6 +21,17 @@ import {
   type DownloadResult,
 } from '@/lib/image-download'
 
+// Mock JSZip for ZIP path
+jest.mock('jszip', () => ({
+  __esModule: true,
+  default: class JSZipMock {
+    file() { /* noop */ }
+    async generateAsync() {
+      return new Blob(['zipdata'], { type: 'application/zip' })
+    }
+  },
+}))
+
 // Mock fetch globally
 global.fetch = jest.fn()
 
@@ -48,6 +59,83 @@ describe('Image Download Utility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(global.fetch as jest.Mock).mockClear()
+  })
+
+  describe('Desktop vs Mobile ZIP behavior', () => {
+    const originalNavigator = global.navigator
+    const originalShowDirectoryPicker = (window as any).showDirectoryPicker
+
+    beforeEach(() => {
+      // Ensure file picker API is not available to force ZIP fallback on desktop
+      delete (window as any).showDirectoryPicker
+    })
+
+    afterAll(() => {
+      // Restore
+      Object.defineProperty(global, 'navigator', { value: originalNavigator, writable: true })
+      if (originalShowDirectoryPicker !== undefined) {
+        ;(window as any).showDirectoryPicker = originalShowDirectoryPicker
+      }
+    })
+
+    test('uses ZIP only on desktop for multi-file downloads', async () => {
+      // Simulate desktop UA
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        writable: true,
+      })
+
+      // Cross-origin -> server proxy returns two images
+      const base64Data = 'ZmFrZQ=='
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            images: [
+              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+            ],
+          }),
+        })
+
+      const res = await downloadCarImages({
+        imageUrls: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
+        filenamePrefix: 'zip_desktop_test',
+      })
+
+      expect(res.success).toBe(true)
+      expect(res.method).toBe('zip')
+    })
+
+    test('never uses ZIP on mobile; downloads individually (link)', async () => {
+      // Simulate mobile UA
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36' },
+        writable: true,
+      })
+
+      const base64Data = 'ZmFrZQ=='
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            images: [
+              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+              { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+            ],
+          }),
+        })
+
+      const res = await downloadCarImages({
+        imageUrls: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
+        filenamePrefix: 'mobile_no_zip',
+      })
+
+      expect(res.success).toBe(true)
+      expect(res.method).toBe('link')
+    })
   })
 
   describe('formatFileSize', () => {
