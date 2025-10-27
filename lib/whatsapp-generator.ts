@@ -97,15 +97,38 @@ async function generateCarImage(car: CarData): Promise<Blob> {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        const scale = Math.min(canvas.width / img.width, availableImageHeight / img.height);
-        const drawWidth = Math.round(img.width * scale);
+        // Scale to fill width while maintaining aspect ratio
+        const scale = canvas.width / img.width;
+        const drawWidth = canvas.width; // Full width
         const drawHeight = Math.round(img.height * scale);
-        const drawX = Math.round((canvas.width - drawWidth) / 2);
-        const drawY = Math.round((availableImageHeight - drawHeight) / 2);
+        const drawX = 0; // No horizontal margin
+        const drawY = 0; // Align to top to prevent cutoff
 
-        ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        // Ensure image doesn't exceed available height
+        if (drawHeight > availableImageHeight) {
+          // If image is too tall, scale to fit height instead
+          const heightScale = availableImageHeight / img.height;
+          const adjustedWidth = Math.round(img.width * heightScale);
+          const adjustedHeight = availableImageHeight;
+          ctx.drawImage(img, 
+            Math.round((canvas.width - adjustedWidth) / 2), // Center horizontally
+            0, 
+            adjustedWidth, 
+            adjustedHeight
+          );
+        } else {
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        }
 
-        const textTop = availableImageHeight;
+        // Calculate actual image height after scaling
+        let actualImageHeight;
+        if (drawHeight > availableImageHeight) {
+          actualImageHeight = availableImageHeight;
+        } else {
+          actualImageHeight = drawHeight;
+        }
+
+        const textTop = actualImageHeight; // Text box starts right after image
         ctx.fillStyle = 'black';
         ctx.fillRect(0, textTop, canvas.width, canvas.height - textTop);
 
@@ -122,6 +145,8 @@ async function generateCarImage(car: CarData): Promise<Blob> {
         const bottomRow = kmText ? `${kmText}  ${price}` : `${price}`;
 
         const margin = 48;
+        const textBoxHeight = canvas.height - textTop;
+        const lineHeight = textBoxHeight / 3; // Divide text box into 3 parts for spacing
 
         const fitAndDraw = (text: string, baseSize: number, y: number) => {
           let size = baseSize;
@@ -139,10 +164,10 @@ async function generateCarImage(car: CarData): Promise<Blob> {
           ctx.fillText(text, canvas.width / 2, y);
         };
 
-        const topY = textTop + 120;
-        const bottomY = textTop + 240;
+        const topY = textTop + lineHeight;
+        const bottomY = textTop + lineHeight * 2;
         fitAndDraw(topRow, 72, topY);
-        fitAndDraw(bottomRow, 96, bottomY);
+        fitAndDraw(bottomRow, 72, bottomY); // Same size for consistency
 
         // Convert to blob
         canvas.toBlob((blob) => {
