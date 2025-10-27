@@ -38,10 +38,17 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
 
     for (const car of cars) {
       try {
+        console.log(`Generating image for car ${car.id}: ${car.year} ${car.make} ${car.model}`);
         const imageBlob = await generateCarImage(car);
-        generatedImages.push(imageBlob);
+        if (imageBlob && imageBlob.size > 0) {
+          generatedImages.push(imageBlob);
+          console.log(`Successfully generated image for car ${car.id}, size: ${imageBlob.size} bytes`);
+        } else {
+          console.warn(`Generated empty or null blob for car ${car.id}`);
+        }
       } catch (error) {
         console.error(`Failed to generate image for car ${car.id}:`, error);
+        // Continue with other cars even if one fails
       }
     }
 
@@ -73,127 +80,144 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
 
 async function generateCarImage(car: CarData): Promise<Blob> {
   return new Promise(async (resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-      reject(new Error('Canvas not supported'));
-      return;
-    }
-
-    // WhatsApp Status dimensions (9:16 aspect ratio)
-    canvas.width = 1080;
-    canvas.height = 1920;
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    img.onload = () => {
-      try {
-        const minTextBoxHeight = 420; // reserve space for two lines
-        const availableImageHeight = canvas.height - minTextBoxHeight;
-
-        // Optional background to avoid transparency in JPEG
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Scale to fill width while maintaining aspect ratio
-        const scale = canvas.width / img.width;
-        const drawWidth = canvas.width; // Full width
-        const drawHeight = Math.round(img.height * scale);
-        const drawX = 0; // No horizontal margin
-        const drawY = 0; // Align to top to prevent cutoff
-
-        // Ensure image doesn't exceed available height
-        if (drawHeight > availableImageHeight) {
-          // If image is too tall, scale to fit height instead
-          const heightScale = availableImageHeight / img.height;
-          const adjustedWidth = Math.round(img.width * heightScale);
-          const adjustedHeight = availableImageHeight;
-          ctx.drawImage(img, 
-            Math.round((canvas.width - adjustedWidth) / 2), // Center horizontally
-            0, 
-            adjustedWidth, 
-            adjustedHeight
-          );
-        } else {
-          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-        }
-
-        // Calculate actual image height after scaling
-        let actualImageHeight;
-        if (drawHeight > availableImageHeight) {
-          actualImageHeight = availableImageHeight;
-        } else {
-          actualImageHeight = drawHeight;
-        }
-
-        const textTop = actualImageHeight; // Text box starts right after image
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, textTop, canvas.width, canvas.height - textTop);
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'white';
-
-        const price = new Intl.NumberFormat('en-ZA', {
-          style: 'currency',
-          currency: 'ZAR',
-          minimumFractionDigits: 0
-        }).format(car.price);
-        const kmText = typeof car.kilometers === 'number' ? `${car.kilometers.toLocaleString()} km` : '';
-        const topRow = `${car.year} ${car.model}`;
-        const bottomRow = kmText ? `${kmText}  ${price}` : `${price}`;
-
-        const margin = 48;
-        const textBoxHeight = canvas.height - textTop;
-        const lineHeight = textBoxHeight / 3; // Divide text box into 3 parts for spacing
-
-        const fitAndDraw = (text: string, baseSize: number, y: number) => {
-          let size = baseSize;
-          const family = 'Arial, sans-serif';
-          if (typeof (ctx as any).measureText === 'function') {
-            while (size > 24) {
-              ctx.font = `bold ${size}px ${family}`;
-              const w = ctx.measureText(text).width;
-              if (w <= canvas.width - margin * 2) break;
-              size -= 2;
-            }
-          } else {
-            ctx.font = `bold ${size}px ${family}`;
-          }
-          ctx.fillText(text, canvas.width / 2, y);
-        };
-
-        const topY = textTop + lineHeight;
-        const bottomY = textTop + lineHeight * 2;
-        fitAndDraw(topRow, 72, topY);
-        fitAndDraw(bottomRow, 72, bottomY); // Same size for consistency
-
-        // Convert to blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to create image blob'));
-          }
-        }, 'image/jpeg', 0.9);
-
-      } catch (error) {
-        reject(error);
-      }
-    };
-
-    img.onerror = () => reject(new Error('Failed to load car image'));
     try {
-      // Prefetch image via same-origin proxy to avoid CORS and tainted canvas
-      const proxied = `/api/image-proxy?src=${encodeURIComponent(car.coverImage)}`;
-      const resp = await fetch(proxied, { credentials: 'include', mode: 'cors' as RequestMode });
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      img.src = url;
-    } catch (e) {
-      reject(e instanceof Error ? e : new Error('Failed to fetch car image'));
-      return;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        reject(new Error('Canvas not supported - browser may not support HTML5 Canvas'));
+        return;
+      }
+
+      // WhatsApp Status dimensions (9:16 aspect ratio)
+      canvas.width = 1080;
+      canvas.height = 1920;
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      img.onload = () => {
+        try {
+          const minTextBoxHeight = 420; // reserve space for two lines
+          const availableImageHeight = canvas.height - minTextBoxHeight;
+
+          // Optional background to avoid transparency in JPEG
+          ctx.fillStyle = 'black';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Scale to fill width while maintaining aspect ratio
+          const scale = canvas.width / img.width;
+          const drawWidth = canvas.width; // Full width
+          const drawHeight = Math.round(img.height * scale);
+          const drawX = 0; // No horizontal margin
+          const drawY = 0; // Align to top to prevent cutoff
+
+          // Ensure image doesn't exceed available height
+          if (drawHeight > availableImageHeight) {
+            // If image is too tall, scale to fit height instead
+            const heightScale = availableImageHeight / img.height;
+            const adjustedWidth = Math.round(img.width * heightScale);
+            const adjustedHeight = availableImageHeight;
+            ctx.drawImage(img, 
+              Math.round((canvas.width - adjustedWidth) / 2), // Center horizontally
+              0, 
+              adjustedWidth, 
+              adjustedHeight
+            );
+          } else {
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+          }
+
+          // Calculate actual image height after scaling
+          let actualImageHeight;
+          if (drawHeight > availableImageHeight) {
+            actualImageHeight = availableImageHeight;
+          } else {
+            actualImageHeight = drawHeight;
+          }
+
+          const textTop = actualImageHeight; // Text box starts right after image
+          ctx.fillStyle = 'black';
+          ctx.fillRect(0, textTop, canvas.width, canvas.height - textTop);
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = 'white';
+
+          const price = new Intl.NumberFormat('en-ZA', {
+            style: 'currency',
+            currency: 'ZAR',
+            minimumFractionDigits: 0
+          }).format(car.price);
+          const kmText = typeof car.kilometers === 'number' ? `${car.kilometers.toLocaleString()} km` : '';
+          const topRow = `${car.year} ${car.model}`;
+          const bottomRow = kmText ? `${kmText}  ${price}` : `${price}`;
+
+          const margin = 48;
+          
+          // Text positioning with proper padding
+          const paddingFromImage = 40; // Padding between image and first text line
+          const lineHeight = 80; // Fixed line height for consistent spacing
+          const lineSpacing = 20; // Space between lines
+
+          const fitAndDraw = (text: string, baseSize: number, y: number) => {
+            let size = baseSize;
+            const family = 'Arial, sans-serif';
+            if (typeof (ctx as any).measureText === 'function') {
+              while (size > 24) {
+                ctx.font = `bold ${size}px ${family}`;
+                const w = ctx.measureText(text).width;
+                if (w <= canvas.width - margin * 2) break;
+                size -= 2;
+              }
+            } else {
+              ctx.font = `bold ${size}px ${family}`;
+            }
+            ctx.fillText(text, canvas.width / 2, y);
+          };
+
+          const topY = textTop + paddingFromImage;
+          const bottomY = topY + lineHeight + lineSpacing;
+          fitAndDraw(topRow, 72, topY);
+          fitAndDraw(bottomRow, 72, bottomY); // Same size for consistency
+
+          // Convert to blob
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to create image blob - canvas.toBlob returned null'));
+            }
+          }, 'image/jpeg', 0.9);
+
+        } catch (error) {
+          reject(new Error(`Canvas rendering failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        }
+      };
+
+      img.onerror = () => reject(new Error('Failed to load car image - image load error'));
+      
+      try {
+        // Prefetch image via same-origin proxy to avoid CORS and tainted canvas
+        const proxied = `/api/image-proxy?src=${encodeURIComponent(car.coverImage)}`;
+        console.log(`Fetching image from proxy: ${proxied}`);
+        const resp = await fetch(proxied, { credentials: 'include', mode: 'cors' as RequestMode });
+        
+        if (!resp.ok) {
+          throw new Error(`Image proxy returned ${resp.status}: ${resp.statusText}`);
+        }
+        
+        const blob = await resp.blob();
+        if (blob.size === 0) {
+          throw new Error('Received empty image blob from proxy');
+        }
+        
+        const url = URL.createObjectURL(blob);
+        img.src = url;
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error('Failed to fetch car image from proxy'));
+      }
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error('Unknown error in image generation'));
     }
   });
 }
@@ -209,37 +233,68 @@ async function downloadImagesToGallery(images: Blob[], cars: CarData[]): Promise
 
     // Create download link
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    (link as HTMLAnchorElement).download = filename;
-    (link as HTMLAnchorElement).rel = 'noopener';
-
-    // Trigger download; appending to DOM improves reliability in Chrome/Safari
+    
     try {
-      if (document && typeof document.body?.appendChild === 'function') {
-        document.body.appendChild(link);
-        (link as HTMLAnchorElement).click();
-        document.body.removeChild(link);
-      } else {
-        (link as HTMLAnchorElement).click();
-      }
-    } catch {
-      // best-effort fallback
-      try { (link as HTMLAnchorElement).click(); } catch {}
-      try {
-        const anyWin: any = window as any;
-        if (typeof anyWin.showSaveFilePicker === 'function') {
-          const handle = await anyWin.showSaveFilePicker({
-            suggestedName: filename,
-            types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }]
-          });
-          const writable = await handle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-        } else {
-          window.open?.(url, '_blank', 'noopener,noreferrer');
+      // Check if we're on mobile and use appropriate method
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Mobile: Try to share or download using mobile-specific APIs
+        try {
+          // Try Web Share API first (modern mobile browsers)
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'image/jpeg' })] })) {
+            await navigator.share({
+              title: filename,
+              text: `${car.year} ${car.make} ${car.model}`,
+              files: [new File([blob], filename, { type: 'image/jpeg' })]
+            });
+          } else {
+            // Fallback: Open in new tab for manual download
+            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!newWindow) {
+              // If popup blocked, try direct download
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = filename;
+              link.target = '_blank';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          }
+        } catch (_shareError) {
+          // Share failed, try direct download
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         }
-      } catch {}
+      } else {
+        // Desktop: Standard download approach
+        const link = document.createElement('a');
+        link.href = url;
+        (link as HTMLAnchorElement).download = filename;
+        (link as HTMLAnchorElement).rel = 'noopener';
+        
+        if (document && typeof document.body?.appendChild === 'function') {
+          document.body.appendChild(link);
+          (link as HTMLAnchorElement).click();
+          document.body.removeChild(link);
+        } else {
+          (link as HTMLAnchorElement).click();
+        }
+      }
+    } catch (error) {
+      console.error('Download failed for', filename, ':', error);
+      // Ultimate fallback: try to open in new tab
+      try {
+        window.open?.(url, '_blank', 'noopener,noreferrer');
+      } catch (_fallbackError) {
+        console.error('All download methods failed for', filename);
+      }
     }
 
     // Cleanup
