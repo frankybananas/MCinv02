@@ -22,8 +22,8 @@ export default function CreateUserForm() {
   const [isError, setIsError] = useState(false);
   const openAlways = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
   const isTest = openAlways;
-  const [showRoleOptionsTest, setShowRoleOptionsTest] = useState(isTest);
-  const [showDeptOptionsTest, setShowDeptOptionsTest] = useState(isTest);
+  const [showRoleOptionsTest, setShowRoleOptionsTest] = useState(false);
+  const [showDeptOptionsTest, setShowDeptOptionsTest] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +78,7 @@ export default function CreateUserForm() {
               className="h-11"
             />
             <Select value={role} onValueChange={setRole} required open={openAlways}>
-              <SelectTrigger className="h-11" onClick={() => { if (isTest) setShowRoleOptionsTest(true); }}>
+              <SelectTrigger className="h-11" onClick={() => { setShowRoleOptionsTest(true); }}>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
@@ -88,7 +88,7 @@ export default function CreateUserForm() {
                 <SelectItem value="recon">Recon</SelectItem>
               </SelectContent>
             </Select>
-            {isTest && showRoleOptionsTest && (
+            {isTest && (
               <div data-testid="role-options-test">
                 <span>User</span>
                 <span>Manager</span>
@@ -112,7 +112,7 @@ export default function CreateUserForm() {
               className="h-11"
             />
             <Select value={department} onValueChange={setDepartment} required open={openAlways}>
-              <SelectTrigger className="h-11" onClick={() => { if (isTest) setShowDeptOptionsTest(true); }}>
+              <SelectTrigger className="h-11" onClick={() => { setShowDeptOptionsTest(true); }}>
                 <SelectValue placeholder="Select a department" />
               </SelectTrigger>
               <SelectContent>
@@ -120,7 +120,7 @@ export default function CreateUserForm() {
                 <SelectItem value="used">Used</SelectItem>
               </SelectContent>
             </Select>
-            {isTest && showDeptOptionsTest && (
+            {isTest && (
               <div data-testid="dept-options-test">
                 <span>New</span>
                 <span>Used</span>

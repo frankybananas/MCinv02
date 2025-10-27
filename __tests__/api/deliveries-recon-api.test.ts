@@ -136,7 +136,7 @@ describe('Deliveries Recon API', () => {
   test('GET /api/deliveries?scope=recon forbidden for normal user', async () => {
     headersMock.mockReturnValue(new Headers({ 'x-user-role': 'user' }));
     const { GET } = await import('@/app/api/deliveries/route');
-    const req = new Request('http://localhost/api/deliveries?scope=recon', { headers: { cookie: 'session_token=fake' } });
+    const req = new Request('http://localhost/api/deliveries?scope=recon', { headers: { cookie: 'session_token=fake', 'x-user-phone': '+27111111111' } as any });
     const res = await GET(req);
     expect(res.status).toBe(403);
   });
@@ -158,7 +158,10 @@ describe('Deliveries Recon API', () => {
     const req = new Request('http://localhost/api/deliveries/d1', { method: 'PUT', headers: { 'content-type': 'application/json', cookie: 'session_token=fake', 'x-user-phone': '+27111111111' } as any, body: JSON.stringify(payload) });
     const res = await (PUT as any)(req, { params: { id: 'd1' } });
     const data = await res.json();
-
+    if (res.status !== 200) {
+      // eslint-disable-next-line no-console
+      console.error('PUT error', data);
+    }
     expect(res.status).toBe(200);
     expect(Array.isArray(data.data.reconTasks)).toBe(true);
     expect(data.data.reconReady).toBe(true);
