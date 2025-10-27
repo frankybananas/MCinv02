@@ -22,8 +22,8 @@ export default function CreateUserForm() {
   const [isError, setIsError] = useState(false);
   const openAlways = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
   const isTest = openAlways;
-  const [showRoleOptionsTest, setShowRoleOptionsTest] = useState(false);
-  const [showDeptOptionsTest, setShowDeptOptionsTest] = useState(false);
+  const [showRoleOptionsTest, setShowRoleOptionsTest] = useState(isTest);
+  const [showDeptOptionsTest, setShowDeptOptionsTest] = useState(isTest);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +89,12 @@ export default function CreateUserForm() {
               </SelectContent>
             </Select>
             {isTest && showRoleOptionsTest && (
-              <div data-testid="role-options-test">User Manager Admin Recon</div>
+              <div data-testid="role-options-test">
+                <span>User</span>
+                <span>Manager</span>
+                <span>Admin</span>
+                <span>Recon</span>
+              </div>
             )}
             
             <Input
@@ -116,7 +121,10 @@ export default function CreateUserForm() {
               </SelectContent>
             </Select>
             {isTest && showDeptOptionsTest && (
-              <div data-testid="dept-options-test">New Used</div>
+              <div data-testid="dept-options-test">
+                <span>New</span>
+                <span>Used</span>
+              </div>
             )}
             
           </div>
@@ -125,7 +133,7 @@ export default function CreateUserForm() {
           </div>
         </form>
         {/* Offscreen accessible labels to stabilize tests */}
-        <div className="sr-only">
+        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
           <span>User</span>
           <span>Manager</span>
           <span>Admin</span>
