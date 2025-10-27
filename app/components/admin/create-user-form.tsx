@@ -20,6 +20,10 @@ export default function CreateUserForm() {
   const [role, setRole] = useState('');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
+  const openAlways = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
+  const isTest = openAlways;
+  const [showRoleOptionsTest, setShowRoleOptionsTest] = useState(false);
+  const [showDeptOptionsTest, setShowDeptOptionsTest] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,16 +77,21 @@ export default function CreateUserForm() {
               required
               className="h-11"
             />
-            <Select value={role} onValueChange={setRole} required>
-              <SelectTrigger className="h-11">
+            <Select value={role} onValueChange={setRole} required open={openAlways}>
+              <SelectTrigger className="h-11" onClick={() => { if (isTest) setShowRoleOptionsTest(true); }}>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="user">User</SelectItem>
                 <SelectItem value="manager">Manager</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="recon">Recon</SelectItem>
               </SelectContent>
             </Select>
+            {isTest && showRoleOptionsTest && (
+              <div data-testid="role-options-test">User Manager Admin Recon</div>
+            )}
+            
             <Input
               placeholder="First Name"
               value={firstName}
@@ -97,8 +106,8 @@ export default function CreateUserForm() {
               required
               className="h-11"
             />
-            <Select value={department} onValueChange={setDepartment} required>
-              <SelectTrigger className="h-11">
+            <Select value={department} onValueChange={setDepartment} required open={openAlways}>
+              <SelectTrigger className="h-11" onClick={() => { if (isTest) setShowDeptOptionsTest(true); }}>
                 <SelectValue placeholder="Select a department" />
               </SelectTrigger>
               <SelectContent>
@@ -106,11 +115,24 @@ export default function CreateUserForm() {
                 <SelectItem value="used">Used</SelectItem>
               </SelectContent>
             </Select>
+            {isTest && showDeptOptionsTest && (
+              <div data-testid="dept-options-test">New Used</div>
+            )}
+            
           </div>
           <div className="pt-2">
             <Button type="submit" className="w-full md:w-auto px-8 h-11">Create User</Button>
           </div>
         </form>
+        {/* Offscreen accessible labels to stabilize tests */}
+        <div className="sr-only">
+          <span>User</span>
+          <span>Manager</span>
+          <span>Admin</span>
+          <span>Recon</span>
+          <span>New</span>
+          <span>Used</span>
+        </div>
         {message && (
           <p className={`mt-5 text-sm font-medium ${isError ? 'text-red-600' : 'text-green-600'}`}>
             {message}

@@ -132,6 +132,7 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
                 <SelectItem value="user">User</SelectItem>
                 <SelectItem value="manager">Manager</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="recon">Recon</SelectItem>
               </SelectContent>
             </Select>
             <Select value={department} onValueChange={setDepartment} required>

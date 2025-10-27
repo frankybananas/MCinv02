@@ -19,10 +19,23 @@ const DeliveryDocSchema = new mongoose.Schema({
   uploadedAt: { type: Date, default: Date.now },
 });
 
+const ReconAttachmentSchema = new mongoose.Schema({
+  url: { type: String, required: true },
+  key: { type: String },
+  fileType: { type: String },
+  fileSize: { type: Number },
+  uploadedAt: { type: Date, default: Date.now },
+}, { _id: false });
+
 const ReconTaskSchema = new mongoose.Schema({
   text: { type: String, required: true },
   done: { type: Boolean, default: false },
   note: { type: String },
+  assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  dueDate: { type: Date },
+  blocked: { type: Boolean, default: false },
+  blockedReason: { type: String },
+  attachments: { type: [ReconAttachmentSchema], default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
@@ -36,6 +49,7 @@ const DeliverySchema = new mongoose.Schema({
   financeBank: { type: String },
   reconNotes: { type: String },
   reconTasks: { type: [ReconTaskSchema], default: [] },
+  reconReady: { type: Boolean, default: false },
   licensing: {
     done: { type: Boolean, default: false },
     notes: { type: String }

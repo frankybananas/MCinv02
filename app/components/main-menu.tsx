@@ -15,6 +15,7 @@ import {
   Bell,
   Calendar,
   Shield,
+  Wrench,
 } from "lucide-react";
 
 interface MainMenuProps {
@@ -63,6 +64,13 @@ function MainMenuComponent({
       console.error("Navigation to admin failed", error);
     }
   }, [onAdminNavigate]);
+  const handleReconNavigate = React.useCallback(() => {
+    try {
+      window.location.href = "/recon";
+    } catch (error) {
+      console.error("Navigation to recon failed", error);
+    }
+  }, []);
 
   const menuItems = React.useMemo<MenuItem[]>(() => {
     const items: MenuItem[] = [
@@ -93,6 +101,10 @@ function MainMenuComponent({
 
     if (userRole === "admin") {
       items.push({ id: "admin", label: "Admin", icon: Shield });
+    }
+
+    if (userRole === "admin" || userRole === "manager" || userRole === "recon") {
+      items.push({ id: "recon" as any, label: "Recon", icon: Wrench });
     }
 
     return items;
@@ -141,6 +153,10 @@ function MainMenuComponent({
                       onClick={() => {
                         if (item.id === "admin") {
                           handleAdminNavigate();
+                          return;
+                        }
+                        if (item.id === ("recon" as any)) {
+                          handleReconNavigate();
                           return;
                         }
                         onStatusFilterChange(item.id as DashboardTab);

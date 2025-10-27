@@ -3,7 +3,7 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 export interface IUser extends Document {
   phone: string;
   isAuthorized: boolean;
-  role: 'admin' | 'user' | 'manager';
+  role: 'admin' | 'user' | 'manager' | 'recon';
   position?: string;
   department: 'new' | 'used';
   matchingEnabled?: boolean;
@@ -29,7 +29,7 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>({
   phone: { type: String, required: [true, 'Please provide a phone number'], unique: true, trim: true },
   isAuthorized: { type: Boolean, default: false },
-  role: { type: String, enum: ['admin', 'user', 'manager'], default: 'user' },
+  role: { type: String, enum: ['admin', 'user', 'manager', 'recon'], default: 'user' },
   position: { type: String, trim: true },
   department: { type: String, enum: ['new', 'used'], required: true },
   matchingEnabled: { type: Boolean, default: true },

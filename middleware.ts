@@ -19,6 +19,7 @@ const PUBLIC_PATHS = [
 ];
 
 const ADMIN_PATHS = ['/admin'];
+const RECON_PATHS = ['/recon'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -63,6 +64,17 @@ export async function middleware(request: NextRequest) {
     if (ADMIN_PATHS.some((p) => pathname.startsWith(p))) {
       if (payload.role !== 'admin') {
         // Redirect non-admins away from admin pages to the dashboard
+        const url = request.nextUrl.clone();
+        url.pathname = '/';
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // Role-based authorization for recon page
+    if (RECON_PATHS.some((p) => pathname.startsWith(p))) {
+      const role = String((payload as any).role || '');
+      const allowed = role === 'admin' || role === 'manager' || role === 'recon';
+      if (!allowed) {
         const url = request.nextUrl.clone();
         url.pathname = '/';
         return NextResponse.redirect(url);

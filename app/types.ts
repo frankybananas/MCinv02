@@ -1,6 +1,6 @@
 export type CarState = "in-stock" | "coming" | "reserved" | "sold";
 export type CarStatus = "all" | CarState | "demo";
-export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications" | "todo" | "marketing";
+export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications" | "todo" | "marketing" | "recon";
 
 export interface Picture {
   _id?: string;
@@ -54,6 +54,7 @@ export interface Delivery {
   deliveryDate?: string;
   financeBank?: string;
   reconTasks?: ReconTask[];
+  reconReady?: boolean;
   licensing?: { done: boolean; notes?: string };
   customerType: "natural" | "company";
   docs: DeliveryDoc[];
@@ -110,6 +111,17 @@ export interface ReconTask {
   text: string;
   done: boolean;
   note?: string;
+  assignee?: string; // userId of recon user
+  dueDate?: string; // ISO date
+  blocked?: boolean;
+  blockedReason?: string;
+  attachments?: Array<{
+    url: string;
+    key?: string;
+    fileType?: string;
+    fileSize?: number;
+    uploadedAt: string;
+  }>;
   createdAt?: string;
   updatedAt?: string;
 }

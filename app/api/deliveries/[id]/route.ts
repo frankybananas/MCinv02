@@ -45,7 +45,13 @@ async function getUserIdFromRequest(request: Request): Promise<string | null> {
       }
     }
     const phone = (payload as any).phone as string | undefined
-    if (!phone) return null
+    if (!phone) {
+      const phoneHeader = request.headers.get('x-user-phone') || undefined
+      if (!phoneHeader) return null
+      await connectDb()
+      const user2 = await (User as any).findOne({ phone: phoneHeader }).select('_id')
+      return user2?._id?.toString() || null
+    }
     await connectDb()
     const user = await (User as any).findOne({ phone }).select('_id')
     return user?._id?.toString() || null
@@ -61,7 +67,12 @@ export async function GET(request: Request, { params }: { params: { id: string }
     await request.blob()
     const { id } = await (params as any)
     await connectDb()
-    const item = await Delivery.findOne({ _id: id, salesperson: userId })
+    const headersList = await headers()
+    const role = String(headersList.get('x-user-role') || '')
+    const isPrivileged = role === 'admin' || role === 'manager' || role === 'recon'
+    const query: any = { _id: id }
+    if (!isPrivileged) query.salesperson = userId
+    const item = await Delivery.findOne(query)
     if (!item) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
     return NextResponse.json({ success: true, data: item })
   } catch (err: any) {
@@ -79,6 +90,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const headersList = await headers()
     const userPhone = headersList.get('x-user-phone')
     let userName = headersList.get('x-user-name')
+    const role = String(headersList.get('x-user-role') || '')
+    const isPrivileged = role === 'admin' || role === 'manager' || role === 'recon'
     // If no name provided in headers, try to resolve from DB by phone
     if ((!userName || !userName.trim()) && userPhone) {
       try {
@@ -96,18 +109,90 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     await connectDb()
     const update: any = {}
     // Load existing to compute audit details and allow partial merges
-    const existing: any = await Delivery.findOne({ _id: id, salesperson: userId }).lean()
+    const baseQuery: any = { _id: id }
+    if (!isPrivileged) baseQuery.salesperson = userId
+    const existing: any = await Delivery.findOne(baseQuery).lean()
     if (!existing) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
-    if (deliveryDate !== undefined) update.deliveryDate = deliveryDate
-    if (financeBank !== undefined) update.financeBank = financeBank
-    if (reconNotes !== undefined) update.reconNotes = reconNotes
-    if (reconTasks !== undefined) update.reconTasks = reconTasks
-    if (licensing !== undefined) update.licensing = licensing
-    if (customerType !== undefined) update.customerType = customerType
-    if (status !== undefined) update.status = status
-    if (body.client !== undefined) update.client = body.client || null
-    if (additionalDocs !== undefined) update.additionalDocs = additionalDocs
-    if (Array.isArray(docs) && docs.length) {
+    const setReconOnly = (tasks: any[]) => {
+      update.reconTasks = tasks
+      // Auto mark reconReady when all tasks done
+      const total = tasks.length
+      const done = tasks.filter((t: any) => !!t.done).length
+      const allDone = total > 0 && done === total
+      update.reconReady = allDone
+    }
+
+    // Restrict recon role to reconTasks only
+    if (role === 'recon') {
+      if (Array.isArray(reconTasks)) {
+        // Ensure each task has an assignee; default to first recon user if missing
+        let defaultReconId: string | null = null
+        try {
+          const firstRecon = await (User as any).findOne({ role: 'recon' }).select('_id').sort({ createdAt: 1 })
+          defaultReconId = firstRecon?._id ? String(firstRecon._id) : null
+        } catch {}
+        const tasks = reconTasks.map((t: any) => ({
+          text: String(t.text || '').trim(),
+          done: !!t.done,
+          note: t.note || undefined,
+          assignee: t.assignee || defaultReconId || undefined,
+          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+          blocked: !!t.blocked,
+          blockedReason: t.blocked ? (t.blockedReason || '') : undefined,
+          attachments: Array.isArray(t.attachments) ? t.attachments : [],
+          updatedAt: new Date(),
+          createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
+        }))
+        setReconOnly(tasks)
+
+        // Build recon-specific audit entry
+        const total = tasks.length
+        const doneCount = tasks.filter((t: any) => !!t.done).length
+        const blockedList = tasks.filter((t: any) => !!t.blocked)
+        let details = `Recon updated: ${doneCount}/${total} tasks done`
+        if (blockedList.length > 0) {
+          const firstBlocked = blockedList[0]
+          const reason = firstBlocked.blockedReason ? ` - ${firstBlocked.blockedReason}` : ''
+          details = `Recon blocked: ${firstBlocked.text}${reason}`
+        } else if (total > 0 && doneCount === total) {
+          details = 'Recon completed: all tasks done'
+        }
+        const auditEntry = {
+          action: 'Recon Update',
+          user: userName || userPhone || 'unknown',
+          timestamp: new Date(),
+          details,
+        }
+        update.$push = { ...(update.$push || {}), auditLog: auditEntry }
+      }
+    } else {
+      // Admin/manager/user flows: accept other fields per original behavior
+      if (deliveryDate !== undefined) update.deliveryDate = deliveryDate
+      if (financeBank !== undefined) update.financeBank = financeBank
+      if (reconNotes !== undefined) update.reconNotes = reconNotes
+      if (reconTasks !== undefined) {
+        const tasks = (Array.isArray(reconTasks) ? reconTasks : []).map((t: any) => ({
+          text: String(t.text || '').trim(),
+          done: !!t.done,
+          note: t.note || undefined,
+          assignee: t.assignee || undefined,
+          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+          blocked: !!t.blocked,
+          blockedReason: t.blocked ? (t.blockedReason || '') : undefined,
+          attachments: Array.isArray(t.attachments) ? t.attachments : [],
+          updatedAt: new Date(),
+          createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
+        }))
+        setReconOnly(tasks)
+      }
+      if (licensing !== undefined) update.licensing = licensing
+      if (customerType !== undefined) update.customerType = customerType
+      if (status !== undefined) update.status = status
+      if (body.client !== undefined) update.client = body.client || null
+      if (additionalDocs !== undefined) update.additionalDocs = additionalDocs
+    }
+    if (docs !== undefined && Array.isArray(docs) && docs.length > 0 && role !== 'recon') {
+      // ensure append, not replace
       update.$push = { ...(update.$push || {}), docs: { $each: docs } }
     }
 
@@ -222,7 +307,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         if (oldVal !== newVal) changes.push(`'client' from '${oldVal}' to '${newVal}'`)
       }
     }
-    if (changes.length > 0) {
+    if (changes.length > 0 && role !== 'recon') {
       const details = `Updated fields: ${changes.join(', ')}`
       const auditEntry = {
         action: 'Delivery Details Update',
@@ -235,13 +320,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // If nothing to update (no field changes, no docs and no audit addition), avoid unnecessary write
     if (!Object.keys(update).length) {
-      const existingItem = await Delivery.findOne({ _id: id, salesperson: userId })
+      const existingItem = await Delivery.findOne(baseQuery)
       if (!existingItem) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })
       return NextResponse.json({ success: true, data: existingItem })
     }
 
     const item = await Delivery.findOneAndUpdate(
-      { _id: id, salesperson: userId },
+      baseQuery,
       update,
       { new: true }
     )

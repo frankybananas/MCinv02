@@ -96,7 +96,7 @@ export async function PATCH(request: Request) {
     if (typeof matchingEnabled === 'boolean') set.matchingEnabled = matchingEnabled;
     if (typeof todoEnabled === 'boolean') set.todoEnabled = todoEnabled;
     if (typeof marketingEnabled === 'boolean') set.marketingEnabled = marketingEnabled;
-    if (role && ['admin', 'user', 'manager'].includes(role)) set.role = role;
+    if (role && ['admin', 'user', 'manager', 'recon'].includes(role)) set.role = role;
     if (department && ['new', 'used'].includes(department)) set.department = department;
     if (rawPhone) {
       // Normalize phone number to E.164 format

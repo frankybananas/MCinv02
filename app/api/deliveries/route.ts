@@ -45,7 +45,13 @@ async function getUserIdFromRequest(request: Request): Promise<string | null> {
       }
     }
     const phone = (payload as any).phone as string | undefined
-    if (!phone) return null
+    if (!phone) {
+      const phoneHeader = request.headers.get('x-user-phone') || undefined
+      if (!phoneHeader) return null
+      await connectDb()
+      const user2 = await (User as any).findOne({ phone: phoneHeader }).select('_id')
+      return user2?._id?.toString() || null
+    }
     await connectDb()
     const user = await (User as any).findOne({ phone }).select('_id')
     return user?._id?.toString() || null
@@ -59,7 +65,27 @@ export async function GET(request: Request) {
   try {
     const userId = await getUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    const url = new URL(request.url)
+    const scope = url.searchParams.get('scope') || ''
+    const headersList = await headers()
+    const role = String(headersList.get('x-user-role') || '')
     await connectDb()
+    if (scope === 'recon') {
+      const allowed = role === 'admin' || role === 'manager' || role === 'recon'
+      if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+      const items = await Delivery
+        .find({
+          status: 'active',
+          $or: [
+            { reconTasks: { $exists: true, $ne: [] } },
+            { deliveryDate: { $ne: null } },
+          ],
+        })
+        .populate({ path: 'car', populate: { path: 'images' } })
+        .populate('client')
+        .sort({ deliveryDate: 1, updatedAt: -1 })
+      return NextResponse.json({ success: true, data: items })
+    }
     const items = await Delivery
       .find({ salesperson: userId })
       .populate({ path: 'car', populate: { path: 'images' } })
