@@ -158,6 +158,7 @@ async function generateCarImage(car: CarData): Promise<Blob> {
           const paddingFromImage = 20; // Same spacing as between lines
           const lineHeight = 80; // Fixed line height for consistent spacing
           const lineSpacing = 20; // Space between lines
+          const textHeight = 72; // Base font size to ensure text fits below image
 
           const fitAndDraw = (text: string, baseSize: number, y: number) => {
             let size = baseSize;
@@ -175,7 +176,9 @@ async function generateCarImage(car: CarData): Promise<Blob> {
             ctx.fillText(text, canvas.width / 2, y);
           };
 
-          const topY = textTop + paddingFromImage;
+          // Position text so the entire text is below the image
+          // Add padding + text height to ensure text doesn't overlap image
+          const topY = textTop + paddingFromImage + textHeight;
           const bottomY = topY + lineHeight + lineSpacing;
           fitAndDraw(topRow, 72, topY);
           fitAndDraw(bottomRow, 72, bottomY); // Same size for consistency
