@@ -22,6 +22,7 @@ interface MainMenuProps {
   onStatusFilterChange: (tab: DashboardTab) => void;
   unreadNotificationsCount?: number;
   todoEnabled?: boolean;
+  marketingEnabled?: boolean;
   userRole?: string | null;
   className?: string;
   onAdminNavigate?: () => void;
@@ -45,6 +46,7 @@ function MainMenuComponent({
   onStatusFilterChange,
   unreadNotificationsCount = 0,
   todoEnabled = false,
+  marketingEnabled = false,
   userRole,
   className,
   onAdminNavigate,
@@ -84,15 +86,17 @@ function MainMenuComponent({
       items.push({ id: "todo", label: "TODO", icon: Calendar });
     }
 
-    // Add marketing after TODO
-    items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
+    // Add marketing after TODO when enabled
+    if (marketingEnabled) {
+      items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
+    }
 
     if (userRole === "admin") {
       items.push({ id: "admin", label: "Admin", icon: Shield });
     }
 
     return items;
-  }, [todoEnabled, unreadNotificationsCount, userRole]);
+  }, [todoEnabled, marketingEnabled, unreadNotificationsCount, userRole]);
 
   React.useEffect(() => {
     try {

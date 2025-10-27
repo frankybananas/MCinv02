@@ -68,6 +68,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   const [notificationsLastSeenAt, setNotificationsLastSeenAt] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<DashboardTab>('all');
   const [todoEnabled, setTodoEnabled] = useState<boolean>(false);
+  const [marketingEnabled, setMarketingEnabled] = useState<boolean>(false);
   const [role, setRole] = useState<string | null>(userRole);
   const hasRestoredLastTab = useRef(false);
 
@@ -323,7 +324,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
       return;
     }
 
-    if (storedTab === 'todo' && !todoEnabled) {
+    if ((storedTab === 'todo' && !todoEnabled) || (storedTab === 'marketing' && !marketingEnabled)) {
       window.localStorage.setItem(LAST_ACTIVE_TAB_STORAGE_KEY, 'all');
       hasRestoredLastTab.current = true;
       return;
@@ -331,21 +332,21 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
 
     setActiveStatus(storedTab);
     hasRestoredLastTab.current = true;
-  }, [authChecked, todoEnabled, setActiveStatus]);
+  }, [authChecked, todoEnabled, marketingEnabled, setActiveStatus]);
 
   useEffect(() => {
-    if (!todoEnabled && activeStatus === 'todo') {
+    if ((!todoEnabled && activeStatus === 'todo') || (!marketingEnabled && activeStatus === 'marketing')) {
       setActiveStatus('all');
     }
-  }, [todoEnabled, activeStatus]);
+  }, [todoEnabled, marketingEnabled, activeStatus]);
 
   useEffect(() => {
     if (!hasRestoredLastTab.current) return;
     if (typeof window === 'undefined') return;
-    if (activeStatus === 'todo' && !todoEnabled) return;
+    if ((activeStatus === 'todo' && !todoEnabled) || (activeStatus === 'marketing' && !marketingEnabled)) return;
 
     window.localStorage.setItem(LAST_ACTIVE_TAB_STORAGE_KEY, activeStatus);
-  }, [activeStatus, todoEnabled]);
+  }, [activeStatus, todoEnabled, marketingEnabled]);
 
   // Refresh data when switching to delivery tab
   useEffect(() => {
@@ -387,7 +388,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; role?: string | null } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; marketingEnabled?: boolean; role?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (mounted) {
@@ -396,6 +397,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
             if (name) setCurrentUserName(name);
             if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
             setTodoEnabled(data?.todoEnabled === true);
+            setMarketingEnabled(data?.marketingEnabled === true);
             setRole(typeof data?.role === 'string' ? data.role : null);
             setAuthChecked(true);
           }
@@ -425,13 +427,14 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const j = await res.json();
-          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; role?: string | null } | undefined;
+          const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; marketingEnabled?: boolean; role?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
           if (phone) setCurrentUserPhone(phone);
           if (name) setCurrentUserName(name);
           if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
           setTodoEnabled(data?.todoEnabled === true);
+          setMarketingEnabled(data?.marketingEnabled === true);
           setRole(typeof data?.role === 'string' ? data.role : null);
         }
       } catch (error) {
@@ -824,6 +827,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           notifications={notifications}
           unreadNotificationsCount={unreadNotificationsCount}
           todoEnabled={todoEnabled}
+          marketingEnabled={marketingEnabled}
           onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
           onNotificationDone={handleNotificationDone}
           onNotificationSelect={async (n) => {

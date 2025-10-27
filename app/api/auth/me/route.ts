@@ -18,6 +18,7 @@ function serializeUser(user: UserDoc) {
     role: user.role,
     notificationsLastSeenAt: user.notificationsLastSeenAt || null,
     todoEnabled: user.todoEnabled === true,
+    marketingEnabled: user.marketingEnabled === true,
   }
 }
 

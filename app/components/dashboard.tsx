@@ -36,6 +36,7 @@ interface DashboardProps {
   onNotificationDone?: (item: NotificationItem) => void;
   unreadNotificationsCount?: number;
   todoEnabled?: boolean;
+  marketingEnabled?: boolean;
   onMarkAllNotificationsRead?: () => void;
 }
 
@@ -61,6 +62,7 @@ export function Dashboard({
   onNotificationDone,
   unreadNotificationsCount = 0,
   todoEnabled = false,
+  marketingEnabled = false,
   onMarkAllNotificationsRead
 }: DashboardProps) {
   const [fabOpen, setFabOpen] = useState(false)
@@ -284,7 +286,7 @@ export function Dashboard({
             </div>
           )}
           {/* Marketing page */}
-          {showMarketing && (
+          {showMarketing && marketingEnabled && (
             <div key="marketing-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               <Marketing
                 cars={cars.filter((car) => car.status === "in-stock" || car.status === "reserved")}
@@ -651,6 +653,7 @@ export function Dashboard({
         onStatusFilterChange={onStatusFilterChange}
         unreadNotificationsCount={unreadNotificationsCount}
         todoEnabled={todoEnabled}
+        marketingEnabled={marketingEnabled}
         userRole={userRole}
         onAdminNavigate={handleAdminNavigate}
       />
