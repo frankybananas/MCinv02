@@ -61,6 +61,10 @@ const CarSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  doNotAdvertise: {
+    type: Boolean,
+    default: false,
+  },
   serviceHistory: [{
     date: Date,
     description: String,
