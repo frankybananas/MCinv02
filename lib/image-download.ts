@@ -176,7 +176,8 @@ function downloadViaLink(file: File): void {
  * Create a ZIP file from multiple images (requires JSZip)
  */
 async function createZipFile(files: File[], zipFilename: string): Promise<File> {
-  const { default: JSZip } = await import('jszip')
+  const jszipModule = await import('jszip') as any
+  const JSZip = jszipModule.default || jszipModule
   const zip = new JSZip()
   const folder = zip.folder('car_images') || zip
 
