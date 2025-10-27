@@ -404,7 +404,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                             <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
                           )}
                           {formData.doNotAdvertise && (
-                            <span className="absolute top-8 left-1 bg-white text-black font-bold text-xs sm:text-sm px-2 py-1 rounded shadow-md" data-testid="dna-badge">DNA</span>
+                            <span className="absolute top-8 left-1 z-10 bg-white text-black font-bold text-xs sm:text-sm px-2 py-1 rounded shadow-md" data-testid="dna-badge">DNA</span>
                           )}
                           <Button
                             type="button"
