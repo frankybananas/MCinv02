@@ -155,7 +155,7 @@ async function generateCarImage(car: CarData): Promise<Blob> {
           const margin = 48;
           
           // Text positioning with proper padding
-          const paddingFromImage = 40; // Padding between image and first text line
+          const paddingFromImage = 20; // Same spacing as between lines
           const lineHeight = 80; // Fixed line height for consistent spacing
           const lineSpacing = 20; // Space between lines
 
@@ -239,39 +239,14 @@ async function downloadImagesToGallery(images: Blob[], cars: CarData[]): Promise
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // Mobile: Try to share or download using mobile-specific APIs
-        try {
-          // Try Web Share API first (modern mobile browsers)
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'image/jpeg' })] })) {
-            await navigator.share({
-              title: filename,
-              text: `${car.year} ${car.make} ${car.model}`,
-              files: [new File([blob], filename, { type: 'image/jpeg' })]
-            });
-          } else {
-            // Fallback: Open in new tab for manual download
-            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-            if (!newWindow) {
-              // If popup blocked, try direct download
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = filename;
-              link.target = '_blank';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }
-          }
-        } catch (_shareError) {
-          // Share failed, try direct download
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = filename;
-          link.target = '_blank';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
+        // Mobile: Direct download without share popup
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       } else {
         // Desktop: Standard download approach
         const link = document.createElement('a');
