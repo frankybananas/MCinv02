@@ -652,9 +652,9 @@ export function Dashboard({
         activeStatus={activeStatus}
         onStatusFilterChange={onStatusFilterChange}
         unreadNotificationsCount={unreadNotificationsCount}
-        todoEnabled={todoEnabled}
-        marketingEnabled={marketingEnabled}
         userRole={userRole}
+        marketingEnabled={marketingEnabled}
+        todoEnabled={todoEnabled}
         onAdminNavigate={handleAdminNavigate}
       />
     </div>

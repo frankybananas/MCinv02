@@ -821,7 +821,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           onClientSelect={handleClientSelect}
           onClientDelete={handleClientDelete}
           onLogout={handleLogout}
-          userRole={userRole}
+          userRole={role}
           deliveries={deliveries}
           onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
           notifications={notifications}

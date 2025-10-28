@@ -99,12 +99,12 @@ function MainMenuComponent({
       items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
     }
 
-    if (userRole === "admin") {
-      items.push({ id: "admin", label: "Admin", icon: Shield });
-    }
-
     if (userRole === "admin" || userRole === "manager" || userRole === "recon") {
       items.push({ id: "recon" as any, label: "Recon", icon: Wrench });
+    }
+
+    if (userRole === "admin") {
+      items.push({ id: "admin", label: "Admin", icon: Shield });
     }
 
     return items;
