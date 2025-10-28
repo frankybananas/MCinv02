@@ -158,12 +158,12 @@ export default function Recon() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
+    <div className="container mx-auto p-3 sm:p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Recon Queue</h1>
-        <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2">
           <Select value={assignee} onValueChange={setAssignee}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="h-9 w-36 sm:w-40">
               <SelectValue placeholder="Assignee" />
             </SelectTrigger>
             <SelectContent>
@@ -174,7 +174,7 @@ export default function Recon() {
             </SelectContent>
           </Select>
           <Select value={dueFilter} onValueChange={setDueFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="h-9 w-36 sm:w-40">
               <SelectValue placeholder="Due" />
             </SelectTrigger>
             <SelectContent>
@@ -186,6 +186,36 @@ export default function Recon() {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={load}>Refresh</Button>
+        </div>
+      </div>
+      <div className="sm:hidden sticky top-[56px] z-10 -mx-3 sm:mx-0 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="px-3 sm:px-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-2 py-2 min-w-max">
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger className="h-9 w-36">
+                <SelectValue placeholder="Assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Assignees</SelectItem>
+                {reconUsers.map(u => (
+                  <SelectItem key={u._id} value={u._id}>{u.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={dueFilter} onValueChange={setDueFilter}>
+              <SelectTrigger className="h-9 w-32">
+                <SelectValue placeholder="Due" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Dates</SelectItem>
+                <SelectItem value="due_soon">Due Soon (≤3d)</SelectItem>
+                <SelectItem value="due_today">Due Today</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="no_due">No Due Date</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
+          </div>
         </div>
       </div>
       {loading ? (
@@ -208,7 +238,7 @@ export default function Recon() {
             return (
               <Card key={d._id} data-testid="recon-card" className="overflow-hidden">
                 <CardContent className="p-3 sm:p-4">
-                  <img src={imageUrl} alt={title} className="w-full h-32 object-contain rounded" />
+                  <img src={imageUrl} alt={title} className="w-full h-40 object-cover rounded" />
                   <div className="mt-2 flex items-center justify-between">
                     <h3 className="font-semibold truncate">{title}</h3>
                     <div className="flex items-center gap-2">
@@ -256,7 +286,7 @@ export default function Recon() {
                                 type="date"
                                 value={t.dueDate ? new Date(t.dueDate).toISOString().slice(0,10) : ''}
                                 onChange={(e) => onSetDueDate(String(d._id), idx, e.target.value)}
-                                className="border rounded px-2 py-1 text-xs"
+                                className="border rounded px-2 py-1 text-xs w-28"
                               />
                             </label>
                             {t.dueDate && !t.done && (
@@ -289,7 +319,7 @@ export default function Recon() {
                           <div className="flex flex-wrap items-center gap-3 text-xs">
                             <div className="flex items-center gap-2">
                               <span>Attachments:</span>
-                              <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadAttachment(String(d._id), idx, f); }} />
+                              <input className="text-xs max-w-[160px]" type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadAttachment(String(d._id), idx, f); }} />
                             </div>
                             {Array.isArray(t.attachments) && t.attachments.length > 0 && (
                               <div className="flex flex-wrap gap-2">
