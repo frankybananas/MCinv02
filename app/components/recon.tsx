@@ -14,6 +14,10 @@ export default function Recon() {
   const [reconUsers, setReconUsers] = React.useState<Array<{ _id: string; label: string }>>([]);
   const [assignee, setAssignee] = React.useState<string>("all");
   const [dueFilter, setDueFilter] = React.useState<string>("all");
+  const [openDateKey, setOpenDateKey] = React.useState<string | null>(null);
+  const [viewer, setViewer] = React.useState<{ deliveryId: string; taskIndex: number; index: number } | null>(null);
+  const touchRef = React.useRef<{ x: number; y: number } | null>(null);
+  const [blockedDirty, setBlockedDirty] = React.useState(false);
 
   const load = React.useCallback(async () => {
     try {
@@ -48,6 +52,35 @@ export default function Recon() {
       })();
     }
   }, [load]);
+
+  // Persist filters in localStorage
+  React.useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const a = window.localStorage.getItem('recon:assignee');
+      const d = window.localStorage.getItem('recon:due');
+      if (a) setAssignee(a);
+      if (d) setDueFilter(d);
+    } catch {}
+  }, []);
+  React.useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      window.localStorage.setItem('recon:assignee', assignee);
+      window.localStorage.setItem('recon:due', dueFilter);
+    } catch {}
+  }, [assignee, dueFilter]);
+
+  // Warn on unsaved blocked reason edits
+  React.useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!blockedDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    if (blockedDirty) window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [blockedDirty]);
 
   const toggleTask = async (deliveryId: string, index: number) => {
     try {
@@ -185,6 +218,9 @@ export default function Recon() {
               <SelectItem value="no_due">No Due Date</SelectItem>
             </SelectContent>
           </Select>
+          {(assignee !== 'all' || dueFilter !== 'all') && (
+            <Button variant="secondary" size="sm" onClick={() => { setAssignee('all'); setDueFilter('all'); }}>Clear</Button>
+          )}
           <Button variant="outline" onClick={load}>Refresh</Button>
         </div>
       </div>
@@ -214,6 +250,9 @@ export default function Recon() {
                 <SelectItem value="no_due">No Due Date</SelectItem>
               </SelectContent>
             </Select>
+            {(assignee !== 'all' || dueFilter !== 'all') && (
+              <Button variant="secondary" size="sm" onClick={() => { setAssignee('all'); setDueFilter('all'); }}>Clear</Button>
+            )}
             <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
           </div>
         </div>
@@ -240,7 +279,7 @@ export default function Recon() {
                 <CardContent className="p-3 sm:p-4">
                   <img src={imageUrl} alt={title} className="w-full h-40 object-cover rounded" />
                   <div className="mt-2 flex items-center justify-between">
-                    <h3 className="font-semibold truncate">{title}</h3>
+                    <h3 className="font-semibold max-w-[65%]" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{title}</h3>
                     <div className="flex items-center gap-2">
                       {d.reconReady ? (
                         <Badge className="bg-green-600 text-white">Ready</Badge>
@@ -289,6 +328,32 @@ export default function Recon() {
                                 className="border rounded px-2 py-1 text-xs w-28"
                               />
                             </label>
+                            <div className="inline-flex items-center gap-1">
+                              <button type="button" className="px-2 py-0.5 rounded border text-[11px]" onClick={() => {
+                                const today = new Date();
+                                const iso = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().slice(0,10);
+                                onSetDueDate(String(d._id), idx, iso);
+                              }}>Today</button>
+                              <button type="button" className="px-2 py-0.5 rounded border text-[11px]" onClick={() => {
+                                const dt = new Date(); dt.setDate(dt.getDate() + 1);
+                                const iso = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).toISOString().slice(0,10);
+                                onSetDueDate(String(d._id), idx, iso);
+                              }}>+1d</button>
+                              <button type="button" className="px-2 py-0.5 rounded border text-[11px]" onClick={() => {
+                                const dt = new Date(); dt.setDate(dt.getDate() + 3);
+                                const iso = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).toISOString().slice(0,10);
+                                onSetDueDate(String(d._id), idx, iso);
+                              }}>+3d</button>
+                              <button type="button" className="px-2 py-0.5 rounded border text-[11px]" onClick={() => {
+                                const key = `${d._id}:${idx}`;
+                                setOpenDateKey(prev => prev === key ? null : key);
+                              }}>Pick</button>
+                              {!!t.dueDate && (
+                                <button type="button" className="px-2 py-0.5 rounded border text-[11px]" onClick={() => {
+                                  onSetDueDate(String(d._id), idx, '');
+                                }}>Clear</button>
+                              )}
+                            </div>
                             {t.dueDate && !t.done && (
                               (() => {
                                 const due = new Date(t.dueDate as string);
@@ -301,6 +366,17 @@ export default function Recon() {
                                 return null;
                               })()
                             )}
+                            {openDateKey === `${d._id}:${idx}` && (
+                              <MiniCalendar
+                                selected={t.dueDate ? new Date(t.dueDate) : undefined}
+                                onSelect={(date) => {
+                                  if (!date) return;
+                                  const iso = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().slice(0,10);
+                                  onSetDueDate(String(d._id), idx, iso);
+                                  setOpenDateKey(null);
+                                }}
+                              />
+                            )}
                             <label className="flex items-center gap-2">
                               <input type="checkbox" checked={!!t.blocked} onChange={(e) => onToggleBlocked(String(d._id), idx, e.target.checked)} />
                               <span>Blocked</span>
@@ -310,7 +386,9 @@ export default function Recon() {
                                 type="text"
                                 placeholder="Reason"
                                 defaultValue={t.blockedReason || ''}
-                                onBlur={(e) => onUpdateBlockedReason(String(d._id), idx, e.target.value)}
+                                onChange={() => setBlockedDirty(true)}
+                                onBlur={(e) => { onUpdateBlockedReason(String(d._id), idx, e.target.value); setBlockedDirty(false); }}
+                                autoFocus
                                 className="border rounded px-2 py-1 text-xs flex-1"
                               />
                             )}
@@ -324,7 +402,9 @@ export default function Recon() {
                             {Array.isArray(t.attachments) && t.attachments.length > 0 && (
                               <div className="flex flex-wrap gap-2">
                                 {t.attachments.map((a, i) => (
-                                  <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-blue-600">Photo {i+1}</a>
+                                  <button key={i} type="button" onClick={() => setViewer({ deliveryId: String(d._id), taskIndex: idx, index: i })} className="block">
+                                    <img src={a.url} alt={`Attachment ${i+1}`} className="w-12 h-12 object-cover rounded border" />
+                                  </button>
                                 ))}
                               </div>
                             )}
@@ -339,6 +419,87 @@ export default function Recon() {
           })}
         </div>
       )}
+      {viewer && (() => {
+        const d = items.find(x => String(x._id) === viewer.deliveryId);
+        const tasks = d && Array.isArray((d as any)?.reconTasks) ? (d as any).reconTasks : [];
+        const atts = tasks[viewer.taskIndex]?.attachments || [];
+        const go = (dir: number) => {
+          const n = atts.length;
+          if (n === 0) return;
+          const next = (viewer.index + dir + n) % n;
+          setViewer({ ...viewer, index: next });
+        };
+        return (
+          <div
+            className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
+            onTouchStart={(e) => { const t = e.changedTouches[0]; touchRef.current = { x: t.clientX, y: t.clientY }; }}
+            onTouchEnd={(e) => {
+              const start = touchRef.current; const t = e.changedTouches[0];
+              if (!start) return;
+              const dx = t.clientX - start.x; const dy = t.clientY - start.y;
+              if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 0) {
+                  // swipe right -> previous
+                  const ev = new Event('dummy');
+                  // handled below via go(-1)
+                  go(-1);
+                } else {
+                  go(1);
+                }
+              }
+              touchRef.current = null;
+            }}
+          >
+            <button className="absolute top-4 right-4 text-white text-xl" onClick={() => setViewer(null)}>✕</button>
+            <button className="absolute left-3 md:left-6 text-white text-3xl" onClick={() => go(-1)} aria-label="Previous">‹</button>
+            <img src={atts[viewer.index]?.url} alt="Attachment" className="max-w-[92vw] max-h-[85vh] object-contain" />
+            <button className="absolute right-3 md:right-6 text-white text-3xl" onClick={() => go(1)} aria-label="Next">›</button>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function MiniCalendar({ selected, onSelect }: { selected?: Date; onSelect: (d?: Date) => void }) {
+  const [view, setView] = React.useState(() => {
+    const base = selected ?? new Date();
+    return { y: base.getFullYear(), m: base.getMonth() };
+  });
+  const start = new Date(view.y, view.m, 1);
+  const startDay = start.getDay();
+  const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
+  const cells: Array<Date | null> = [];
+  for (let i = 0; i < startDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(view.y, view.m, d));
+  const isSame = (a?: Date, b?: Date) => !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    <div className="p-2 border rounded bg-white shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" className="px-2 py-1 border rounded text-xs" onClick={() => setView(v => ({ y: v.y, m: v.m - 1 }))}>{"<"}</button>
+        <span className="text-xs font-medium">{new Date(view.y, view.m, 1).toLocaleString(undefined, { month: 'short', year: 'numeric' })}</span>
+        <button type="button" className="px-2 py-1 border rounded text-xs" onClick={() => setView(v => ({ y: v.y, m: v.m + 1 }))}>{">"}</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {['S','M','T','W','T','F','S'].map((w) => (
+          <div key={w} className="text-[10px] text-center text-muted-foreground">{w}</div>
+        ))}
+        {cells.map((d, i) => (
+          <button
+            key={i}
+            type="button"
+            disabled={!d}
+            onClick={() => onSelect(d ?? undefined)}
+            className={
+              !d
+                ? "h-7 text-xs opacity-40"
+                : `h-7 text-xs rounded ${isSame(d, selected) ? 'bg-blue-600 text-white' : 'hover:bg-accent'} `
+            }
+          >
+            {d ? d.getDate() : ''}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

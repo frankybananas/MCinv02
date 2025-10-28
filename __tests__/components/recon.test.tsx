@@ -19,6 +19,80 @@ describe('Recon component', () => {
     jest.clearAllMocks();
   });
 
+  it('sets due date via quick buttons and can clear it', async () => {
+    const deliveries = sampleDeliveries();
+    const todayIso = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString().slice(0,10);
+
+    const afterToday = JSON.parse(JSON.stringify(deliveries));
+    (afterToday[0] as any).reconTasks[0].dueDate = todayIso;
+
+    const afterClear = JSON.parse(JSON.stringify(afterToday));
+    delete (afterClear[0] as any).reconTasks[0].dueDate;
+
+    global.fetch = jest.fn()
+      // Initial GET
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: deliveries }) })
+      // PUT Today
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: afterToday[0] }) })
+      // PUT Clear
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: afterClear[0] }) });
+
+    render(<Recon />);
+
+    await waitFor(() => expect(screen.getByTestId('recon-card')).toBeInTheDocument());
+
+    // Click first Today quick-set
+    const todayButtons = screen.getAllByText('Today');
+    fireEvent.click(todayButtons[0]);
+
+    await waitFor(() => {
+      const secondCall = (global.fetch as jest.Mock).mock.calls[1];
+      expect(secondCall[0]).toContain('/api/deliveries/d1');
+      const body = JSON.parse(secondCall[1].body);
+      expect(body.reconTasks[0].dueDate).toBe(todayIso);
+    });
+
+    // Clear (task-level)
+    const clearButtons = await screen.findAllByText('Clear');
+    fireEvent.click(clearButtons[0]);
+
+    await waitFor(() => {
+      const thirdCall = (global.fetch as jest.Mock).mock.calls[2];
+      expect(thirdCall[0]).toContain('/api/deliveries/d1');
+      const body = JSON.parse(thirdCall[1].body);
+      expect(body.reconTasks[0].dueDate).toBe('');
+    });
+  });
+
+  it('opens attachment viewer and closes it', async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: sampleDeliveries() }) });
+
+    render(<Recon />);
+    await waitFor(() => expect(screen.getByTestId('recon-card')).toBeInTheDocument());
+
+    // Click thumbnail
+    const thumb = screen.getByAltText('Attachment 1');
+    fireEvent.click(thumb);
+
+    // Overlay shows close button
+    await waitFor(() => expect(screen.getByText('✕')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('✕'));
+    await waitFor(() => expect(screen.queryByText('✕')).not.toBeInTheDocument());
+  });
+
+
+  it('shows Clear filters when a due filter is selected', async () => {
+    // Preseed localStorage to simulate an active filter
+    (global as any).localStorage?.setItem?.('recon:due', 'due_today');
+    global.fetch = jest.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: sampleDeliveries() }) });
+    render(<Recon />);
+    await waitFor(() => expect(screen.getByTestId('recon-card')).toBeInTheDocument());
+    // Clear button appears
+    await waitFor(() => expect(screen.getAllByText('Clear')[0]).toBeInTheDocument());
+    // Clear resets filters
+    fireEvent.click(screen.getAllByText('Clear')[0]);
+  });
+
   afterAll(() => {
     global.fetch = originalFetch as any;
   });
@@ -49,7 +123,7 @@ describe('Recon component', () => {
         deliveryDate: new Date().toISOString(),
         financeBank: '',
         reconTasks: [
-          { text: 'Valet interior', done: false },
+          { text: 'Valet interior', done: false, attachments: [{ url: '/a1.jpg' }] as any },
           { text: 'Touch-up paint', done: true },
         ],
         licensing: { done: false },
