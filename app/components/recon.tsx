@@ -228,7 +228,7 @@ export default function Recon() {
         <div className="px-3 sm:px-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center gap-2 py-2 min-w-max">
             <Select value={assignee} onValueChange={setAssignee}>
-              <SelectTrigger className="h-9 w-36">
+              <SelectTrigger className="h-9 w-32 shrink-0">
                 <SelectValue placeholder="Assignee" />
               </SelectTrigger>
               <SelectContent>
@@ -239,7 +239,7 @@ export default function Recon() {
               </SelectContent>
             </Select>
             <Select value={dueFilter} onValueChange={setDueFilter}>
-              <SelectTrigger className="h-9 w-32">
+              <SelectTrigger className="h-9 w-28 shrink-0">
                 <SelectValue placeholder="Due" />
               </SelectTrigger>
               <SelectContent>
@@ -251,9 +251,10 @@ export default function Recon() {
               </SelectContent>
             </Select>
             {(assignee !== 'all' || dueFilter !== 'all') && (
-              <Button variant="secondary" size="sm" onClick={() => { setAssignee('all'); setDueFilter('all'); }}>Clear</Button>
+              <Button variant="secondary" size="sm" className="shrink-0" onClick={() => { setAssignee('all'); setDueFilter('all'); }}>Clear</Button>
             )}
-            <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={load}>Refresh</Button>
+            <div className="w-4 flex-none" />
           </div>
         </div>
       </div>
