@@ -46,6 +46,36 @@ jest.mock('@/models/Delivery', () => ({
             return false;
           });
 
+  test('PUT /api/deliveries/[id] by admin updates non-recon fields (licensing, status)', async () => {
+    headersMock.mockReturnValue(new Headers({ 'x-user-role': 'admin', 'x-user-phone': '+27111111111' }));
+    deliveries.push({ _id: 'd5', salesperson: 'someone-else', status: 'active', updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() });
+
+    const { PUT } = await import('@/app/api/deliveries/[id]/route');
+    const payload = {
+      licensing: { done: true },
+      status: 'delivered',
+    };
+    const req = new Request('http://localhost/api/deliveries/d5', { method: 'PUT', headers: { 'content-type': 'application/json', cookie: 'session_token=fake', 'x-user-phone': '+27111111111' } as any, body: JSON.stringify(payload) });
+    const res = await (PUT as any)(req, { params: { id: 'd5' } });
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.data.licensing).toEqual({ done: true });
+    expect(data.data.status).toBe('delivered');
+    // Admin should not be restricted by salesperson on baseQuery
+    expect(lastUpdateQuery.salesperson).toBeUndefined();
+  });
+
+  test('GET /api/deliveries/[id] 404 for normal user when not owner', async () => {
+    headersMock.mockReturnValue(new Headers({ 'x-user-role': 'user' }));
+    // Delivery not owned by user1
+    deliveries.push({ _id: 'd7', salesperson: 'otherUser', status: 'active', updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() });
+    const { GET } = await import('@/app/api/deliveries/[id]/route');
+    const req = new Request('http://localhost/api/deliveries/d7', { headers: { cookie: 'session_token=fake', 'x-user-phone': '+27111111111' } as any });
+    const res = await (GET as any)(req, { params: { id: 'd7' } });
+    expect(res.status).toBe(404);
+  });
+
   test('GET /api/deliveries/[id] returns any item for recon role', async () => {
     headersMock.mockReturnValue(new Headers({ 'x-user-role': 'recon' }));
     deliveries.push({ _id: 'd9', salesperson: 'someone-else', status: 'active', reconTasks: [], updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() });
