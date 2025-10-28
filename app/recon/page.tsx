@@ -2,9 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-const Recon = dynamic(() => import('@/app/components/recon'), { ssr: false });
+import Recon from '@/app/components/recon';
 
 export default function ReconPage() {
   return (
