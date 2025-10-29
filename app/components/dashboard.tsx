@@ -247,7 +247,7 @@ export function Dashboard({
           {showNotifications && (
             <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full max-w-full min-w-0">
               {/* View toggle */}
-              <div className="mb-2 flex justify-end relative z-10">
+              <div className="mb-2 mr-2 flex justify-end relative z-10">
                 <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                   <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                     <Button
@@ -630,13 +630,13 @@ export function Dashboard({
               ) : (
                 <>
                   {/* View toggle + Sort */}
-                  <div className="mb-2 flex justify-end relative z-10">
-                    <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
-                      <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
+                  <div className="mb-2 px-2 mr-16 sm:mr-0 flex justify-end relative z-10">
+                    <div className="flex items-center gap-2 flex-nowrap overflow-x-auto sm:overflow-visible bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50 w-full max-w-[calc(100%-2rem)] sm:max-w-full sm:w-auto shrink-0">
+                      <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md shrink-0">
                         <Button
                           variant={viewMode === 'card' ? 'default' : 'ghost'}
                           size="sm"
-                          className="h-8 px-2"
+                          className="h-8 px-2 shrink-0"
                           aria-label="Card view"
                           data-testid="view-toggle-card"
                           onClick={() => setViewMode('card')}
@@ -646,7 +646,7 @@ export function Dashboard({
                         <Button
                           variant={viewMode === 'list' ? 'default' : 'ghost'}
                           size="sm"
-                          className="h-8 px-2"
+                          className="h-8 px-2 shrink-0"
                           aria-label="List view"
                           data-testid="view-toggle-list"
                           onClick={() => setViewMode('list')}
@@ -659,7 +659,7 @@ export function Dashboard({
                           <Button
                             variant="secondary"
                             size="sm"
-                            className="h-8 rounded-md px-3 bg-white/70 backdrop-blur-md border border-gray-200/50"
+                            className="h-8 rounded-md px-3 bg-white/70 backdrop-blur-md border border-gray-200/50 shrink-0"
                           >
                             Sort: {currentSortLabel}
                             <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
