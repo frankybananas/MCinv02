@@ -152,4 +152,37 @@ describe('Dashboard component', () => {
     expect(screen.getAllByTestId('dashboard-car-card').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('dashboard-car-row')).toBeNull();
   });
+
+  it('persists view mode per tab in localStorage', () => {
+    // Ensure clean slate
+    window.localStorage.clear();
+
+    const { unmount } = render(<Dashboard {...baseProps({ activeStatus: 'all' })} />);
+    fireEvent.click(screen.getByTestId('view-toggle-list'));
+    expect(screen.getAllByTestId('dashboard-car-row').length).toBeGreaterThan(0);
+    // Unmount and re-render same tab -> should still be list
+    unmount();
+    render(<Dashboard {...baseProps({ activeStatus: 'all' })} />);
+    expect(screen.getAllByTestId('dashboard-car-row').length).toBeGreaterThan(0);
+
+    // Switch to another tab should not inherit (fresh default)
+    unmount();
+    render(<Dashboard {...baseProps({ activeStatus: 'in-stock' })} />);
+    // Default is card on desktop environment
+    expect(screen.getAllByTestId('dashboard-car-card').length).toBeGreaterThan(0);
+  });
+
+  it('defaults to list view on small screens when no saved preference exists', () => {
+    // Clear any saved preference for tab
+    window.localStorage.clear();
+    // Mock small screen
+    // @ts-ignore
+    window.innerWidth = 375;
+    const { unmount } = render(<Dashboard {...baseProps({ activeStatus: 'all' })} />);
+    expect(screen.getAllByTestId('dashboard-car-row').length).toBeGreaterThan(0);
+    unmount();
+    // restore desktop width for safety
+    // @ts-ignore
+    window.innerWidth = 1024;
+  });
 });

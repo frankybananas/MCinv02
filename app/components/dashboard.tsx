@@ -90,6 +90,28 @@ export function Dashboard({
   }, [showTodo, fabOpen])
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
+  // Load preferred view mode per tab from localStorage; default to list on small screens
+  useEffect(() => {
+    try {
+      const key = `viewMode:${activeStatus}`
+      const saved = typeof window !== 'undefined' ? (localStorage.getItem(key) as 'card' | 'list' | null) : null
+      if (saved === 'card' || saved === 'list') {
+        setViewMode(saved)
+      } else {
+        const defaultMode: 'card' | 'list' = typeof window !== 'undefined' && window.innerWidth < 640 ? 'list' : 'card'
+        setViewMode(defaultMode)
+      }
+    } catch {}
+  }, [activeStatus])
+
+  // Persist view mode whenever it changes for the current tab
+  useEffect(() => {
+    try {
+      const key = `viewMode:${activeStatus}`
+      if (viewMode) localStorage.setItem(key, viewMode)
+    } catch {}
+  }, [viewMode, activeStatus])
+
   const formatPrice = (price?: number | null) => {
     const validPrice = typeof price === 'number' ? price : 0;
     return new Intl.NumberFormat("en-ZA", {
@@ -224,6 +246,33 @@ export function Dashboard({
           {/* Notifications list - displays user notifications with responsive card layout */}
           {showNotifications && (
             <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full max-w-full min-w-0">
+              {/* View toggle */}
+              <div className="mb-2 flex justify-end">
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
+                    <Button
+                      variant={viewMode === 'card' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2"
+                      aria-label="Card view"
+                      data-testid="view-toggle-card"
+                      onClick={() => setViewMode('card')}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2"
+                      aria-label="List view"
+                      data-testid="view-toggle-list"
+                      onClick={() => setViewMode('list')}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
               {notifications.length === 0 ? (
                 // Empty state with centered icon and message
                 <div key="no-notifications-found" className="text-center py-12">
@@ -231,9 +280,35 @@ export function Dashboard({
                   <p className="text-muted-foreground">No notifications</p>
                 </div>
               ) : (
-                // Notification cards with proper text wrapping to prevent overflow
+                // Cards or List
                 <div className="flex flex-col gap-3 w-full max-w-full min-w-0">
-                  {notifications.map((n) => {
+                  {viewMode === 'list' && notifications.map((n) => {
+                    const created = new Date(n.createdAt).toLocaleString()
+                    return (
+                      <button
+                        key={n._id}
+                        className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none rounded-md border border-gray-200/60 bg-white/90 backdrop-blur-md"
+                        onClick={() => onNotificationSelect?.(n)}
+                        data-testid="notification-row"
+                      >
+                        <div className="p-3 flex items-center gap-3 w-full max-w-full">
+                          <div className="w-10 h-10 rounded-md bg-accent/30 flex items-center justify-center flex-shrink-0">
+                            <Bell className="w-4 h-4 text-foreground/80" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="font-medium text-sm truncate">{n.title}</h3>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">{created}</span>
+                            </div>
+                            {n.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                  {viewMode === 'card' && notifications.map((n) => {
                     const created = new Date(n.createdAt).toLocaleString()
                     return (
                       <Card
@@ -301,116 +376,245 @@ export function Dashboard({
           {/* Client list */}
           {showClients && (
             <div key="clients-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
+              {/* View toggle */}
+              <div className="mb-2 flex justify-end">
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
+                    <Button
+                      variant={viewMode === 'card' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2"
+                      aria-label="Card view"
+                      data-testid="view-toggle-card"
+                      onClick={() => setViewMode('card')}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2"
+                      aria-label="List view"
+                      data-testid="view-toggle-list"
+                      onClick={() => setViewMode('list')}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
               {clients.length === 0 ? (
                 <div key="no-clients-found" className="text-center py-12">
                   <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No clients found</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {sortedClients.map((client) => (
-                    <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onClientSelect(client)}>
-                      <CardContent className="p-3 sm:p-4 flex justify-between items-center">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
-                            {(client.active === false) && (
-                              <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{client.email}</p>
-                          <p className="text-sm text-muted-foreground">{client.phone}</p>
-                          {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
-                            <p className="text-xs text-muted-foreground mt-1">Owner: {client.createdByPhone}</p>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
-                          className="text-muted-foreground hover:text-red-500"
+                <>
+                  {viewMode === 'list' && (
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                      {sortedClients.map((client) => (
+                        <button
+                          key={client._id}
+                          className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                          onClick={() => onClientSelect(client)}
+                          data-testid="client-row"
                         >
-                          <Trash2Icon className="w-5 h-5" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          <div className="p-3 flex items-center gap-3 w-full max-w-full">
+                            <div className="w-10 h-10 rounded-full bg-accent/20 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-medium text-sm sm:text-base truncate">{client.firstName} {client.lastName}</h3>
+                                {(client.active === false) && (
+                                  <Badge variant="secondary" className="text-[10px]">Inactive</Badge>
+                                )}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                                <span className="truncate">{client.email}</span>
+                                <span className="truncate">{client.phone}</span>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
+                              className="text-muted-foreground hover:text-red-500"
+                              aria-label="Delete client"
+                            >
+                              <Trash2Icon className="w-5 h-5" />
+                            </Button>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {viewMode === 'card' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {sortedClients.map((client) => (
+                        <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onClientSelect(client)}>
+                          <CardContent className="p-3 sm:p-4 flex justify-between items-center">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
+                                {(client.active === false) && (
+                                  <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{client.email}</p>
+                              <p className="text-sm text-muted-foreground">{client.phone}</p>
+                              {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
+                                <p className="text-xs text-muted-foreground mt-1">Owner: {client.createdByPhone}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
+                              className="text-muted-foreground hover:text-red-500"
+                            >
+                              <Trash2Icon className="w-5 h-5" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
-
           {/* Delivery list */}
           {showDelivery && (
             <div key="deliveries-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
+              {/* View toggle */}
+              <div className="mb-2 flex justify-end">
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
+                    <Button
+                      variant={viewMode === 'card' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2"
+                      aria-label="Card view"
+                      data-testid="view-toggle-card"
+                      onClick={() => setViewMode('card')}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2"
+                      aria-label="List view"
+                      data-testid="view-toggle-list"
+                      onClick={() => setViewMode('list')}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
               {deliveries.length === 0 ? (
                 <div key="no-deliveries-found" className="text-center py-12">
                   <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No deliveries found</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {deliveries.map((d) => {
-                    const carObj = (d.car as any) || {};
-                    const isCarPopulated = typeof d.car === 'object' && d.car !== null;
-                    const title = isCarPopulated
-                      ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
-                      : 'Vehicle';
-                    const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
-                    const tasks = Array.isArray((d as any).reconTasks) ? ((d as any).reconTasks as any[]) : [];
-                    const doneCount = tasks.filter(t => !!t.done).length;
-                    const totalCount = tasks.length;
-                    const allDone = totalCount > 0 && doneCount === totalCount;
-                    const licensingDone = !!(d as any)?.licensing?.done;
-                    const customerType = (d as any)?.customerType || 'natural';
-                    const docKinds = new Set(((d as any)?.docs || []).map((x: any) => x.kind));
-                    const addl = (d as any)?.additionalDocs || {};
-                    const hasTradeIn = docKinds.has('trade_in_natis') || !!addl.trade_in_natis;
-                    const hasSof = docKinds.has('source_of_funds') || !!addl.source_of_funds;
-                    const hasUbo = docKinds.has('ubo_form') || !!addl.ubo_form;
-                    return (
-                      <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
-                        <CardContent className="p-3 sm:p-4 flex items-center gap-3">
-                          <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-semibold text-base truncate">{title}</h3>
-                              <Badge variant="secondary" className="capitalize">{d.status}</Badge>
+                <>
+                  {viewMode === 'list' && (
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                      {deliveries.map((d) => {
+                        const carObj = (d.car as any) || {};
+                        const isCarPopulated = typeof d.car === 'object' && d.car !== null;
+                        const title = isCarPopulated
+                          ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
+                          : 'Vehicle';
+                        const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
+                        return (
+                          <button
+                            key={(d as any)._id}
+                            className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                            onClick={() => onDeliverySelect?.(d)}
+                            data-testid="delivery-row"
+                          >
+                            <div className="p-3 flex items-center gap-3 w-full max-w-full">
+                              <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h3 className="font-medium text-sm sm:text-base truncate">{title}</h3>
+                                  <Badge variant="secondary" className="capitalize">{(d as any).status}</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date((d as any).updatedAt).toLocaleString()}</p>
+                              </div>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date(d.updatedAt).toLocaleString()}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {/* Recon tasks progress */}
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${allDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                {allDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                Recon {doneCount}/{totalCount}
-                              </span>
-                              {/* Licensing done */}
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${licensingDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                {licensingDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                Licensing {licensingDone ? 'Done' : 'Pending'}
-                              </span>
-                              {/* Additional docs */}
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasTradeIn ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                {hasTradeIn ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                Trade-In Natis
-                              </span>
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasSof ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                {hasSof ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                Source of Funds
-                              </span>
-                              {customerType === 'company' && (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasUbo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                  {hasUbo ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                  UBO Form
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {viewMode === 'card' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {deliveries.map((d) => {
+                        const carObj = (d.car as any) || {};
+                        const isCarPopulated = typeof d.car === 'object' && d.car !== null;
+                        const title = isCarPopulated
+                          ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
+                          : 'Vehicle';
+                        const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
+                        const tasks = Array.isArray((d as any).reconTasks) ? ((d as any).reconTasks as any[]) : [];
+                        const doneCount = tasks.filter(t => !!t.done).length;
+                        const totalCount = tasks.length;
+                        const allDone = totalCount > 0 && doneCount === totalCount;
+                        const licensingDone = !!(d as any)?.licensing?.done;
+                        const customerType = (d as any)?.customerType || 'natural';
+                        const docKinds = new Set(((d as any)?.docs || []).map((x: any) => x.kind));
+                        const addl = (d as any)?.additionalDocs || {};
+                        const hasTradeIn = docKinds.has('trade_in_natis') || !!addl.trade_in_natis;
+                        const hasSof = docKinds.has('source_of_funds') || !!addl.source_of_funds;
+                        const hasUbo = docKinds.has('ubo_form') || !!addl.ubo_form;
+                        return (
+                          <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
+                            <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+                              <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="font-semibold text-base truncate">{title}</h3>
+                                  <Badge variant="secondary" className="capitalize">{d.status}</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date(d.updatedAt).toLocaleString()}</p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {/* Recon tasks progress */}
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${allDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {allDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                    Recon {doneCount}/{totalCount}
+                                  </span>
+                                  {/* Licensing done */}
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${licensingDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {licensingDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                    Licensing {licensingDone ? 'Done' : 'Pending'}
+                                  </span>
+                                  {/* Additional docs */}
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasTradeIn ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {hasTradeIn ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                    Trade-In Natis
+                                  </span>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasSof ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {hasSof ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                    Source of Funds
+                                  </span>
+                                  {customerType === 'company' && (
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasUbo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                      {hasUbo ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
+                                      UBO Form
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -489,7 +693,7 @@ export function Dashboard({
                   </div>
 
                   {viewMode === 'list' && (
-                    <div className="flex flex-col divide-y rounded-xl overflow-hidden bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
                       {sortedCars.map((car) => (
                         <button
                           key={car._id}
@@ -497,11 +701,11 @@ export function Dashboard({
                           onClick={() => onCarSelect(car)}
                           data-testid="dashboard-car-row"
                         >
-                          <div className="p-3 sm:p-3 flex items-center gap-3">
+                          <div className="p-3 sm:p-3 flex items-center gap-3 w-full max-w-full">
                             <img
                               src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
                               alt={`${car.year} ${car.make} ${car.model}`}
-                              className="w-16 h-12 object-cover rounded"
+                              className="w-16 h-12 object-cover rounded flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
