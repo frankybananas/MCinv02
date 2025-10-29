@@ -241,14 +241,14 @@ export function Dashboard({
 
 
       {/* Main content */}
-      <ScrollArea className="flex-1 min-w-0">
-        <div className={`p-2 sm:p-4 space-y-4 w-full max-w-4xl min-w-0 mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
+      <ScrollArea className="flex-1 min-w-0 overflow-x-hidden">
+        <div className={`px-3 sm:px-4 lg:px-6 pr-6 sm:pr-8 lg:pr-12 space-y-4 w-full max-w-4xl min-w-0 mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
           {/* Notifications list - displays user notifications with responsive card layout */}
           {showNotifications && (
             <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full max-w-full min-w-0">
               {/* View toggle */}
-              <div className="mb-2 flex justify-end">
-                <div className="flex items-center gap-2">
+              <div className="mb-2 flex justify-end relative z-10">
+                <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                   <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                     <Button
                       variant={viewMode === 'card' ? 'default' : 'ghost'}
@@ -411,7 +411,7 @@ export function Dashboard({
               ) : (
                 <>
                   {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg px-1 sm:px-2">
                       {sortedClients.map((client) => (
                         <button
                           key={client._id}
@@ -419,7 +419,7 @@ export function Dashboard({
                           onClick={() => onClientSelect(client)}
                           data-testid="client-row"
                         >
-                          <div className="p-3 flex items-center gap-3 w-full max-w-full">
+                          <div className="p-3 pr-2 sm:pr-3 flex items-center gap-3 w-full max-w-full">
                             <div className="w-10 h-10 rounded-full bg-accent/20 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
@@ -630,8 +630,8 @@ export function Dashboard({
               ) : (
                 <>
                   {/* View toggle + Sort */}
-                  <div className="mb-2 flex justify-end">
-                    <div className="flex items-center gap-2">
+                  <div className="mb-2 flex justify-end relative z-10">
+                    <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                       <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                         <Button
                           variant={viewMode === 'card' ? 'default' : 'ghost'}
@@ -701,28 +701,28 @@ export function Dashboard({
                           onClick={() => onCarSelect(car)}
                           data-testid="dashboard-car-row"
                         >
-                          <div className="p-3 sm:p-3 flex items-center gap-3 w-full max-w-full">
+                          <div className="p-3 sm:p-3 pr-2 sm:pr-3 flex items-center gap-3 w-full max-w-full">
                             <img
                               src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
                               alt={`${car.year} ${car.make} ${car.model}`}
                               className="w-16 h-12 object-cover rounded flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <h3 className="font-medium text-sm sm:text-base truncate">
-                                  {car.year} {car.make} {car.model}
-                                </h3>
-                                <span className="text-orange-500 font-semibold text-sm sm:text-base">{formatPrice(car.price)}</span>
-                              </div>
+                              <h3 className="font-medium text-sm sm:text-base truncate min-w-0">
+                                {car.year} {car.make} {car.model}
+                              </h3>
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                                 <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
                                 <span>{car.color}</span>
                                 <span className="capitalize">{car.transmission}</span>
                               </div>
+                              <div className="mt-1 flex items-center justify-between gap-2">
+                                <span className="text-orange-500 font-semibold text-sm sm:text-base">{formatPrice(car.price)}</span>
+                                <Badge className={`${getStatusColor(car.status)} flex-shrink-0`}>
+                                  {formatStatusLabel(car.status)}
+                                </Badge>
+                              </div>
                             </div>
-                            <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap`}>
-                              {formatStatusLabel(car.status)}
-                            </Badge>
                           </div>
                         </button>
                       ))}
