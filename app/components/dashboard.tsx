@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Bell, CheckCheck } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Bell, CheckCheck, List, LayoutGrid } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
@@ -68,6 +68,8 @@ export function Dashboard({
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
+
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
   const showNotifications = activeStatus === "notifications"
@@ -296,8 +298,7 @@ export function Dashboard({
               />
             </div>
           )}
-          {/* Client list */
-          }
+          {/* Client list */}
           {showClients && (
             <div key="clients-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {clients.length === 0 ? (
@@ -424,46 +425,107 @@ export function Dashboard({
                 </div>
               ) : (
                 <>
-                  {/* Compact sort dropdown */}
+                  {/* View toggle + Sort */}
                   <div className="mb-2 flex justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                         <Button
-                          variant="secondary"
+                          variant={viewMode === 'card' ? 'default' : 'ghost'}
                           size="sm"
-                          className="h-8 rounded-md px-3 bg-white/70 backdrop-blur-md border border-gray-200/50"
+                          className="h-8 px-2"
+                          aria-label="Card view"
+                          data-testid="view-toggle-card"
+                          onClick={() => setViewMode('card')}
                         >
-                          Sort: {currentSortLabel}
-                          <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                          <LayoutGrid className="w-4 h-4" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuRadioGroup
-                          value={sortKey}
-                          onValueChange={(v) => {
-                            const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
-                            setSortKey(key)
-                            setSortDir(key === 'recent' ? 'desc' : 'asc')
-                          }}
+                        <Button
+                          variant={viewMode === 'list' ? 'default' : 'ghost'}
+                          size="sm"
+                          className="h-8 px-2"
+                          aria-label="List view"
+                          data-testid="view-toggle-list"
+                          onClick={() => setViewMode('list')}
                         >
-                          <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
-                          Direction
-                          <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <List className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 rounded-md px-3 bg-white/70 backdrop-blur-md border border-gray-200/50"
+                          >
+                            Sort: {currentSortLabel}
+                            <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuRadioGroup
+                            value={sortKey}
+                            onValueChange={(v) => {
+                              const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
+                              setSortKey(key)
+                              setSortDir(key === 'recent' ? 'desc' : 'asc')
+                            }}
+                          >
+                            <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
+                          </DropdownMenuRadioGroup>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
+                            Direction
+                            <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
-                  {sortedCars.map((car) => (
+                  {viewMode === 'list' && (
+                    <div className="flex flex-col divide-y rounded-xl overflow-hidden bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                      {sortedCars.map((car) => (
+                        <button
+                          key={car._id}
+                          className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                          onClick={() => onCarSelect(car)}
+                          data-testid="dashboard-car-row"
+                        >
+                          <div className="p-3 sm:p-3 flex items-center gap-3">
+                            <img
+                              src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
+                              alt={`${car.year} ${car.make} ${car.model}`}
+                              className="w-16 h-12 object-cover rounded"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-medium text-sm sm:text-base truncate">
+                                  {car.year} {car.make} {car.model}
+                                </h3>
+                                <span className="text-orange-500 font-semibold text-sm sm:text-base">{formatPrice(car.price)}</span>
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                                <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
+                                <span>{car.color}</span>
+                                <span className="capitalize">{car.transmission}</span>
+                              </div>
+                            </div>
+                            <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap`}>
+                              {formatStatusLabel(car.status)}
+                            </Badge>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {viewMode === 'card' && sortedCars.map((car) => (
                   <Card
                     key={car._id}
                     className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"

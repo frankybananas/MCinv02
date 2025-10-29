@@ -70,10 +70,11 @@ describe('Dashboard component', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the mobile bottom navigation by default', () => {
+  it('renders sort and view toggle controls', () => {
     render(<Dashboard {...baseProps()} />);
-
-    expect(screen.getByTestId('mobile-bottom-nav')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sort:/i })).toBeInTheDocument();
+    expect(screen.getByTestId('view-toggle-card')).toBeInTheDocument();
+    expect(screen.getByTestId('view-toggle-list')).toBeInTheDocument();
   });
 
   it('does not render a dismiss overlay when menu is pinned open', () => {
@@ -126,5 +127,29 @@ describe('Dashboard component', () => {
     render(<Dashboard {...baseProps()} />);
 
     expect(screen.getByRole('button', { name: /Sort: Recent/i })).toBeInTheDocument();
+  });
+
+  it('renders cards by default and can switch to list view', () => {
+    render(<Dashboard {...baseProps()} />);
+
+    // Default: card view shows car cards
+    expect(screen.getAllByTestId('dashboard-car-card').length).toBeGreaterThan(0);
+    // Toggle to list
+    fireEvent.click(screen.getByTestId('view-toggle-list'));
+
+    // Cards should not render, rows should
+    expect(screen.queryByTestId('dashboard-car-card')).toBeNull();
+    expect(screen.getAllByTestId('dashboard-car-row').length).toBeGreaterThan(0);
+  });
+
+  it('toggles back to card view from list view', () => {
+    render(<Dashboard {...baseProps()} />);
+
+    fireEvent.click(screen.getByTestId('view-toggle-list'));
+    expect(screen.getAllByTestId('dashboard-car-row').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId('view-toggle-card'));
+    expect(screen.getAllByTestId('dashboard-car-card').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('dashboard-car-row')).toBeNull();
   });
 });
