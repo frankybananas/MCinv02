@@ -55,13 +55,15 @@ const baseProps = (overrides: Partial<DashboardProps> = {}): DashboardProps => (
   onStatusChange: jest.fn(),
   onClientSelect: jest.fn(),
   onClientDelete: jest.fn(),
-  onLogout: jest.fn(),
-  userRole: null,
+  _onLogout: jest.fn(),
+  userRole: 'user',
   deliveries: [] as Delivery[],
   onDeliverySelect: jest.fn(),
   notifications: [] as NotificationItem[],
   onNotificationSelect: jest.fn(),
+  _onNotificationDone: jest.fn(),
   unreadNotificationsCount: 0,
+  _onMarkAllNotificationsRead: jest.fn(),
   ...overrides,
 });
 
