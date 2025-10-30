@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Wand2, Bell, CheckCheck, List, LayoutGrid } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Bell, List, LayoutGrid } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
-import type { Car, CarStatus, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
+import type { Car, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 import { Todo } from './todo'
 import { MainMenu } from "./main-menu"
@@ -53,17 +53,17 @@ export function Dashboard({
   onStatusChange, 
   onClientSelect, 
   onClientDelete,
-  onLogout,
+  _onLogout,
   userRole,
   deliveries = [],
   onDeliverySelect,
   notifications = [],
   onNotificationSelect,
-  onNotificationDone,
+  _onNotificationDone,
   unreadNotificationsCount = 0,
   todoEnabled = false,
   marketingEnabled = false,
-  onMarkAllNotificationsRead
+  _onMarkAllNotificationsRead
 }: DashboardProps) {
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
@@ -77,7 +77,10 @@ export function Dashboard({
   const showMarketing = activeStatus === "marketing"
   const handleAdminNavigate = React.useCallback(() => {
     try {
-      window.location.href = "/admin"
+      const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null
+      if (globalWindow) {
+        globalWindow.location.href = "/admin"
+      }
     } catch (error) {
       console.error("Navigation to admin failed", error)
     }
@@ -94,11 +97,12 @@ export function Dashboard({
   useEffect(() => {
     try {
       const key = `viewMode:${activeStatus}`
-      const saved = typeof window !== 'undefined' ? (localStorage.getItem(key) as 'card' | 'list' | null) : null
+      const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null
+      const saved = globalWindow ? (globalWindow.localStorage.getItem(key) as 'card' | 'list' | null) : null
       if (saved === 'card' || saved === 'list') {
         setViewMode(saved)
       } else {
-        const defaultMode: 'card' | 'list' = typeof window !== 'undefined' && window.innerWidth < 640 ? 'list' : 'card'
+        const defaultMode: 'card' | 'list' = globalWindow && globalWindow.innerWidth < 640 ? 'list' : 'card'
         setViewMode(defaultMode)
       }
     } catch {}
@@ -108,7 +112,8 @@ export function Dashboard({
   useEffect(() => {
     try {
       const key = `viewMode:${activeStatus}`
-      if (viewMode) localStorage.setItem(key, viewMode)
+      const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null
+      if (viewMode && globalWindow) globalWindow.localStorage.setItem(key, viewMode)
     } catch {}
   }, [viewMode, activeStatus])
 
@@ -242,12 +247,12 @@ export function Dashboard({
 
       {/* Main content */}
       <ScrollArea className="flex-1 min-w-0 overflow-x-hidden">
-        <div className={`px-3 sm:px-4 lg:px-6 pr-6 sm:pr-8 lg:pr-12 space-y-4 w-full max-w-4xl min-w-0 mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
+        <div className={`px-3 sm:px-4 lg:px-6 space-y-4 w-full max-w-4xl min-w-0 mx-auto pb-[calc(10rem+env(safe-area-inset-bottom))] lg:pb-4`}>
           {/* Notifications list - displays user notifications with responsive card layout */}
           {showNotifications && (
             <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full max-w-full min-w-0">
               {/* View toggle */}
-              <div className="mb-2 mr-2 flex justify-end relative z-10">
+              <div className="mb-2 flex justify-end relative z-10">
                 <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                   <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                     <Button
@@ -281,7 +286,7 @@ export function Dashboard({
                 </div>
               ) : (
                 // Cards or List
-                <div className="flex flex-col gap-3 w-full max-w-full min-w-0">
+                <div className="flex flex-col gap-3 w-full max-w-full min-w-0 pr-2 sm:pr-3">
                   {viewMode === 'list' && notifications.map((n) => {
                     const created = new Date(n.createdAt).toLocaleString()
                     return (
@@ -367,7 +372,7 @@ export function Dashboard({
             <div key="marketing-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               <Marketing
                 cars={cars.filter((car) => car.status === "in-stock" || car.status === "reserved")}
-                onGenerationComplete={(count) => {
+                onGenerationComplete={(_count) => {
                   // Handle completion notification
                 }}
               />
@@ -377,8 +382,8 @@ export function Dashboard({
           {showClients && (
             <div key="clients-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {/* View toggle */}
-              <div className="mb-2 flex justify-end">
-                <div className="flex items-center gap-2">
+              <div className="mb-2 flex justify-end relative z-10">
+                <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                   <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                     <Button
                       variant={viewMode === 'card' ? 'default' : 'ghost'}
@@ -411,7 +416,7 @@ export function Dashboard({
               ) : (
                 <>
                   {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg px-1 sm:px-2">
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
                       {sortedClients.map((client) => (
                         <button
                           key={client._id}
@@ -486,8 +491,8 @@ export function Dashboard({
           {showDelivery && (
             <div key="deliveries-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
               {/* View toggle */}
-              <div className="mb-2 flex justify-end">
-                <div className="flex items-center gap-2">
+              <div className="mb-2 flex justify-end relative z-10">
+                <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                   <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
                     <Button
                       variant={viewMode === 'card' ? 'default' : 'ghost'}
@@ -520,7 +525,7 @@ export function Dashboard({
               ) : (
                 <>
                   {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
                       {deliveries.map((d) => {
                         const carObj = (d.car as any) || {};
                         const isCarPopulated = typeof d.car === 'object' && d.car !== null;
@@ -630,8 +635,8 @@ export function Dashboard({
               ) : (
                 <>
                   {/* View toggle + Sort */}
-                  <div className="mb-2 px-2 mr-16 sm:mr-0 flex justify-end relative z-10">
-                    <div className="flex items-center gap-2 flex-nowrap overflow-x-auto sm:overflow-visible bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50 w-full max-w-[calc(100%-2rem)] sm:max-w-full sm:w-auto shrink-0">
+                  <div className="mb-2 flex justify-end relative z-10">
+                    <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
                       <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md shrink-0">
                         <Button
                           variant={viewMode === 'card' ? 'default' : 'ghost'}
@@ -693,7 +698,7 @@ export function Dashboard({
                   </div>
 
                   {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg">
+                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
                       {sortedCars.map((car) => (
                         <button
                           key={car._id}
