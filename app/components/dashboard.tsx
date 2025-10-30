@@ -27,17 +27,17 @@ interface DashboardProps {
   onStatusChange: (carId: string, status: CarState) => void;
   onClientSelect: (client: Client | null) => void;
   onClientDelete: (clientId: string) => void;
-  onLogout: () => void;
+  _onLogout: () => void;
   userRole: string | null;
   deliveries?: Delivery[];
   onDeliverySelect?: (delivery: Delivery) => void;
   notifications?: NotificationItem[];
   onNotificationSelect?: (item: NotificationItem) => void;
-  onNotificationDone?: (item: NotificationItem) => void;
+  _onNotificationDone?: (item: NotificationItem) => void;
   unreadNotificationsCount?: number;
   todoEnabled?: boolean;
   marketingEnabled?: boolean;
-  onMarkAllNotificationsRead?: () => void;
+  _onMarkAllNotificationsRead?: () => void;
 }
 
 //
@@ -706,24 +706,24 @@ export function Dashboard({
                           onClick={() => onCarSelect(car)}
                           data-testid="dashboard-car-row"
                         >
-                          <div className="p-3 sm:p-3 pr-2 sm:pr-3 flex items-center gap-3 w-full max-w-full">
+                          <div className="p-3 sm:p-3 pr-2 sm:pr-3 flex items-start gap-3 w-full max-w-full">
                             <img
                               src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
                               alt={`${car.year} ${car.make} ${car.model}`}
                               className="w-16 h-12 object-cover rounded flex-shrink-0"
                             />
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-sm sm:text-base truncate min-w-0">
+                            <div className="flex-1 min-w-0 flex flex-col gap-1">
+                              <h3 className="font-medium text-base truncate min-w-0 max-w-full">
                                 {car.year} {car.make} {car.model}
                               </h3>
-                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                                 <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
                                 <span>{car.color}</span>
                                 <span className="capitalize">{car.transmission}</span>
                               </div>
-                              <div className="mt-1 flex items-center justify-between gap-2">
-                                <span className="text-orange-500 font-semibold text-sm sm:text-base">{formatPrice(car.price)}</span>
-                                <Badge className={`${getStatusColor(car.status)} flex-shrink-0`}>
+                              <div className="flex items-center justify-between gap-2 min-w-0">
+                                <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
+                                <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap`}>
                                   {formatStatusLabel(car.status)}
                                 </Badge>
                               </div>
