@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Bell, List, LayoutGrid } from "lucide-react"
+import { CarIcon, Plus, UsersIcon, Trash2Icon, ArrowLeft, Car as CarLucide, Users, X, Check, Truck, CheckCircle, Clock, Tag, BookmarkCheck, Bell } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu"
 import type { Car, CarState, DashboardTab, Delivery, NotificationItem } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
@@ -68,7 +68,7 @@ export function Dashboard({
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('list')
 
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
@@ -93,29 +93,10 @@ export function Dashboard({
   }, [showTodo, fabOpen])
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
 
-  // Load preferred view mode per tab from localStorage; default to list on small screens
+  // Set view mode to list only (compact view)
   useEffect(() => {
-    try {
-      const key = `viewMode:${activeStatus}`
-      const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null
-      const saved = globalWindow ? (globalWindow.localStorage.getItem(key) as 'card' | 'list' | null) : null
-      if (saved === 'card' || saved === 'list') {
-        setViewMode(saved)
-      } else {
-        const defaultMode: 'card' | 'list' = globalWindow && globalWindow.innerWidth < 640 ? 'list' : 'card'
-        setViewMode(defaultMode)
-      }
-    } catch {}
+    setViewMode('list')
   }, [activeStatus])
-
-  // Persist view mode whenever it changes for the current tab
-  useEffect(() => {
-    try {
-      const key = `viewMode:${activeStatus}`
-      const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null
-      if (viewMode && globalWindow) globalWindow.localStorage.setItem(key, viewMode)
-    } catch {}
-  }, [viewMode, activeStatus])
 
   const formatPrice = (price?: number | null) => {
     const validPrice = typeof price === 'number' ? price : 0;
@@ -251,33 +232,6 @@ export function Dashboard({
           {/* Notifications list - displays user notifications with responsive card layout */}
           {showNotifications && (
             <div key="notifications-section" className="space-y-2 sm:space-y-4 w-full max-w-full min-w-0">
-              {/* View toggle */}
-              <div className="mb-2 flex justify-end relative z-10">
-                <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
-                  <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
-                    <Button
-                      variant={viewMode === 'card' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-8 px-2"
-                      aria-label="Card view"
-                      data-testid="view-toggle-card"
-                      onClick={() => setViewMode('card')}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'list' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-8 px-2"
-                      aria-label="List view"
-                      data-testid="view-toggle-list"
-                      onClick={() => setViewMode('list')}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
               {notifications.length === 0 ? (
                 // Empty state with centered icon and message
                 <div key="no-notifications-found" className="text-center py-12">
@@ -381,33 +335,6 @@ export function Dashboard({
           {/* Client list */}
           {showClients && (
             <div key="clients-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
-              {/* View toggle */}
-              <div className="mb-2 flex justify-end relative z-10">
-                <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
-                  <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
-                    <Button
-                      variant={viewMode === 'card' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-8 px-2"
-                      aria-label="Card view"
-                      data-testid="view-toggle-card"
-                      onClick={() => setViewMode('card')}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'list' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-8 px-2"
-                      aria-label="List view"
-                      data-testid="view-toggle-list"
-                      onClick={() => setViewMode('list')}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
               {clients.length === 0 ? (
                 <div key="no-clients-found" className="text-center py-12">
                   <UsersIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -490,33 +417,6 @@ export function Dashboard({
           {/* Delivery list */}
           {showDelivery && (
             <div key="deliveries-section" className="space-y-2 sm:space-y-4 w-full min-w-0">
-              {/* View toggle */}
-              <div className="mb-2 flex justify-end relative z-10">
-                <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
-                  <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md">
-                    <Button
-                      variant={viewMode === 'card' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-8 px-2"
-                      aria-label="Card view"
-                      data-testid="view-toggle-card"
-                      onClick={() => setViewMode('card')}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'list' ? 'default' : 'ghost'}
-                      size="sm"
-                      className="h-8 px-2"
-                      aria-label="List view"
-                      data-testid="view-toggle-list"
-                      onClick={() => setViewMode('list')}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
               {deliveries.length === 0 ? (
                 <div key="no-deliveries-found" className="text-center py-12">
                   <CarIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -634,31 +534,9 @@ export function Dashboard({
                 </div>
               ) : (
                 <>
-                  {/* View toggle + Sort */}
+                  {/* Sort */}
                   <div className="mb-2 flex justify-end relative z-10">
                     <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
-                      <div className="flex rounded-md overflow-hidden border border-gray-200/60 bg-white/70 backdrop-blur-md shrink-0">
-                        <Button
-                          variant={viewMode === 'card' ? 'default' : 'ghost'}
-                          size="sm"
-                          className="h-8 px-2 shrink-0"
-                          aria-label="Card view"
-                          data-testid="view-toggle-card"
-                          onClick={() => setViewMode('card')}
-                        >
-                          <LayoutGrid className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant={viewMode === 'list' ? 'default' : 'ghost'}
-                          size="sm"
-                          className="h-8 px-2 shrink-0"
-                          aria-label="List view"
-                          data-testid="view-toggle-list"
-                          onClick={() => setViewMode('list')}
-                        >
-                          <List className="w-4 h-4" />
-                        </Button>
-                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -713,7 +591,7 @@ export function Dashboard({
                               className="w-16 h-12 object-cover rounded flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0 flex flex-col gap-1">
-                              <h3 className="font-medium text-base truncate min-w-0 max-w-full">
+                              <h3 className="font-medium text-base break-words overflow-wrap-anywhere min-w-0 max-w-full leading-tight">
                                 {car.year} {car.make} {car.model}
                               </h3>
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
