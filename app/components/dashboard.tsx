@@ -68,7 +68,6 @@ export function Dashboard({
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('list')
 
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
@@ -92,11 +91,6 @@ export function Dashboard({
     }
   }, [showTodo, fabOpen])
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
-
-  // Set view mode to list only (compact view)
-  useEffect(() => {
-    setViewMode('list')
-  }, [activeStatus])
 
   const formatPrice = (price?: number | null) => {
     const validPrice = typeof price === 'number' ? price : 0;
@@ -239,9 +233,8 @@ export function Dashboard({
                   <p className="text-muted-foreground">No notifications</p>
                 </div>
               ) : (
-                // Cards or List
                 <div className="flex flex-col gap-3 w-full max-w-full min-w-0 pr-2 sm:pr-3">
-                  {viewMode === 'list' && notifications.map((n) => {
+                  {notifications.map((n) => {
                     const created = new Date(n.createdAt).toLocaleString()
                     return (
                       <button
@@ -265,50 +258,6 @@ export function Dashboard({
                           </div>
                         </div>
                       </button>
-                    )
-                  })}
-                  {viewMode === 'card' && notifications.map((n) => {
-                    const created = new Date(n.createdAt).toLocaleString()
-                    return (
-                      <Card
-                        key={n._id}
-                        className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden w-full max-w-full min-w-0"
-                        onClick={() => onNotificationSelect?.(n)}
-                      >
-                        <CardContent className="p-3 sm:p-4 flex items-start gap-3 w-full max-w-full min-w-0 overflow-hidden">
-                          {/* Icon container - displays type-specific icon */}
-                          <div className="w-12 h-12 rounded-md bg-accent/30 flex items-center justify-center flex-shrink-0">
-                            {n.type === 'car_new' && <CarIcon className="w-5 h-5 text-foreground/80" />}
-                            {n.type === 'car_reserved' && <BookmarkCheck className="w-5 h-5 text-foreground/80" />}
-                            {n.type === 'car_sold' && <Tag className="w-5 h-5 text-foreground/80" />}
-                            {n.type === 'delivery_due_soon' && <Clock className="w-5 h-5 text-foreground/80" />}
-                            {n.type === 'delivery_completed' && <CheckCircle className="w-5 h-5 text-foreground/80" />}
-                            {n.type === 'delivery_update' && <Truck className="w-5 h-5 text-foreground/80" />}
-                            {/* Default bell icon for unknown notification types */}
-                            {!(
-                              n.type === 'car_new' || n.type === 'car_reserved' || n.type === 'car_sold' ||
-                              n.type === 'delivery_due_soon' || n.type === 'delivery_completed' || n.type === 'delivery_update'
-                            ) && <Bell className="w-5 h-5 text-foreground/80" />}
-                          </div>
-                          {/* Content area with responsive text wrapping */}
-                          <div className="flex-1 min-w-0 max-w-full space-y-1 overflow-hidden">
-                            <div className="flex items-start justify-between gap-2 min-w-0">
-                              {/* Title with break-words to handle long text without overflow */}
-                              <h3 className="font-semibold text-base break-words overflow-wrap-anywhere min-w-0 max-w-full">
-                                {n.title}
-                              </h3>
-                            </div>
-                            {/* Optional description with text wrapping */}
-                            {n.description && (
-                              <p className="text-sm text-muted-foreground break-words overflow-wrap-anywhere max-w-full">
-                                {n.description}
-                              </p>
-                            )}
-                            {/* Timestamp display */}
-                            <p className="text-xs text-muted-foreground break-words">{created}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
                     )
                   })}
                 </div>
@@ -341,76 +290,41 @@ export function Dashboard({
                   <p className="text-muted-foreground">No clients found</p>
                 </div>
               ) : (
-                <>
-                  {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
-                      {sortedClients.map((client) => (
-                        <button
-                          key={client._id}
-                          className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-                          onClick={() => onClientSelect(client)}
-                          data-testid="client-row"
-                        >
-                          <div className="p-3 pr-2 sm:pr-3 flex items-center gap-3 w-full max-w-full">
-                            <div className="w-10 h-10 rounded-full bg-accent/20 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <h3 className="font-medium text-sm sm:text-base truncate">{client.firstName} {client.lastName}</h3>
-                                {(client.active === false) && (
-                                  <Badge variant="secondary" className="text-[10px]">Inactive</Badge>
-                                )}
-                              </div>
-                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                                <span className="truncate">{client.email}</span>
-                                <span className="truncate">{client.phone}</span>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
-                              className="text-muted-foreground hover:text-red-500"
-                              aria-label="Delete client"
-                            >
-                              <Trash2Icon className="w-5 h-5" />
-                            </Button>
+                <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
+                  {sortedClients.map((client) => (
+                    <button
+                      key={client._id}
+                      className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                      onClick={() => onClientSelect(client)}
+                      data-testid="client-row"
+                    >
+                      <div className="p-3 pr-2 sm:pr-3 flex items-center gap-3 w-full max-w-full">
+                        <div className="w-10 h-10 rounded-full bg-accent/20 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="font-medium text-sm sm:text-base truncate">{client.firstName} {client.lastName}</h3>
+                            {(client.active === false) && (
+                              <Badge variant="secondary" className="text-[10px]">Inactive</Badge>
+                            )}
                           </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {viewMode === 'card' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {sortedClients.map((client) => (
-                        <Card key={client._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onClientSelect(client)}>
-                          <CardContent className="p-3 sm:p-4 flex justify-between items-center">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-base sm:text-lg">{client.firstName} {client.lastName}</h3>
-                                {(client.active === false) && (
-                                  <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">{client.email}</p>
-                              <p className="text-sm text-muted-foreground">{client.phone}</p>
-                              {(userRole === 'admin' || userRole === 'manager') && client.createdByPhone && (
-                                <p className="text-xs text-muted-foreground mt-1">Owner: {client.createdByPhone}</p>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
-                              className="text-muted-foreground hover:text-red-500"
-                            >
-                              <Trash2Icon className="w-5 h-5" />
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </>
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                            <span className="truncate">{client.email}</span>
+                            <span className="truncate">{client.phone}</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); onClientDelete?.(client._id); }}
+                          className="text-muted-foreground hover:text-red-500"
+                          aria-label="Delete client"
+                        >
+                          <Trash2Icon className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -423,103 +337,35 @@ export function Dashboard({
                   <p className="text-muted-foreground">No deliveries found</p>
                 </div>
               ) : (
-                <>
-                  {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
-                      {deliveries.map((d) => {
-                        const carObj = (d.car as any) || {};
-                        const isCarPopulated = typeof d.car === 'object' && d.car !== null;
-                        const title = isCarPopulated
-                          ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
-                          : 'Vehicle';
-                        const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
-                        return (
-                          <button
-                            key={(d as any)._id}
-                            className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-                            onClick={() => onDeliverySelect?.(d)}
-                            data-testid="delivery-row"
-                          >
-                            <div className="p-3 flex items-center gap-3 w-full max-w-full">
-                              <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                  <h3 className="font-medium text-sm sm:text-base truncate">{title}</h3>
-                                  <Badge variant="secondary" className="capitalize">{(d as any).status}</Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date((d as any).updatedAt).toLocaleString()}</p>
-                              </div>
+                <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
+                  {deliveries.map((d) => {
+                    const carObj = (d.car as any) || {};
+                    const isCarPopulated = typeof d.car === 'object' && d.car !== null;
+                    const title = isCarPopulated
+                      ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
+                      : 'Vehicle';
+                    const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
+                    return (
+                      <button
+                        key={(d as any)._id}
+                        className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                        onClick={() => onDeliverySelect?.(d)}
+                        data-testid="delivery-row"
+                      >
+                        <div className="p-3 flex items-center gap-3 w-full max-w-full">
+                          <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="font-medium text-sm sm:text-base truncate">{title}</h3>
+                              <Badge variant="secondary" className="capitalize">{(d as any).status}</Badge>
                             </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {viewMode === 'card' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {deliveries.map((d) => {
-                        const carObj = (d.car as any) || {};
-                        const isCarPopulated = typeof d.car === 'object' && d.car !== null;
-                        const title = isCarPopulated
-                          ? `${(carObj.year ?? '')} ${(carObj.make ?? '')} ${(carObj.model ?? '')}`.trim()
-                          : 'Vehicle';
-                        const imageUrl = isCarPopulated ? (carObj.images?.[0]?.imageUrl || "/placeholder.svg") : "/placeholder.svg";
-                        const tasks = Array.isArray((d as any).reconTasks) ? ((d as any).reconTasks as any[]) : [];
-                        const doneCount = tasks.filter(t => !!t.done).length;
-                        const totalCount = tasks.length;
-                        const allDone = totalCount > 0 && doneCount === totalCount;
-                        const licensingDone = !!(d as any)?.licensing?.done;
-                        const customerType = (d as any)?.customerType || 'natural';
-                        const docKinds = new Set(((d as any)?.docs || []).map((x: any) => x.kind));
-                        const addl = (d as any)?.additionalDocs || {};
-                        const hasTradeIn = docKinds.has('trade_in_natis') || !!addl.trade_in_natis;
-                        const hasSof = docKinds.has('source_of_funds') || !!addl.source_of_funds;
-                        const hasUbo = docKinds.has('ubo_form') || !!addl.ubo_form;
-                        return (
-                          <Card key={d._id} className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden" onClick={() => onDeliverySelect?.(d)}>
-                            <CardContent className="p-3 sm:p-4 flex items-center gap-3">
-                              <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <h3 className="font-semibold text-base truncate">{title}</h3>
-                                  <Badge variant="secondary" className="capitalize">{d.status}</Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date(d.updatedAt).toLocaleString()}</p>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {/* Recon tasks progress */}
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${allDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    {allDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                    Recon {doneCount}/{totalCount}
-                                  </span>
-                                  {/* Licensing done */}
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${licensingDone ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    {licensingDone ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                    Licensing {licensingDone ? 'Done' : 'Pending'}
-                                  </span>
-                                  {/* Additional docs */}
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasTradeIn ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    {hasTradeIn ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                    Trade-In Natis
-                                  </span>
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasSof ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    {hasSof ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                    Source of Funds
-                                  </span>
-                                  {customerType === 'company' && (
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${hasUbo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                      {hasUbo ? (<Check className="w-3.5 h-3.5" />) : (<X className="w-3.5 h-3.5" />)}
-                                      UBO Form
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                            <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date((d as any).updatedAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -535,212 +381,76 @@ export function Dashboard({
               ) : (
                 <>
                   {/* Sort */}
-                  <div className="mb-2 flex justify-end relative z-10">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="h-8 rounded-md px-3 shrink-0"
-                        >
-                          Sort: {currentSortLabel}
-                          <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuRadioGroup
-                          value={sortKey}
-                          onValueChange={(v) => {
-                            const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
-                            setSortKey(key)
-                            setSortDir(key === 'recent' ? 'desc' : 'asc')
-                          }}
-                        >
-                          <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
-                          Direction
-                          <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 rounded-md px-3 shrink-0 mb-2"
+                      >
+                        Sort: {currentSortLabel}
+                        <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={sortKey}
+                        onValueChange={(v) => {
+                          const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
+                          setSortKey(key)
+                          setSortDir(key === 'recent' ? 'desc' : 'asc')
+                        }}
+                      >
+                        <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
+                        Direction
+                        <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-                  {viewMode === 'list' && (
-                    <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
-                      {sortedCars.map((car) => (
-                        <button
-                          key={car._id}
-                          className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
-                          onClick={() => onCarSelect(car)}
-                          data-testid="dashboard-car-row"
-                        >
-                          <div className="p-3 sm:p-3 pr-2 sm:pr-3 flex items-start gap-3 w-full max-w-full">
-                            <img
-                              src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
-                              alt={`${car.year} ${car.make} ${car.model}`}
-                              className="w-16 h-12 object-cover rounded flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0 flex flex-col gap-1">
-                              <h3 className="font-medium text-base break-words overflow-wrap-anywhere min-w-0 max-w-full leading-tight">
-                                {car.year} {car.make} {car.model}
-                              </h3>
-                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                                <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
-                                <span>{car.color}</span>
-                                <span className="capitalize">{car.transmission}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-2 min-w-0">
-                                <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
-                                <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap`}>
-                                  {formatStatusLabel(car.status)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {viewMode === 'card' && sortedCars.map((car) => (
-                  <Card
-                    key={car._id}
-                    className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] bg-transparent border-0 shadow-lg sm:hover:shadow-2xl sm:bg-white/90 sm:backdrop-blur-md sm:border sm:border-gray-200/50 sm:hover:border-blue-300/50"
-                    onClick={() => onCarSelect(car)}
-                    data-testid="dashboard-car-card"
-                  >
-                    <CardContent className="p-0 sm:p-4">
-                      {/* Mobile layout: background image with bottom glass overlay */}
-                      <div className="relative sm:hidden overflow-hidden">
-                        <img
-                          src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
-                          alt={`${car.year} ${car.make} ${car.model}`}
-                          className="w-full h-auto block"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/35" />
-                        <div className="absolute bottom-0 left-0 right-0 p-3">
-                          <div className="bg-white/20 backdrop-blur-sm border border-white/10 rounded-md p-2.5 shadow-lg">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold text-base truncate text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]">
-                                    {car.year} {car.make} {car.model}
-                                  </h3>
-                                  {car.demo && (
-                                    <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                      DEMO
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-2xl font-extrabold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">{formatPrice(car.price)}</p>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Badge
-                                    className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {formatStatusLabel(car.status)}
-                                  </Badge>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
-                                    <DropdownMenuItem
-                                      key={statusOption}
-                                      onClick={(e: React.MouseEvent) => {
-                                        e.stopPropagation();
-                                        if (statusOption !== car.status) {
-                                          onStatusChange(car._id, statusOption);
-                                        }
-                                      }}
-                                    >
-                                      {formatStatusLabel(statusOption)}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] mt-2 font-medium">
+                  <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
+                    {sortedCars.map((car) => (
+                      <button
+                        key={car._id}
+                        className="w-full text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                        onClick={() => onCarSelect(car)}
+                        data-testid="dashboard-car-row"
+                      >
+                        <div className="p-3 sm:p-3 pr-2 sm:pr-3 flex items-start gap-3 w-full max-w-full">
+                          <img
+                            src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
+                            alt={`${car.year} ${car.make} ${car.model}`}
+                            className="w-16 h-12 object-cover rounded flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0 flex flex-col gap-1">
+                            <h3 className="font-medium text-base break-words overflow-wrap-anywhere min-w-0 max-w-full leading-tight">
+                              {car.year} {car.make} {car.model}
+                            </h3>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                               <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
                               <span>{car.color}</span>
                               <span className="capitalize">{car.transmission}</span>
                             </div>
-                            {car.status === "reserved" && car.reservedBy && (
-                              <p className="text-xs text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Desktop/tablet layout: existing horizontal card */}
-                      <div className="hidden sm:flex flex-row gap-4">
-                        <img
-                          src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
-                          alt={`${car.year} ${car.make} ${car.model}`}
-                          className="w-24 object-contain rounded-lg"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-base sm:text-lg truncate text-foreground">
-                                  {car.year} {car.make} {car.model}
-                                </h3>
-                                {car.demo && (
-                                  <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                    DEMO
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-2xl font-bold text-orange-500">{formatPrice(car.price)}</p>
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                              <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
+                              <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap`}>
+                                {formatStatusLabel(car.status)}
+                              </Badge>
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Badge
-                                  className={`${getStatusColor(car.status)} cursor-pointer flex-shrink-0 whitespace-nowrap`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {formatStatusLabel(car.status)}
-                                </Badge>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {(STATUS_OPTIONS as CarState[]).map((statusOption) => (
-                                  <DropdownMenuItem
-                                    key={statusOption}
-                                    onClick={(e: React.MouseEvent) => {
-                                      e.stopPropagation();
-                                      if (statusOption !== car.status) {
-                                        onStatusChange(car._id, statusOption);
-                                      }
-                                    }}
-                                  >
-                                    {formatStatusLabel(statusOption)}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
-                            <span>{(car.kilometers ?? 0).toLocaleString()} km</span>
-                            <span>{car.color}</span>
-                            <span className="capitalize">{car.transmission}</span>
-                          </div>
-                          {car.status === "reserved" && car.reservedBy && (
-                            <p className="text-sm text-yellow-600 mt-1">Reserved by {car.reservedBy}</p>
-                          )}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </>
               )}
             </div>

@@ -228,14 +228,18 @@ describe('Dashboard Sort Feature', () => {
     expect(screen.getByText(/Sort: Recent/i)).toBeInTheDocument()
   })
 
-  it('should render sort container with correct classes', () => {
+  it('should render sort button without wrapper container', () => {
     const { container } = render(<Dashboard {...defaultProps} />)
     
-    const sortContainer = container.querySelector('.mb-2.flex.justify-end.relative.z-10')
-    expect(sortContainer).toBeInTheDocument()
+    // Sort button should exist without the old wrapper div
+    const sortButton = screen.getByText(/Sort: Recent/i)
+    expect(sortButton).toBeInTheDocument()
     
-    // Should directly contain DropdownMenu, not a wrapper div
-    const dropdownMenu = sortContainer?.querySelector('[data-testid="dropdown-menu"]')
+    // Should have mb-2 class directly on the button
+    expect(sortButton.className).toContain('mb-2')
+    
+    // Dropdown menu should be present
+    const dropdownMenu = container.querySelector('[data-testid="dropdown-menu"]')
     expect(dropdownMenu).toBeInTheDocument()
   })
 
