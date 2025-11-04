@@ -536,43 +536,41 @@ export function Dashboard({
                 <>
                   {/* Sort */}
                   <div className="mb-2 flex justify-end relative z-10">
-                    <div className="flex items-center gap-2 max-w-full flex-wrap bg-white/80 backdrop-blur-md rounded-md px-2 py-1 border border-gray-200/50">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-8 rounded-md px-3 bg-white/70 backdrop-blur-md border border-gray-200/50 shrink-0"
-                          >
-                            Sort: {currentSortLabel}
-                            <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuRadioGroup
-                            value={sortKey}
-                            onValueChange={(v) => {
-                              const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
-                              setSortKey(key)
-                              setSortDir(key === 'recent' ? 'desc' : 'asc')
-                            }}
-                          >
-                            <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
-                          </DropdownMenuRadioGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
-                            Direction
-                            <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 rounded-md px-3 shrink-0"
+                        >
+                          Sort: {currentSortLabel}
+                          <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioGroup
+                          value={sortKey}
+                          onValueChange={(v) => {
+                            const key = v as 'recent' | 'price' | 'year' | 'mileage' | 'model'
+                            setSortKey(key)
+                            setSortDir(key === 'recent' ? 'desc' : 'asc')
+                          }}
+                        >
+                          <DropdownMenuRadioItem value="recent">Recent</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="price">Price</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="year">Year</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="mileage">Mileage</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="model">Model</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
+                          Direction
+                          <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {viewMode === 'list' && (
