@@ -198,25 +198,47 @@ async function fetchImagesViaProxy(
  * Download images using native file picker (best for desktop)
  */
 async function downloadViaFilePicker(files: File[]): Promise<boolean> {
-  if (typeof window === 'undefined') return false
+  if (typeof window === 'undefined') {
+    console.log('Window is undefined, cannot use file picker')
+    return false
+  }
 
   // Check if File System Access API is available (Chrome, Edge)
   const showDirectoryPicker = (window as any).showDirectoryPicker
-  if (!showDirectoryPicker) return false
+  if (!showDirectoryPicker) {
+    console.log('showDirectoryPicker not available')
+    return false
+  }
 
   try {
+    console.log(`Requesting directory picker for ${files.length} files...`)
     const dirHandle = await showDirectoryPicker()
+    console.log('Directory selected, saving files...')
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      console.log(`Saving file ${i + 1}/${files.length}: ${file.name}`)
       const fileHandle = await dirHandle.getFileHandle(file.name, { create: true })
       const writable = await fileHandle.createWritable()
       await writable.write(file)
       await writable.close()
     }
 
+    console.log('All files saved successfully via file picker')
     return true
   } catch (err) {
-    // User cancelled or API not supported
+    // User cancelled or API error
+    const error = err as Error
+    console.log('File picker error or cancelled:', error.name, error.message)
+    
+    // AbortError means user cancelled - this is expected
+    if (error.name === 'AbortError') {
+      console.log('User cancelled directory picker')
+      return false
+    }
+    
+    // Other errors should be logged
+    console.error('File picker failed with error:', err)
     return false
   }
 }
@@ -353,17 +375,20 @@ export async function downloadCarImages(
 
   // Step 2: On desktop with multiple files, ALWAYS try native file picker first
   if (!isMobile && files.length > 1 && typeof (window as any).showDirectoryPicker !== 'undefined') {
+    console.log('Desktop detected with multiple files, attempting file picker...')
     try {
       const pickerSuccess = await downloadViaFilePicker(files)
       if (pickerSuccess) {
+        console.log('File picker succeeded, returning success')
         return { ...result, success: true, method: 'native' }
       }
-      // If we get here, user cancelled the picker - don't fallback to ZIP automatically
-      // Instead, show them they need to try again or use individual downloads
-      console.log('File picker cancelled by user')
+      // If we get here, user cancelled the picker
+      console.log('File picker returned false (user cancelled or error)')
+      // Don't continue to fallback - user needs to try again
+      return { ...result, success: false, method: 'native' }
     } catch (error) {
-      console.warn('File picker error:', error)
-      // Continue to fallback methods only on error, not on user cancellation
+      console.error('File picker threw exception:', error)
+      // Only on exception do we continue to fallback
     }
   }
 

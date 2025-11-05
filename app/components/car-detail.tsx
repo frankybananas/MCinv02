@@ -214,8 +214,13 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
           alert(`Successfully downloaded ${result.filesDownloaded} image(s). Check your Downloads folder.`)
         }
       } else if (result.filesDownloaded > 0 && !result.success) {
-        // Files were fetched but download method failed
-        alert(`Prepared ${result.filesDownloaded} image(s) but download failed. Please check your browser settings or try again.`)
+        // Files were fetched but download method failed (likely user cancelled folder selection)
+        if (result.method === 'native') {
+          // User cancelled the folder picker - don't show error, just silent fail
+          console.log('User cancelled folder selection')
+        } else {
+          alert(`Prepared ${result.filesDownloaded} image(s) but download failed. Please check your browser settings or try again.`)
+        }
       } else {
         // Complete failure
         alert('Failed to download images. Please try again.')
