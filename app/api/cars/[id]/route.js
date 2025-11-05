@@ -69,6 +69,15 @@ export async function PUT(request, { params }) {
         };
         carToUpdate.auditLog.push(auditEntry);
 
+        // Track when car was marked as sold
+        if (status === 'sold' && oldStatus !== 'sold') {
+          carToUpdate.soldAt = new Date();
+        }
+        // Clear soldAt if status changes from sold to something else
+        if (oldStatus === 'sold' && status !== 'sold') {
+          carToUpdate.soldAt = null;
+        }
+
         // Handle reservation side-effects
         if (status === 'reserved' && userPhone) {
           try {

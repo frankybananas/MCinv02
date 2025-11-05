@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import CreateUserForm from '@/app/components/admin/create-user-form';
 import UserList from '@/app/components/admin/user-list';
+import StorageMonitor from '@/app/components/admin/storage-monitor';
 
 export default function AdminPage() {
   return (
@@ -17,8 +18,9 @@ export default function AdminPage() {
           </Button>
         </Link>
       </div>
-      <p className="text-muted-foreground mb-6">Welcome to the admin panel. Here you can manage users.</p>
+      <p className="text-muted-foreground mb-6">Welcome to the admin panel. Here you can manage users and monitor storage.</p>
       <div className="space-y-8">
+        <StorageMonitor />
         <CreateUserForm />
         <UserList />
       </div>
