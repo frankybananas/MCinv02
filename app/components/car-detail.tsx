@@ -96,26 +96,20 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   }
 
   const onShare = useCallback(async () => {
-    // Strategy for WhatsApp: pre-open a tab synchronously to avoid popup blocking,
-    // download images, then navigate the pre-opened tab to WhatsApp with the text.
-    let shareWindow: Window | null = null
+    // Precompute message and URLs up-front (sync with user gesture)
+    const carDetailsText = buildShareText(false)
+    const contactText = buildContactText()
+    const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
+    const encodedText = encodeURIComponent(fullText)
+    const whatsappUrl = `whatsapp://send?text=${encodedText}`
+    const webWhatsappUrl = `https://wa.me/?text=${encodedText}`
+    
+    // Detect platform
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    const isAndroid = /Android/i.test(userAgent)
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent)
+
     try {
-      // Precompute message and URLs up-front (sync with user gesture)
-      const carDetailsText = buildShareText(false)
-      const contactText = buildContactText()
-      const fullText = contactText ? `${carDetailsText}\n\n${contactText}` : carDetailsText
-      const encodedText = encodeURIComponent(fullText)
-      const whatsappUrl = `whatsapp://send?text=${encodedText}`
-      const webWhatsappUrl = `https://wa.me/?text=${encodedText}`
-      const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
-
-      // Android: do NOT pre-open a blank tab. Navigate current context to app after downloads.
-      if (!isAndroid) {
-        try {
-          shareWindow = window.open('about:blank', '_blank')
-        } catch {}
-      }
-
       // Step 1: Download all images to device
       if (images.length > 0) {
         setIsDownloading(true)
@@ -139,52 +133,51 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
         }
       }
 
-      // Step 2: Open WhatsApp
+      // Step 2: Open WhatsApp with platform-specific strategy
       if (isAndroid) {
-        // Always use the app and never the web version on Android
+        // Android: Navigate current page to WhatsApp app (works reliably)
         try {
           window.location.href = whatsappUrl
         } catch {
           try { window.open(whatsappUrl, '_self') } catch {}
         }
-      } else {
-        // Non-Android: use pre-open navigating strategy with web fallback
-        if (shareWindow && !shareWindow.closed) {
-          try {
-            shareWindow.location.href = whatsappUrl
-          } catch {
-            const opened = window.open(whatsappUrl, '_blank')
-            if (!opened || opened.closed || typeof opened.closed === 'undefined') {
-              setTimeout(() => { window.open(webWhatsappUrl, '_blank') }, 500)
-            }
+      } else if (isIOS) {
+        // iOS: Direct window.open with app URL, fallback to web version
+        // iOS Safari blocks delayed popups, so we avoid pre-opening
+        try {
+          const opened = window.open(whatsappUrl, '_blank')
+          // If popup blocked or app not installed, try web WhatsApp
+          if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+            setTimeout(() => { 
+              window.open(webWhatsappUrl, '_blank') 
+            }, 1000)
           }
-        } else {
+        } catch {
+          // Fallback to web WhatsApp if app URL fails
+          window.open(webWhatsappUrl, '_blank')
+        }
+      } else {
+        // Desktop/Other: Try app URL first, fallback to web
+        try {
           const opened = window.open(whatsappUrl, '_blank')
           if (!opened || opened.closed || typeof opened.closed === 'undefined') {
             setTimeout(() => { window.open(webWhatsappUrl, '_blank') }, 500)
           }
+        } catch {
+          window.open(webWhatsappUrl, '_blank')
         }
       }
 
     } catch (error) {
       console.error('Share error:', error)
-      // Final fallback: Just open web WhatsApp with text and image links
+      // Final fallback: Open web WhatsApp with text and image links
       const fallbackText = buildShareText(true) + '\n\n' + buildContactText()
-      const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+      const fallbackUrl = `https://wa.me/?text=${encodeURIComponent(fallbackText)}`
+      
       if (isAndroid) {
-        const appOnly = `whatsapp://send?text=${encodeURIComponent(fallbackText)}`
-        try { window.location.href = appOnly } catch { try { window.open(appOnly, '_self') } catch {} }
+        try { window.location.href = fallbackUrl } catch { try { window.open(fallbackUrl, '_self') } catch {} }
       } else {
-        const wa = `https://wa.me/?text=${encodeURIComponent(fallbackText)}`
-        if (shareWindow && !shareWindow.closed) {
-          try {
-            shareWindow.location.href = wa
-          } catch {
-            window.open(wa, '_blank')
-          }
-        } else {
-          window.open(wa, '_blank')
-        }
+        window.open(fallbackUrl, '_blank')
       }
     }
   }, [buildShareText, buildContactText, car.make, car.model, car.year, images])

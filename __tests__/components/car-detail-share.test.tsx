@@ -82,18 +82,19 @@ describe('CarDetail Share Functionality', () => {
       )
     })
 
-    // Should pre-open a blank tab and then navigate it to WhatsApp
+    // Should directly open WhatsApp URL (no pre-open blank window on iOS/Desktop)
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
 
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    expect(openedWin).toBeDefined()
-    const waHref = openedWin.location?.href || ''
-    expect(waHref).toMatch(/^whatsapp:\/\/send\?text=/)
-    
-    // Decode and verify the message content
-    const decodedText = decodeURIComponent(waHref.split('text=')[1] || '')
+    // Verify the WhatsApp URL was called with correct message
+    const callArgs = mockWindowOpen.mock.calls[0]
+    expect(callArgs).toBeDefined()
+    const whatsappUrl = callArgs[0] as string
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     expect(decodedText).toContain('2024 BMW M3 Competition')
     expect(decodedText).toMatch(/Price:\s*R\s*1\s*899\s*000/)
     expect(decodedText).toMatch(/Kilometers:\s*12\s*000\s*km/)
@@ -123,13 +124,13 @@ describe('CarDetail Share Functionality', () => {
       )
     })
 
-    // Should still pre-open and navigate to WhatsApp (even if download failed)
+    // Should still directly open WhatsApp (even if download failed)
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    expect(waHref).toMatch(/^whatsapp:\/\/send\?text=/)
   })
 
   test('should work without contact details when dealer info not loaded', async () => {
@@ -144,14 +145,17 @@ describe('CarDetail Share Functionality', () => {
     const shareButton = screen.getByRole('button', { name: /share/i })
     fireEvent.click(shareButton)
 
-    // Should still pre-open and navigate to WhatsApp without contact info
+    // Should still directly open WhatsApp without contact info
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
 
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    const decodedText = decodeURIComponent(waHref.split('text=')[1] || '')
+    const callArgs = mockWindowOpen.mock.calls[0]
+    const whatsappUrl = callArgs[0] as string
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     
     // Should have car details but no contact section
     expect(decodedText).toContain('2024 BMW M3 Competition')
@@ -165,12 +169,15 @@ describe('CarDetail Share Functionality', () => {
     fireEvent.click(shareButton)
 
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
 
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    const decodedText = decodeURIComponent(waHref.split('text=')[1] || '')
+    const callArgs = mockWindowOpen.mock.calls[0]
+    const whatsappUrl = callArgs[0] as string
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     
     // Should NOT include image URLs (images are downloaded separately)
     expect(decodedText).not.toContain('Sample Photos:')
@@ -185,14 +192,17 @@ describe('CarDetail Share Functionality', () => {
     const shareButton = screen.getByRole('button', { name: /share/i })
     fireEvent.click(shareButton)
 
-    // Should still pre-open and navigate to WhatsApp with fallback (image links)
+    // Should still directly open WhatsApp with fallback (image links)
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:\/\/wa\.me\/\?text=/),
+        '_blank'
+      )
     })
 
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    const decodedText = decodeURIComponent(waHref.split('text=')[1] || '')
+    const callArgs = mockWindowOpen.mock.calls[0]
+    const whatsappUrl = callArgs[0] as string
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     
     // Fallback should include image links
     expect(decodedText).toContain('Sample Photos:')
@@ -210,14 +220,13 @@ describe('CarDetail Share Functionality', () => {
     // Verify download was not called since there are no images
     expect(imageDownload.downloadCarImages).not.toHaveBeenCalled()
     
-    // Should still pre-open and navigate to WhatsApp with text
+    // Should still directly open WhatsApp with text
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
-
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    expect(waHref).toMatch(/^whatsapp:\/\/send\?text=/)
   })
 
   test('should show download progress while downloading', async () => {
@@ -250,17 +259,18 @@ describe('CarDetail Share Functionality', () => {
       expect(progressText).toBeInTheDocument()
     })
     
-    // Should eventually pre-open and navigate to WhatsApp
+    // Should eventually directly open WhatsApp
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
   })
 
   test('should fallback to web WhatsApp if app URL fails to open', async () => {
-    // Mock window.open to return null twice: pre-open blocked AND app URL blocked
-    mockWindowOpen
-      .mockReturnValueOnce(null) // about:blank pre-open blocked
-      .mockReturnValueOnce(null) // whatsapp:// also blocked, triggers fallback
+    // Mock window.open to return null: popup blocked, triggers fallback
+    mockWindowOpen.mockReturnValueOnce(null)
 
     render(<CarDetail {...mockProps} />)
     
@@ -281,7 +291,7 @@ describe('CarDetail Share Functionality', () => {
         expect.stringMatching(/^https:\/\/wa\.me\/\?text=/),
         '_blank'
       )
-    }, { timeout: 1000 })
+    }, { timeout: 1500 })
   })
 
   test('should include contact details when dealer info is loaded', async () => {
@@ -313,12 +323,15 @@ describe('CarDetail Share Functionality', () => {
     fireEvent.click(shareButton)
 
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
 
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    const decodedText = decodeURIComponent(waHref.split('text=')[1] || '')
+    const callArgs = mockWindowOpen.mock.calls[0]
+    const whatsappUrl = callArgs[0] as string
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     
     // Should include contact section
     expect(decodedText).toContain('Your Sales Contact:')
@@ -334,12 +347,15 @@ describe('CarDetail Share Functionality', () => {
     fireEvent.click(shareButton)
 
     await waitFor(() => {
-      expect(mockWindowOpen).toHaveBeenCalledWith('about:blank', '_blank')
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringMatching(/^whatsapp:\/\/send\?text=/),
+        '_blank'
+      )
     })
 
-    const openedWin = (mockWindowOpen as any).mock.results[0]?.value as any
-    const waHref = openedWin.location?.href || ''
-    const decodedText = decodeURIComponent(waHref.split('text=')[1] || '')
+    const callArgs = mockWindowOpen.mock.calls[0]
+    const whatsappUrl = callArgs[0] as string
+    const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     
     expect(decodedText).toContain('Stunning performance sedan')
   })
