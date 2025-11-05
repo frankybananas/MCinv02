@@ -300,16 +300,16 @@ export function Dashboard({
                     >
                       <div className="p-3 pr-2 sm:pr-3 flex items-center gap-3 w-full max-w-full">
                         <div className="w-10 h-10 rounded-full bg-accent/20 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="font-medium text-sm sm:text-base truncate">{client.firstName} {client.lastName}</h3>
+                        <div className="flex-1 min-w-0 max-w-full">
+                          <div className="flex items-start justify-between gap-2 min-w-0">
+                            <h3 className="font-medium text-sm sm:text-base break-words overflow-wrap-anywhere leading-tight min-w-0 max-w-full">{client.firstName} {client.lastName}</h3>
                             {(client.active === false) && (
-                              <Badge variant="secondary" className="text-[10px]">Inactive</Badge>
+                              <Badge variant="secondary" className="text-[10px] flex-shrink-0">Inactive</Badge>
                             )}
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                            <span className="truncate">{client.email}</span>
-                            <span className="truncate">{client.phone}</span>
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground min-w-0 max-w-full">
+                            <span className="break-words overflow-wrap-anywhere">{client.email}</span>
+                            <span className="break-words overflow-wrap-anywhere flex-shrink-0">{client.phone}</span>
                           </div>
                         </div>
                         <Button
@@ -354,12 +354,12 @@ export function Dashboard({
                       >
                         <div className="p-3 flex items-center gap-3 w-full max-w-full">
                           <img src={imageUrl} alt={title} className="w-16 h-12 object-contain rounded flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <h3 className="font-medium text-sm sm:text-base truncate">{title}</h3>
-                              <Badge variant="secondary" className="capitalize">{(d as any).status}</Badge>
+                          <div className="flex-1 min-w-0 max-w-full">
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <h3 className="font-medium text-sm sm:text-base break-words overflow-wrap-anywhere leading-tight min-w-0 max-w-full">{title}</h3>
+                              <Badge variant="secondary" className="capitalize flex-shrink-0 whitespace-nowrap">{(d as any).status}</Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1 truncate">Updated {new Date((d as any).updatedAt).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground mt-1 break-words overflow-wrap-anywhere max-w-full">Updated {new Date((d as any).updatedAt).toLocaleString()}</p>
                           </div>
                         </div>
                       </button>
@@ -381,12 +381,13 @@ export function Dashboard({
               ) : (
                 <>
                   {/* Sort */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8 rounded-md px-3 shrink-0 mb-2"
+                  <div className="flex justify-end mb-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-9 rounded-md px-4 shrink-0"
                       >
                         Sort: {currentSortLabel}
                         <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
@@ -415,7 +416,8 @@ export function Dashboard({
                         <span className="ml-auto text-xs opacity-70">{sortDir === 'asc' ? 'Ascending' : 'Descending'}</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
-                  </DropdownMenu>
+                    </DropdownMenu>
+                  </div>
 
                   <div className="w-full max-w-full flex flex-col divide-y rounded-xl bg-white/90 backdrop-blur-md border border-gray-200/50 shadow-lg pr-2 sm:pr-3">
                     {sortedCars.map((car) => (

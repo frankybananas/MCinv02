@@ -205,18 +205,19 @@ describe('Dashboard Sort Feature', () => {
   })
 
   it('should have correct button styling without redundant classes', () => {
-    const { container } = render(<Dashboard {...defaultProps} />)
+    render(<Dashboard {...defaultProps} />)
     
-    const sortButton = container.querySelector('button[data-variant="secondary"]')
+    const sortButton = screen.getByText(/Sort: Recent/i)
     expect(sortButton).toBeInTheDocument()
-    expect(sortButton?.className).toContain('h-8')
-    expect(sortButton?.className).toContain('rounded-md')
-    expect(sortButton?.className).toContain('px-3')
-    expect(sortButton?.className).toContain('shrink-0')
+    expect(sortButton.className).toContain('h-9')
+    expect(sortButton.className).toContain('rounded-md')
+    expect(sortButton.className).toContain('px-4')
+    expect(sortButton.className).toContain('shrink-0')
     
-    // Should NOT have redundant backdrop-blur styling
-    expect(sortButton?.className).not.toContain('bg-white/70')
-    expect(sortButton?.className).not.toContain('border-gray-200/50')
+    // Should NOT have redundant wrapper div styling
+    expect(sortButton.className).not.toContain('bg-white/70')
+    expect(sortButton.className).not.toContain('backdrop-blur-md')
+    expect(sortButton.className).not.toContain('border-gray-200')
   })
 
   it('should only show sort when on stock status tabs', () => {
@@ -228,15 +229,16 @@ describe('Dashboard Sort Feature', () => {
     expect(screen.getByText(/Sort: Recent/i)).toBeInTheDocument()
   })
 
-  it('should render sort button without wrapper container', () => {
+  it('should render sort button with right-aligned wrapper', () => {
     const { container } = render(<Dashboard {...defaultProps} />)
     
-    // Sort button should exist without the old wrapper div
+    // Sort button should exist
     const sortButton = screen.getByText(/Sort: Recent/i)
     expect(sortButton).toBeInTheDocument()
     
-    // Should have mb-2 class directly on the button
-    expect(sortButton.className).toContain('mb-2')
+    // Wrapper should have justify-end and mb-3
+    const wrapper = container.querySelector('.flex.justify-end.mb-3')
+    expect(wrapper).toBeInTheDocument()
     
     // Dropdown menu should be present
     const dropdownMenu = container.querySelector('[data-testid="dropdown-menu"]')
