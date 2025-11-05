@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2, Download } from "lucide-react"
+import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2, Download, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
@@ -209,11 +209,9 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
       } else if (result.success && result.filesDownloaded > 0) {
         // Full success feedback
         if (result.method === 'native') {
-          alert(`Successfully shared ${result.filesDownloaded} image(s). You can now save them to your device.`)
-        } else if (result.method === 'zip') {
-          alert(`Downloaded ${result.filesDownloaded} images as ZIP file.`)
+          alert(`Successfully saved ${result.filesDownloaded} image(s) to the selected folder.`)
         } else {
-          alert(`Successfully downloaded ${result.filesDownloaded} image(s). Check your Downloads folder or browser notifications.`)
+          alert(`Successfully downloaded ${result.filesDownloaded} image(s). Check your Downloads folder.`)
         }
       } else if (result.filesDownloaded > 0 && !result.success) {
         // Files were fetched but download method failed
@@ -324,8 +322,19 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                 onClick={onDownloadImages}
                 disabled={isDownloading || images.length === 0}
               >
-                <Download className="w-4 h-4 mr-1" />
-                {isDownloading ? `${downloadProgress.current}/${downloadProgress.total}` : 'Download'}
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    {downloadProgress.current > 0 
+                      ? `${downloadProgress.current}/${downloadProgress.total}` 
+                      : 'Preparing...'}
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-1" />
+                    Download
+                  </>
+                )}
               </Button>
               <Button
                 variant="ghost"

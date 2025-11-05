@@ -56,7 +56,7 @@ function makeFileFromBlob(blob: Blob, filename: string, type: string): File {
 }
 
 /**
- * Fetch an image from URL and convert to File object
+ * Fetch an image from URL and convert to File object (always as JPG)
  */
 async function fetchImageAsFile(
   url: string,
@@ -73,14 +73,72 @@ async function fetchImageAsFile(
     throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
   }
 
-  const blob = await response.blob()
+  let blob = await response.blob()
   const type = blob.type || 'image/jpeg'
   
-  // Ensure proper file extension
-  const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'
-  const finalFilename = filename.endsWith(`.${ext}`) ? filename : `${filename}.${ext}`
+  // Convert WebP to JPG
+  if (type.includes('webp')) {
+    try {
+      blob = await convertToJpg(blob)
+    } catch (error) {
+      console.warn('Failed to convert WebP to JPG, using original:', error)
+    }
+  }
+  
+  // Always use .jpg extension
+  const finalFilename = filename.endsWith('.jpg') ? filename : `${filename}.jpg`
 
-  return makeFileFromBlob(blob, finalFilename, type)
+  return makeFileFromBlob(blob, finalFilename, 'image/jpeg')
+}
+
+/**
+ * Convert image blob to JPG format using canvas
+ */
+async function convertToJpg(blob: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    
+    img.onload = () => {
+      canvas.width = img.width
+      canvas.height = img.height
+      
+      if (ctx) {
+        // Fill with white background (important for transparency)
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        
+        // Draw image on canvas
+        ctx.drawImage(img, 0, 0)
+        
+        // Convert to JPG blob
+        canvas.toBlob(
+          (jpgBlob) => {
+            if (jpgBlob) {
+              resolve(jpgBlob)
+            } else {
+              reject(new Error('Failed to convert image to JPG'))
+            }
+          },
+          'image/jpeg',
+          0.92 // Quality: 92%
+        )
+      } else {
+        reject(new Error('Failed to get canvas context'))
+      }
+      
+      // Clean up
+      URL.revokeObjectURL(img.src)
+    }
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src)
+      reject(new Error('Failed to load image'))
+    }
+    
+    img.src = URL.createObjectURL(blob)
+  })
 }
 
 /**
@@ -113,10 +171,21 @@ async function fetchImagesViaProxy(
         for (let j = 0; j < byteString.length; j++) {
           ia[j] = byteString.charCodeAt(j)
         }
-        const blob = new Blob([ab], { type: img.type })
-        const ext = img.type.includes('png') ? 'png' : img.type.includes('webp') ? 'webp' : 'jpg'
-        const filename = `${filenamePrefix}_${img.index + 1}.${ext}`
-        files.push(makeFileFromBlob(blob, filename, img.type))
+        
+        let blob = new Blob([ab], { type: img.type })
+        
+        // Convert WebP to JPG
+        if (img.type.includes('webp')) {
+          try {
+            blob = await convertToJpg(blob)
+          } catch (error) {
+            console.warn('Failed to convert WebP to JPG, using original:', error)
+          }
+        }
+        
+        // Always use .jpg extension for consistency
+        const filename = `${filenamePrefix}_${img.index + 1}.jpg`
+        files.push(makeFileFromBlob(blob, filename, 'image/jpeg'))
       }
     }
     return files
@@ -277,26 +346,29 @@ export async function downloadCarImages(
     return result
   }
 
-  // Step 2: Try native methods first (file picker)
-  try {
-    // On desktop: Try file system access API (Chrome/Edge)
-    if (files.length > 1 && typeof (window as any).showDirectoryPicker !== 'undefined') {
+  // Detect platform
+  const isMobile =
+    typeof navigator !== 'undefined' &&
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+  // Step 2: On desktop with multiple files, ALWAYS try native file picker first
+  if (!isMobile && files.length > 1 && typeof (window as any).showDirectoryPicker !== 'undefined') {
+    try {
       const pickerSuccess = await downloadViaFilePicker(files)
       if (pickerSuccess) {
         return { ...result, success: true, method: 'native' }
       }
+      // If we get here, user cancelled the picker - don't fallback to ZIP automatically
+      // Instead, show them they need to try again or use individual downloads
+      console.log('File picker cancelled by user')
+    } catch (error) {
+      console.warn('File picker error:', error)
+      // Continue to fallback methods only on error, not on user cancellation
     }
-  } catch (error) {
-    // Continue to fallback methods
-    console.warn('Native download methods failed:', error)
   }
 
-  // Step 3: Fallback to link-based download
+  // Step 3: Fallback to link-based download (individual files, no ZIP)
   try {
-    const isMobile =
-      typeof navigator !== 'undefined' &&
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-
     const recordDownloadError = (err: unknown, fileName: string) => {
       const error = err instanceof Error ? err : new Error(String(err))
       onError?.(error, fileName)
@@ -321,24 +393,13 @@ export async function downloadCarImages(
       }
     }
 
+    // Single file: direct download
     if (files.length === 1) {
       downloadViaLink(files[0])
       return { ...result, success: true, method: 'link' }
     }
 
-    if (!isMobile && files.length > 1) {
-      try {
-        const zipFilename = `${filenamePrefix}_images.zip`
-        const zipFile = await createZipFile(files, zipFilename)
-        downloadViaLink(zipFile)
-        return { ...result, success: true, method: 'zip' }
-      } catch (zipError) {
-        const err = zipError instanceof Error ? zipError : new Error(String(zipError))
-        console.warn('ZIP creation failed, falling back to individual downloads:', err)
-        onError?.(err, 'zip')
-      }
-    }
-
+    // Multiple files: download individually (no ZIP)
     const perDelay = isMobile ? 800 : files.length > 10 ? 200 : 150
     await downloadSequentially(perDelay)
     return { ...result, success: true, method: 'link' }
