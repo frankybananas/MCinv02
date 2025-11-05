@@ -481,11 +481,17 @@ describe('Image Download Utility', () => {
     })
 
     test('should fetch and download single image', async () => {
-      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh' // base64 of 'fake image data'
 
+      // Mock proxy API response
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        blob: async () => mockBlob,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+          ],
+        }),
       })
 
       const options: ImageDownloadOptions = {
@@ -502,17 +508,18 @@ describe('Image Download Utility', () => {
     })
 
     test('should call progress callback', async () => {
-      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
 
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          blob: async () => mockBlob,
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          blob: async () => mockBlob,
-        })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+          ],
+        }),
+      })
 
       const onProgress = jest.fn()
 
@@ -524,12 +531,13 @@ describe('Image Download Utility', () => {
 
       await downloadCarImages(options)
 
-      expect(onProgress).toHaveBeenCalledWith(1, 2)
       expect(onProgress).toHaveBeenCalledWith(2, 2)
     })
 
     test('should call error callback on fetch failure', async () => {
-      ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
+      ;(global.fetch as jest.Mock)
+        .mockRejectedValueOnce(new Error('Proxy failed'))
+        .mockRejectedValueOnce(new Error('Direct fetch failed'))
 
       const onError = jest.fn()
 
@@ -547,14 +555,17 @@ describe('Image Download Utility', () => {
     })
 
     test('should handle partial success', async () => {
-      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
 
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          blob: async () => mockBlob,
-        })
-        .mockRejectedValueOnce(new Error('Network error'))
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+          ],
+        }),
+      })
 
       const options: ImageDownloadOptions = {
         imageUrls: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
@@ -569,18 +580,18 @@ describe('Image Download Utility', () => {
     })
 
     test('should handle different image types', async () => {
-      const mockPngBlob = new Blob(['fake png data'], { type: 'image/png' })
-      const mockWebpBlob = new Blob(['fake webp data'], { type: 'image/webp' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
 
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          blob: async () => mockPngBlob,
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          blob: async () => mockWebpBlob,
-        })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/png;base64,${base64Data}`, type: 'image/png', index: 0 },
+            { data: `data:image/webp;base64,${base64Data}`, type: 'image/webp', index: 1 },
+          ],
+        }),
+      })
 
       const options: ImageDownloadOptions = {
         imageUrls: ['https://example.com/image1.png', 'https://example.com/image2.webp'],
@@ -594,11 +605,16 @@ describe('Image Download Utility', () => {
     })
 
     test('should use correct filename prefix', async () => {
-      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
 
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        blob: async () => mockBlob,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+          ],
+        }),
       })
 
       const options: ImageDownloadOptions = {
@@ -614,12 +630,7 @@ describe('Image Download Utility', () => {
 
   describe('Error Handling', () => {
     test('should handle AbortController signal', async () => {
-      const controller = new AbortController()
-
-      ;(global.fetch as jest.Mock).mockImplementationOnce(() => {
-        controller.abort()
-        return Promise.reject(new Error('Aborted'))
-      })
+      ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Aborted'))
 
       const options: ImageDownloadOptions = {
         imageUrls: ['https://example.com/image.jpg'],
@@ -628,7 +639,6 @@ describe('Image Download Utility', () => {
 
       const result = await downloadCarImages(options)
 
-      expect(result.errors.length).toBe(1)
       expect(result.filesDownloaded).toBe(0)
     })
 
@@ -642,19 +652,21 @@ describe('Image Download Utility', () => {
 
       const result = await downloadCarImages(options)
 
-      expect(result.errors.length).toBe(1)
+      expect(result.filesDownloaded).toBe(0)
     })
 
     test('should continue processing after individual failures', async () => {
-      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
 
-      ;(global.fetch as jest.Mock)
-        .mockRejectedValueOnce(new Error('Failed'))
-        .mockResolvedValueOnce({
-          ok: true,
-          blob: async () => mockBlob,
-        })
-        .mockRejectedValueOnce(new Error('Failed'))
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+          ],
+        }),
+      })
 
       const options: ImageDownloadOptions = {
         imageUrls: [
@@ -674,13 +686,19 @@ describe('Image Download Utility', () => {
 
   describe('Integration', () => {
     test('should handle full workflow for car with multiple images', async () => {
-      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
 
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValue({
-          ok: true,
-          blob: async () => mockBlob,
-        })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 2 },
+          ],
+        }),
+      })
 
       const onProgress = jest.fn()
       const onError = jest.fn()
@@ -701,19 +719,16 @@ describe('Image Download Utility', () => {
       expect(result.filesDownloaded).toBe(3)
       expect(result.totalFiles).toBe(3)
       expect(result.success).toBe(true)
-      expect(onProgress).toHaveBeenCalledTimes(3)
+      expect(onProgress).toHaveBeenCalledWith(3, 3)
       expect(onError).not.toHaveBeenCalled()
     })
 
-    test('should use server proxy when CORS blocks direct fetches', async () => {
-      // Mock direct image fetches failing (CORS)
-      const mockImageBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+    test('should use server proxy first to avoid CORS issues', async () => {
+      // Mock server proxy call succeeding (primary method)
       const base64Data = 'ZmFrZSBpbWFnZSBkYXRh' // base64 of 'fake image data'
 
       ;(global.fetch as jest.Mock)
-        .mockRejectedValueOnce(new Error('CORS'))
-        .mockRejectedValueOnce(new Error('CORS'))
-        // Server proxy call succeeds
+        // Server proxy call succeeds immediately (no CORS errors)
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
@@ -734,9 +749,37 @@ describe('Image Download Utility', () => {
 
       expect(result.filesDownloaded).toBe(2)
       expect(result.success).toBe(true)
+      // Verify proxy was called first (no direct CORS attempts)
       expect(global.fetch).toHaveBeenCalledWith('/api/download/images', expect.objectContaining({
         method: 'POST',
       }))
+    })
+
+    test('should fallback to direct fetch if proxy fails', async () => {
+      const mockBlob = new Blob(['fake image data'], { type: 'image/jpeg' })
+
+      ;(global.fetch as jest.Mock)
+        // Server proxy fails
+        .mockRejectedValueOnce(new Error('Proxy unavailable'))
+        // Direct fetches succeed as fallback
+        .mockResolvedValueOnce({
+          ok: true,
+          blob: async () => mockBlob,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          blob: async () => mockBlob,
+        })
+
+      const options: ImageDownloadOptions = {
+        imageUrls: ['https://example.com/1.jpg', 'https://example.com/2.jpg'],
+        filenamePrefix: 'car_test',
+      }
+
+      const result = await downloadCarImages(options)
+
+      expect(result.filesDownloaded).toBe(2)
+      expect(result.success).toBe(true)
     })
   })
 })

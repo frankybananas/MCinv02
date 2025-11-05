@@ -210,77 +210,71 @@ export async function downloadCarImages(
     return { ...result, success: true, method: 'native' }
   }
 
-  // Step 1: Fetch all images as File objects directly first (limited concurrency)
+  // Step 1: Fetch all images via server proxy to avoid CORS issues
+  // The R2 bucket has CORS restrictions, so we use the server-side proxy
+  // which can fetch images without CORS limitations
   const files: File[] = []
   const abortController = new AbortController()
-  const failedDirect: Array<{ url: string; index: number }> = []
-  const isMobileUA = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  const maxConcurrent = Math.max(1, Math.min(imageUrls.length, isMobileUA ? 4 : 6))
 
-  let nextIndex = 0
-  const worker = async () => {
-    while (true) {
-      const i = nextIndex++
-      if (i >= imageUrls.length) break
-      const url = imageUrls[i]
-      try {
-        const filename = `${filenamePrefix}_${i + 1}`
-        const file = await fetchImageAsFile(url, filename, abortController.signal)
-        files.push(file)
-        onProgress?.(Math.min(files.length, imageUrls.length), imageUrls.length)
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error))
-        failedDirect.push({ url, index: i })
-        result.errors.push({ url, error: err.message })
-        onError?.(err, url)
-      }
-    }
-  }
-  const workers = Array.from({ length: maxConcurrent }, () => worker())
-  await Promise.all(workers)
-
-  // Step 1b: Attempt to fetch any failed URLs via server proxy
-  if (failedDirect.length > 0) {
-    try {
-      const proxiedFiles = await fetchImagesViaProxy(
-        failedDirect.map(f => f.url),
-        filenamePrefix
-      )
-      if (proxiedFiles.length > 0) {
-        const base = files.length
-        for (let i = 0; i < proxiedFiles.length; i++) {
-          files.push(proxiedFiles[i])
-          onProgress?.(Math.min(base + i + 1, imageUrls.length), imageUrls.length)
+  try {
+    // First attempt: Use server proxy (most reliable, avoids CORS errors)
+    const proxiedFiles = await fetchImagesViaProxy(imageUrls, filenamePrefix)
+    
+    if (proxiedFiles.length > 0) {
+      files.push(...proxiedFiles)
+      result.filesDownloaded = files.length
+      
+      // Update progress
+      onProgress?.(files.length, imageUrls.length)
+      
+      // Clear errors if we got all files
+      if (files.length === imageUrls.length) {
+        result.errors = []
+      } else {
+        // Track which files failed
+        const successCount = files.length
+        for (let i = successCount; i < imageUrls.length; i++) {
+          result.errors.push({ 
+            url: imageUrls[i], 
+            error: 'Failed to fetch via proxy' 
+          })
         }
       }
-    } catch (error) {
-      // Log the error but continue with available files
-      console.warn('Error fetching via proxy:', error)
     }
-  }
-
-  result.filesDownloaded = files.length
-
-  if (files.length === imageUrls.length) {
-    result.errors = []
-  }
-
-  // If no files could be fetched (safety net), fetch via server proxy
-  if (files.length === 0 && imageUrls.length > 0) {
-    try {
-      const proxied = await fetchImagesViaProxy(imageUrls, filenamePrefix)
-      files.push(...proxied)
-      result.filesDownloaded = files.length
-      if (proxied.length > 0) {
-        result.errors = []
-      }
-    } catch (proxyErr) {
-      console.warn('Server image proxy failed:', proxyErr)
-    }
+  } catch (proxyError) {
+    console.warn('Server proxy failed, falling back to direct fetch:', proxyError)
     
-    if (files.length === 0) {
-      return result
+    // Fallback: Try direct CORS fetch (may fail but worth trying)
+    const isMobileUA = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    const maxConcurrent = Math.max(1, Math.min(imageUrls.length, isMobileUA ? 4 : 6))
+
+    let nextIndex = 0
+    const worker = async () => {
+      while (true) {
+        const i = nextIndex++
+        if (i >= imageUrls.length) break
+        const url = imageUrls[i]
+        try {
+          const filename = `${filenamePrefix}_${i + 1}`
+          const file = await fetchImageAsFile(url, filename, abortController.signal)
+          files.push(file)
+          onProgress?.(Math.min(files.length, imageUrls.length), imageUrls.length)
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error))
+          result.errors.push({ url, error: err.message })
+          onError?.(err, url)
+        }
+      }
     }
+    const workers = Array.from({ length: maxConcurrent }, () => worker())
+    await Promise.all(workers)
+    
+    result.filesDownloaded = files.length
+  }
+
+  // If no files could be fetched at all, return failure
+  if (files.length === 0) {
+    return result
   }
 
   // Step 2: Try native methods first (file picker)
