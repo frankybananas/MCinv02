@@ -247,13 +247,13 @@ export function Dashboard({
                           <div className="w-10 h-10 rounded-md bg-accent/30 flex items-center justify-center flex-shrink-0">
                             <Bell className="w-4 h-4 text-foreground/80" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <h3 className="font-medium text-sm truncate">{n.title}</h3>
-                              <span className="text-xs text-muted-foreground flex-shrink-0">{created}</span>
+                          <div className="flex-1 min-w-0 max-w-full">
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <h3 className="font-medium text-sm break-words overflow-wrap-anywhere leading-tight min-w-0 max-w-full">{n.title}</h3>
+                              <span className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">{created}</span>
                             </div>
                             {n.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                              <p className="text-xs text-muted-foreground break-words overflow-wrap-anywhere max-w-full mt-1">{n.description}</p>
                             )}
                           </div>
                         </div>
