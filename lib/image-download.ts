@@ -38,7 +38,7 @@ export interface DownloadResult {
   filesDownloaded: number
   totalFiles: number
   errors: Array<{ url: string; error: string }>
-  method: 'native' | 'link' | 'zip' | 'failed'
+  method: 'native' | 'link' | 'share' | 'failed'
 }
 
 function makeFileFromBlob(blob: Blob, filename: string, type: string): File {
@@ -258,27 +258,46 @@ function downloadViaLink(file: File): void {
   document.body.removeChild(link)
 
   // Clean up blob URL after a delay
-  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  const revokeDelay = isMobile ? 30000 : 5000
-  setTimeout(() => URL.revokeObjectURL(url), revokeDelay)
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 /**
- * Create a ZIP file from multiple images (requires JSZip)
+ * Share files using Web Share API (iOS/Android native sharing)
+ * This allows direct sharing to WhatsApp, Photos, etc.
  */
-async function createZipFile(files: File[], zipFilename: string): Promise<File> {
-  const jszipModule = await import('jszip') as any
-  const JSZip = jszipModule.default || jszipModule
-  const zip = new JSZip()
-  const folder = zip.folder('car_images') || zip
+async function shareViaWebShareAPI(files: File[], title: string): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) {
+    console.log('Web Share API not available')
+    return false
+  }
 
-  files.forEach((file) => {
-    folder.file(file.name, file)
-  })
+  // Check if we can share files
+  const canShareFiles = navigator.canShare({ files: [files[0]] })
+  if (!canShareFiles) {
+    console.log('Cannot share files via Web Share API')
+    return false
+  }
 
-  const content = await zip.generateAsync({ type: 'blob' })
-  return new File([content], zipFilename, { type: 'application/zip' })
+  try {
+    // Share all files at once if possible
+    await navigator.share({
+      files: files,
+      title: title,
+      text: `${files.length} car image(s)`,
+    })
+    console.log('Successfully shared via Web Share API')
+    return true
+  } catch (error: any) {
+    // User cancelled or error occurred
+    if (error.name === 'AbortError') {
+      console.log('User cancelled share')
+      return false
+    }
+    console.error('Web Share API error:', error)
+    return false
+  }
 }
+
 
 
 /**
@@ -392,8 +411,32 @@ export async function downloadCarImages(
     }
   }
 
-  // Step 3: Fallback to link-based download (individual files, no ZIP)
+  // Step 3: On mobile, try Web Share API (iOS/Android native sharing to WhatsApp, etc.)
+  if (isMobile && files.length > 0) {
+    console.log('Mobile detected, attempting Web Share API...')
+    const shareTitle = `${filenamePrefix.replace(/_/g, ' ')}`
+    const shared = await shareViaWebShareAPI(files, shareTitle)
+    
+    if (shared) {
+      console.log('Successfully shared via Web Share API')
+      return { ...result, success: true, method: 'share' }
+    }
+    
+    // If user cancelled or share failed, return without error
+    // Don't fall through to download on iOS - it won't work well
+    console.log('Web Share cancelled or unavailable on mobile')
+    return { ...result, success: false, method: 'share' }
+  }
+
+  // Step 4: Desktop fallback - download individually (no ZIP)
   try {
+    // Single file: direct download
+    if (files.length === 1) {
+      downloadViaLink(files[0])
+      return { ...result, success: true, method: 'link' }
+    }
+
+    // Multiple files on desktop: download sequentially
     const recordDownloadError = (err: unknown, fileName: string) => {
       const error = err instanceof Error ? err : new Error(String(err))
       onError?.(error, fileName)
@@ -412,20 +455,11 @@ export async function downloadCarImages(
           recordDownloadError(err, file.name)
         }
         await new Promise(resolve => setTimeout(resolve, delay))
-        if (isMobile && (i + 1) % 10 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 1500))
-        }
       }
     }
 
-    // Single file: direct download
-    if (files.length === 1) {
-      downloadViaLink(files[0])
-      return { ...result, success: true, method: 'link' }
-    }
-
-    // Multiple files: download individually (no ZIP)
-    const perDelay = isMobile ? 800 : files.length > 10 ? 200 : 150
+    console.log('Downloading files sequentially on desktop...')
+    const perDelay = files.length > 10 ? 200 : 150
     await downloadSequentially(perDelay)
     return { ...result, success: true, method: 'link' }
   } catch (error) {

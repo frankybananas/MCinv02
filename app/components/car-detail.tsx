@@ -205,25 +205,31 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
 
       // Check for partial success (some images failed during fetch)
       if (result.errors.length > 0 && result.filesDownloaded > 0) {
-        alert(`Downloaded ${result.filesDownloaded} image(s). ${result.errors.length} failed to fetch.`)
+        alert(`Prepared ${result.filesDownloaded} image(s). ${result.errors.length} failed to fetch.`)
       } else if (result.success && result.filesDownloaded > 0) {
         // Full success feedback
         if (result.method === 'native') {
           alert(`Successfully saved ${result.filesDownloaded} image(s) to the selected folder.`)
+        } else if (result.method === 'share') {
+          // User completed sharing (to WhatsApp, etc.) - no alert needed, native share UI handles it
+          console.log(`Successfully shared ${result.filesDownloaded} image(s)`)
         } else {
           alert(`Successfully downloaded ${result.filesDownloaded} image(s). Check your Downloads folder.`)
         }
       } else if (result.filesDownloaded > 0 && !result.success) {
-        // Files were fetched but download method failed (likely user cancelled folder selection)
+        // Files were fetched but share/download method failed (likely user cancelled)
         if (result.method === 'native') {
           // User cancelled the folder picker - don't show error, just silent fail
           console.log('User cancelled folder selection')
+        } else if (result.method === 'share') {
+          // User cancelled the share sheet - don't show error, just silent fail
+          console.log('User cancelled share')
         } else {
           alert(`Prepared ${result.filesDownloaded} image(s) but download failed. Please check your browser settings or try again.`)
         }
       } else {
-        // Complete failure
-        alert('Failed to download images. Please try again.')
+        // Complete failure (no files fetched)
+        alert('Failed to prepare images. Please try again.')
       }
     } catch (error) {
       console.error('Download error:', error)
@@ -331,13 +337,22 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                   <>
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                     {downloadProgress.current > 0 
-                      ? `${downloadProgress.current}/${downloadProgress.total}` 
+                      ? `Preparing ${downloadProgress.current}/${downloadProgress.total}` 
                       : 'Preparing...'}
                   </>
                 ) : (
                   <>
-                    <Download className="w-4 h-4 mr-1" />
-                    Download
+                    {typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
+                      <>
+                        <Share2 className="w-4 h-4 mr-1" />
+                        Share
+                      </> 
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-1" />
+                        Download
+                      </>
+                    )}
                   </>
                 )}
               </Button>

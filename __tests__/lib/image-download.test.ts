@@ -21,21 +21,21 @@ import {
   type DownloadResult,
 } from '@/lib/image-download'
 
-// Mock JSZip for ZIP path
-jest.mock('jszip', () => ({
-  __esModule: true,
-  default: class JSZipMock {
-    folder() {
-      return this
-    }
-    file() {
-      return this
-    }
-    async generateAsync() {
-      return new Blob(['zipdata'], { type: 'application/zip' })
-    }
-  },
-}))
+// Mock Web Share API
+const mockNavigatorShare = jest.fn()
+const mockNavigatorCanShare = jest.fn()
+
+Object.defineProperty(global.navigator, 'share', {
+  value: mockNavigatorShare,
+  writable: true,
+  configurable: true,
+})
+
+Object.defineProperty(global.navigator, 'canShare', {
+  value: mockNavigatorCanShare,
+  writable: true,
+  configurable: true,
+})
 
 // Mock fetch globally
 global.fetch = jest.fn()
@@ -64,14 +64,26 @@ describe('Image Download Utility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(global.fetch as jest.Mock).mockClear()
+    mockNavigatorShare.mockClear()
+    mockNavigatorCanShare.mockClear()
+    
+    // Default to desktop environment (no Web Share API)
+    Object.defineProperty(global.navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      writable: true,
+      configurable: true,
+    })
   })
 
-  describe('Desktop vs Mobile ZIP behavior', () => {
+  describe('Desktop vs Mobile Share API behavior', () => {
     const originalNavigator = global.navigator
     const originalShowDirectoryPicker = (window as any).showDirectoryPicker
 
     beforeEach(() => {
-      // Ensure file picker API is not available to force ZIP fallback on desktop
+      jest.clearAllMocks()
+      mockNavigatorShare.mockClear()
+      mockNavigatorCanShare.mockClear()
+      // Ensure file picker API is not available to force fallback
       delete (window as any).showDirectoryPicker
     })
 
@@ -83,42 +95,70 @@ describe('Image Download Utility', () => {
       }
     })
 
-    test('uses ZIP only on desktop for multi-file downloads', async () => {
-      // Simulate desktop UA
+    test('uses Web Share API on mobile for multi-file share', async () => {
+      // Simulate mobile UA
       Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        value: { 
+          userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
+          share: mockNavigatorShare,
+          canShare: mockNavigatorCanShare,
+        },
         writable: true,
+        configurable: true,
       })
 
-      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
-        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+      mockNavigatorCanShare.mockReturnValue(true)
+      mockNavigatorShare.mockResolvedValue(undefined)
+
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+          ],
+        }),
+      })
 
       const res = await downloadCarImages({
         imageUrls: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
-        filenamePrefix: 'zip_desktop_test',
+        filenamePrefix: 'share_mobile_test',
       })
 
       expect(res.success).toBe(true)
-      expect(res.method).toBe('zip')
+      expect(res.method).toBe('share')
+      expect(mockNavigatorShare).toHaveBeenCalled()
     })
 
-    test('never uses ZIP on mobile; downloads individually (link)', async () => {
-      // Simulate mobile UA
+    test('uses link download on desktop for multi-file downloads', async () => {
+      // Simulate desktop UA
       Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36' },
+        value: { 
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          share: undefined,
+          canShare: undefined,
+        },
         writable: true,
+        configurable: true,
       })
 
-      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
-        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+          ],
+        }),
+      })
 
       const res = await downloadCarImages({
         imageUrls: ['https://cdn.example.com/a.jpg', 'https://cdn.example.com/b.jpg'],
-        filenamePrefix: 'mobile_no_zip',
+        filenamePrefix: 'desktop_link_test',
       })
 
       expect(res.success).toBe(true)
@@ -153,23 +193,36 @@ describe('Image Download Utility', () => {
       jest.clearAllMocks()
     })
 
-    test('schedules longer revoke delay on mobile UA', async () => {
+    test('handles user cancelling Web Share API on mobile', async () => {
       const originalNavigator = global.navigator as any
       Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Android 12; SM-G991B' },
+        value: { 
+          userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)',
+          share: mockNavigatorShare,
+          canShare: mockNavigatorCanShare,
+        },
         configurable: true,
         writable: true,
       })
 
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout') as unknown as jest.SpyInstance
+      mockNavigatorCanShare.mockReturnValue(true)
+      // User cancels the share - throws AbortError
+      mockNavigatorShare.mockRejectedValue(Object.assign(new Error('User cancelled'), { name: 'AbortError' }))
 
-      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [{ data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 }],
+        }),
+      })
 
-      await downloadCarImages({ imageUrls: ['https://example.com/i.jpg'], filenamePrefix: 'car' })
+      const res = await downloadCarImages({ imageUrls: ['https://example.com/i.jpg'], filenamePrefix: 'car' })
 
-      const delays = setTimeoutSpy.mock.calls.map(c => Number(c[1]))
-      expect(Math.max(...delays)).toBeGreaterThanOrEqual(15000)
+      expect(res.filesDownloaded).toBe(1)
+      expect(res.success).toBe(false) // User cancelled
+      expect(res.method).toBe('share')
 
       Object.defineProperty(global, 'navigator', {
         value: originalNavigator,
@@ -178,29 +231,40 @@ describe('Image Download Utility', () => {
       })
     })
 
-    test('creates ZIP on desktop for few files', async () => {
+    test('uses link download on desktop for few files', async () => {
       const originalNavigator = global.navigator as any
       Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        value: { 
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          share: undefined,
+          canShare: undefined,
+        },
         configurable: true,
         writable: true,
       })
       const origPicker = (window as any).showDirectoryPicker
-      // Ensure file picker is not available so ZIP path is used
+      // Ensure file picker is not available so link path is used
       delete (window as any).showDirectoryPicker
 
-      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
-      ;(global.fetch as jest.Mock)
-        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
-        .mockResolvedValueOnce({ ok: true, blob: async () => mockBlob })
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: [
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 0 },
+            { data: `data:image/jpeg;base64,${base64Data}`, type: 'image/jpeg', index: 1 },
+          ],
+        }),
+      })
 
       const res = await downloadCarImages({
         imageUrls: ['https://x/1.jpg', 'https://x/2.jpg'],
-        filenamePrefix: 'carzip',
+        filenamePrefix: 'carlink',
       })
 
       expect(res.success).toBe(true)
-      expect(res.method === 'zip' || res.method === 'link').toBe(true)
+      expect(res.method).toBe('link')
 
       if (origPicker !== undefined) (window as any).showDirectoryPicker = origPicker
       Object.defineProperty(global, 'navigator', { value: originalNavigator, configurable: true, writable: true })
@@ -242,34 +306,42 @@ describe('Image Download Utility', () => {
       delete (window as any).showDirectoryPicker
     })
 
-    test('downloads many images on mobile with batching and delays', async () => {
+    test('uses Web Share API on mobile for many images', async () => {
       const originalNavigator = global.navigator as any
       Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Android 12; SM-G991B' },
+        value: { 
+          userAgent: 'Mozilla/5.0 (Linux; Android 12; SM-G991B)',
+          share: mockNavigatorShare,
+          canShare: mockNavigatorCanShare,
+        },
         configurable: true,
         writable: true,
       })
 
-      const originalSetTimeout = global.setTimeout
-      const timeouts: number[] = []
-      jest.spyOn(global, 'setTimeout').mockImplementation(((fn: any, t: number) => {
-        timeouts.push(Number(t))
-        if (typeof fn === 'function') fn()
-        return 0 as any
-      }) as any)
+      mockNavigatorCanShare.mockReturnValue(true)
+      mockNavigatorShare.mockResolvedValue(undefined)
 
-      const mockBlob = new Blob(['img'], { type: 'image/jpeg' })
-      const images = Array.from({ length: 25 }, (_, i) => `https://x/${i + 1}.jpg`)
-      ;(global.fetch as jest.Mock).mockImplementation(async () => ({ ok: true, blob: async () => mockBlob }))
+      const base64Data = 'ZmFrZSBpbWFnZSBkYXRh'
+      const images = Array.from({ length: 5 }, (_, i) => `https://x/${i + 1}.jpg`)
+      
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          images: images.map((_, i) => ({ 
+            data: `data:image/jpeg;base64,${base64Data}`, 
+            type: 'image/jpeg', 
+            index: i 
+          })),
+        }),
+      })
 
-      mockLink.click.mockClear()
       const res = await downloadCarImages({ imageUrls: images, filenamePrefix: 'car' })
 
       expect(res.success).toBe(true)
-      expect(mockLink.click).toHaveBeenCalledTimes(25)
-      expect(timeouts.some(d => d >= 600)).toBe(true)
+      expect(res.method).toBe('share')
+      expect(mockNavigatorShare).toHaveBeenCalled()
 
-      ;(global.setTimeout as any) = originalSetTimeout
       Object.defineProperty(global, 'navigator', { value: originalNavigator, configurable: true, writable: true })
     })
 
