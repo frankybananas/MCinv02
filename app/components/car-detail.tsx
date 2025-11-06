@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
-import { downloadCarImages, type DownloadResult } from "@/lib/image-download"
+import { downloadCarImages, downloadSingleImage, type DownloadResult } from "@/lib/image-download"
 
 interface CarDetailProps {
   car: Car
@@ -26,6 +26,10 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
   const [dealerInfo, setDealerInfo] = useState<{ name: string; phone: string; email: string } | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
+  const [downloadingImageIndex, setDownloadingImageIndex] = useState<number | null>(null)
+
+  // Detect iOS
+  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent)
 
   const images = (car.images ?? [])
 
@@ -182,6 +186,34 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
     }
   }, [buildShareText, buildContactText, car.make, car.model, car.year, images])
 
+  // Download single image (for iOS)
+  const onDownloadSingleImage = useCallback(async (imageIndex: number) => {
+    if (downloadingImageIndex !== null) return
+    
+    setDownloadingImageIndex(imageIndex)
+    const image = images[imageIndex]
+    if (!image?.imageUrl) {
+      setDownloadingImageIndex(null)
+      return
+    }
+
+    try {
+      const filename = `${car.year}_${car.make}_${car.model}_${imageIndex + 1}`.replace(/\s+/g, '_')
+      const success = await downloadSingleImage(image.imageUrl, filename)
+      
+      if (success) {
+        console.log(`Downloaded image ${imageIndex + 1}`)
+      } else {
+        alert('Failed to download image. Please try again.')
+      }
+    } catch (error) {
+      console.error('Download error:', error)
+      alert('An error occurred while downloading the image.')
+    } finally {
+      setDownloadingImageIndex(null)
+    }
+  }, [car.make, car.model, car.year, images, downloadingImageIndex])
+
   const onDownloadImages = useCallback(async () => {
     if (isDownloading || images.length === 0) return
 
@@ -205,31 +237,25 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
 
       // Check for partial success (some images failed during fetch)
       if (result.errors.length > 0 && result.filesDownloaded > 0) {
-        alert(`Prepared ${result.filesDownloaded} image(s). ${result.errors.length} failed to fetch.`)
+        alert(`Downloaded ${result.filesDownloaded} image(s). ${result.errors.length} failed to fetch.`)
       } else if (result.success && result.filesDownloaded > 0) {
         // Full success feedback
         if (result.method === 'native') {
           alert(`Successfully saved ${result.filesDownloaded} image(s) to the selected folder.`)
-        } else if (result.method === 'share') {
-          // User completed sharing (to WhatsApp, etc.) - no alert needed, native share UI handles it
-          console.log(`Successfully shared ${result.filesDownloaded} image(s)`)
         } else {
           alert(`Successfully downloaded ${result.filesDownloaded} image(s). Check your Downloads folder.`)
         }
       } else if (result.filesDownloaded > 0 && !result.success) {
-        // Files were fetched but share/download method failed (likely user cancelled)
+        // Files were fetched but download method failed (likely user cancelled folder selection)
         if (result.method === 'native') {
           // User cancelled the folder picker - don't show error, just silent fail
           console.log('User cancelled folder selection')
-        } else if (result.method === 'share') {
-          // User cancelled the share sheet - don't show error, just silent fail
-          console.log('User cancelled share')
         } else {
           alert(`Prepared ${result.filesDownloaded} image(s) but download failed. Please check your browser settings or try again.`)
         }
       } else {
-        // Complete failure (no files fetched)
-        alert('Failed to prepare images. Please try again.')
+        // Complete failure
+        alert('Failed to download images. Please try again.')
       }
     } catch (error) {
       console.error('Download error:', error)
@@ -326,36 +352,30 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 rounded-full px-3"
-                onClick={onDownloadImages}
-                disabled={isDownloading || images.length === 0}
-              >
-                {isDownloading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    {downloadProgress.current > 0 
-                      ? `Preparing ${downloadProgress.current}/${downloadProgress.total}` 
-                      : 'Preparing...'}
-                  </>
-                ) : (
-                  <>
-                    {typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? (
-                      <>
-                        <Share2 className="w-4 h-4 mr-1" />
-                        Share
-                      </> 
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 mr-1" />
-                        Download
-                      </>
-                    )}
-                  </>
-                )}
-              </Button>
+              {/* Only show Download button on Android and Desktop, not on iOS */}
+              {typeof navigator !== 'undefined' && !/iPhone|iPad|iPod/i.test(navigator.userAgent) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 rounded-full px-3"
+                  onClick={onDownloadImages}
+                  disabled={isDownloading || images.length === 0}
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      {downloadProgress.current > 0 
+                        ? `Preparing ${downloadProgress.current}/${downloadProgress.total}` 
+                        : 'Preparing...'}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </>
+                  )}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -383,6 +403,24 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     />
                     {car.doNotAdvertise && (
                       <span className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white text-black font-bold text-sm sm:text-base px-3 py-1.5 rounded shadow-lg" data-testid="dna-badge">DNA</span>
+                    )}
+                    {/* iOS: Download button on main image */}
+                    {isIOS && (
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="absolute top-2 right-2 sm:top-4 sm:right-4 rounded-full bg-black/60 hover:bg-black/80 text-white"
+                        onClick={() => onDownloadSingleImage(currentImageIndex)}
+                        disabled={downloadingImageIndex === currentImageIndex}
+                        aria-label="Download this image"
+                      >
+                        {downloadingImageIndex === currentImageIndex ? (
+                          <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                        )}
+                      </Button>
                     )}
                     {images.length > 1 && (
                       <>
@@ -419,7 +457,7 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     <ScrollArea className="mt-2 sm:mt-4">
                       <div className="flex gap-2 pb-2">
                         {images.map((image, index) => (
-                          <div key={image.id || index} className="relative flex-shrink-0">
+                          <div key={image.id || index} className="relative flex-shrink-0 group/thumb">
                             <img
                               src={(image as any).thumbnailUrl || image.imageUrl || "/placeholder.svg"}
                               alt={`View ${index + 1}`}
@@ -432,6 +470,27 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                             />
                             {car.doNotAdvertise && (
                               <span className="absolute top-0.5 left-0.5 bg-white text-black font-bold text-[8px] px-1 py-0.5 rounded shadow">DNA</span>
+                            )}
+                            {/* iOS: Download button on thumbnail */}
+                            {isIOS && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="secondary"
+                                className="absolute bottom-0.5 right-0.5 h-6 w-6 rounded-full bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onDownloadSingleImage(index)
+                                }}
+                                disabled={downloadingImageIndex === index}
+                                aria-label={`Download image ${index + 1}`}
+                              >
+                                {downloadingImageIndex === index ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Download className="h-3 w-3" />
+                                )}
+                              </Button>
                             )}
                           </div>
                         ))}
