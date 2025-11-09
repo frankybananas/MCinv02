@@ -11,6 +11,11 @@ interface CarData {
   allImages?: string[];
 }
 
+interface UserInfo {
+  name: string;
+  phone: string;
+}
+
 interface GenerationResult {
   success: boolean;
   count?: number;
@@ -34,7 +39,7 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
       return { success: false, error: error.error };
     }
 
-    const { generationId, cars } = await response.json();
+    const { generationId, cars, user } = await response.json();
 
     // 2. Generate images for each car
     const generatedImages: Blob[] = [];
@@ -42,7 +47,7 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
     for (const car of cars) {
       try {
         console.log(`Generating image for car ${car.id}: ${car.year} ${car.make} ${car.model}`);
-        const imageBlob = await generateCarImage(car);
+        const imageBlob = await generateCarImage(car, user);
         if (imageBlob && imageBlob.size > 0) {
           generatedImages.push(imageBlob);
           console.log(`Successfully generated image for car ${car.id}, size: ${imageBlob.size} bytes`);
@@ -81,7 +86,7 @@ export async function generateWhatsAppImages(selectedCarIds: string[]): Promise<
   }
 }
 
-async function generateCarImage(car: CarData): Promise<Blob> {
+async function generateCarImage(car: CarData, user: UserInfo): Promise<Blob> {
   return new Promise(async (resolve, reject) => {
     try {
       const canvas = document.createElement('canvas');
@@ -179,6 +184,11 @@ async function generateCarImage(car: CarData): Promise<Blob> {
       // Text area starts after thumbnails
       const textStartY = mainImageHeight + thumbnailHeight + 40;
       
+      // Format phone number: replace +27 with 0
+      const formattedPhone = user.phone.startsWith('+27') 
+        ? '0' + user.phone.substring(3)
+        : user.phone;
+      
       // Price formatting
       const price = new Intl.NumberFormat('en-ZA', {
         style: 'currency',
@@ -214,7 +224,14 @@ async function generateCarImage(car: CarData): Promise<Blob> {
       
       // Calculate vertical spacing
       const lineSpacing = 35;
-      let currentY = textStartY + 60;
+      let currentY = textStartY + 50;
+      
+      // Draw contact line above price
+      const contactLine = `Contact ${user.name} on ${formattedPhone}`;
+      ctx.fillStyle = '#333333';
+      ctx.font = '32px Arial, sans-serif';
+      ctx.fillText(contactLine, canvas.width / 2, currentY);
+      currentY += 65;
       
       // Draw price (largest, bold)
       ctx.fillStyle = '#0066cc'; // Blue color for price

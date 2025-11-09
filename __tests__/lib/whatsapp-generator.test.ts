@@ -5,14 +5,17 @@ function setupCanvasAndImage(successImageLoad = true) {
   const drawImage = jest.fn();
   const fillRect = jest.fn();
   const fillText = jest.fn();
+  const measureText = jest.fn(() => ({ width: 100 }));
   const createLinearGradient = jest.fn(() => ({ addColorStop: jest.fn() }));
   const toBlob = jest.fn((cb: (b: Blob|null) => void) => cb(new Blob(["ok"], { type: 'image/jpeg' })));
   const getContext = jest.fn(() => ({
     drawImage,
     fillRect,
     fillText,
+    measureText,
     createLinearGradient,
     textAlign: 'left',
+    textBaseline: 'middle',
     fillStyle: '',
     font: '',
   } as any));
@@ -54,21 +57,30 @@ function setupCanvasAndImage(successImageLoad = true) {
   }
   (global as any).Image = FakeImage as any;
 
-  return { canvasEl, drawImage, fillRect, fillText, createLinearGradient, toBlob, getContext, createElementSpy };
+  return { canvasEl, drawImage, fillRect, fillText, measureText, createLinearGradient, toBlob, getContext, createElementSpy };
 }
 
-function mockFetchSuccess(cars: any[]) {
+function mockFetchSuccess(cars: any[], user = { name: 'John Doe', phone: '+27123456789' }) {
   const generationId = 'gen_1';
-  (global.fetch as jest.Mock).mockImplementationOnce(async () => new Response(JSON.stringify({
-    success: true,
-    generationId,
-    cars,
-  }), { status: 200 }))
-  // complete call
-  .mockImplementationOnce(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+  (global.fetch as jest.Mock)
+    // Generate API call
+    .mockImplementationOnce(async () => new Response(JSON.stringify({
+      success: true,
+      generationId,
+      cars,
+      user,
+    }), { status: 200 }))
+    // Image proxy calls (one per image)
+    .mockImplementation(async (url: string) => {
+      if (url.includes('/api/image-proxy')) {
+        return new Response(new Blob(['fake-image-data'], { type: 'image/jpeg' }), { status: 200 });
+      }
+      // Complete call
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    });
 }
 
-function carFixture(overrides: Partial<{ id: string; make: string; model: string; year: number; price: number; coverImage: string; kilometers: number }>= {}) {
+function carFixture(overrides: Partial<{ id: string; make: string; model: string; year: number; price: number; coverImage: string; kilometers: number; transmission: string; fuelType: string; allImages: string[] }>= {}) {
   return {
     id: 'car_1',
     make: 'BMW',
@@ -77,6 +89,9 @@ function carFixture(overrides: Partial<{ id: string; make: string; model: string
     price: 1899000,
     coverImage: 'https://example.com/car.jpg',
     kilometers: 12000,
+    transmission: 'automatic',
+    fuelType: 'petrol',
+    allImages: ['https://example.com/car.jpg'],
     ...overrides,
   };
 }
@@ -100,8 +115,8 @@ describe('lib/whatsapp-generator generateWhatsAppImages', () => {
     expect(env.drawImage).toHaveBeenCalled();
     expect(env.fillRect).toHaveBeenCalled();
 
-    // Text called at least twice (top and bottom rows)
-    expect(env.fillText).toHaveBeenCalledTimes(2);
+    // Text called multiple times (contact line, price, make/model, details)
+    expect(env.fillText).toHaveBeenCalled();
 
     // Completed status POST was called
     const calls = (global.fetch as jest.Mock).mock.calls;
@@ -145,4 +160,92 @@ describe('lib/whatsapp-generator generateWhatsAppImages', () => {
     expect(res.success).toBe(false);
     expect(res.error).toBe('bad');
   });
+
+  it('includes user contact information in generated image', async () => {
+    const env = setupCanvasAndImage(true);
+    const user = { name: 'Jane Smith', phone: '+27987654321' };
+    mockFetchSuccess([carFixture()], user);
+
+    const res = await generateWhatsAppImages(['car_1']);
+
+    expect(res.success).toBe(true);
+    
+    // Check that contact line was drawn
+    const fillTextCalls = env.fillText.mock.calls;
+    const contactCall = fillTextCalls.find(call => 
+      call[0] && typeof call[0] === 'string' && call[0].includes('Contact')
+    );
+    expect(contactCall).toBeDefined();
+  });
+
+  it('formats South African phone number correctly (removes +27 and adds 0)', async () => {
+    const env = setupCanvasAndImage(true);
+    const user = { name: 'Test User', phone: '+27821234567' };
+    mockFetchSuccess([carFixture()], user);
+
+    await generateWhatsAppImages(['car_1']);
+
+    // Check that phone was formatted correctly in contact line
+    const fillTextCalls = env.fillText.mock.calls;
+    const contactCall = fillTextCalls.find(call => 
+      call[0] && typeof call[0] === 'string' && call[0].includes('Contact')
+    );
+    
+    expect(contactCall).toBeDefined();
+    expect(contactCall![0]).toContain('0821234567');
+    expect(contactCall![0]).not.toContain('+27');
+  });
+
+  it('keeps phone number unchanged if not starting with +27', async () => {
+    const env = setupCanvasAndImage(true);
+    const user = { name: 'Test User', phone: '+1234567890' };
+    mockFetchSuccess([carFixture()], user);
+
+    await generateWhatsAppImages(['car_1']);
+
+    // Check that phone was kept as-is
+    const fillTextCalls = env.fillText.mock.calls;
+    const contactCall = fillTextCalls.find(call => 
+      call[0] && typeof call[0] === 'string' && call[0].includes('Contact')
+    );
+    
+    expect(contactCall).toBeDefined();
+    expect(contactCall![0]).toContain('+1234567890');
+  });
+
+  it('draws contact line before price', async () => {
+    const env = setupCanvasAndImage(true);
+    mockFetchSuccess([carFixture()]);
+
+    await generateWhatsAppImages(['car_1']);
+
+    const fillTextCalls = env.fillText.mock.calls;
+    const contactCallIndex = fillTextCalls.findIndex(call => 
+      call[0] && typeof call[0] === 'string' && call[0].includes('Contact')
+    );
+    const priceCallIndex = fillTextCalls.findIndex(call => 
+      call[0] && typeof call[0] === 'string' && call[0].includes('R')
+    );
+    
+    // Contact should come before price
+    expect(contactCallIndex).toBeGreaterThan(-1);
+    expect(priceCallIndex).toBeGreaterThan(-1);
+    expect(contactCallIndex).toBeLessThan(priceCallIndex);
+  });
+
+  it('includes car details with transmission and fuel type', async () => {
+    const env = setupCanvasAndImage(true);
+    mockFetchSuccess([carFixture({ transmission: 'manual', fuelType: 'diesel' })]);
+
+    await generateWhatsAppImages(['car_1']);
+
+    const fillTextCalls = env.fillText.mock.calls;
+    const detailsCall = fillTextCalls.find(call => 
+      call[0] && typeof call[0] === 'string' && 
+      (call[0].includes('Manual') || call[0].includes('Diesel'))
+    );
+    
+    expect(detailsCall).toBeDefined();
+  });
 });
+

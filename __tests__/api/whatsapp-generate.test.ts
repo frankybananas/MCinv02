@@ -14,14 +14,49 @@ jest.mock('@/lib/mongodb', () => ({
   connect: jest.fn(async () => ({ connection: { readyState: 1 } })),
 }));
 
+// Mock mongoose Types
+jest.mock('mongoose', () => ({
+  __esModule: true,
+  Types: {
+    ObjectId: class MockObjectId {
+      constructor(id: string) {
+        return id as any;
+      }
+    }
+  }
+}));
+
 jest.mock('@/lib/auth-session', () => ({
   requireSession: jest.fn(async () => ({ userId: 'user_123', phone: '+27123456789' })),
+}));
+
+// Mock User model
+jest.mock('@/models/User', () => ({
+  __esModule: true,
+  default: {
+    findById: jest.fn((id: string) => {
+      const user = usersStore.find(u => u._id === id);
+      if (!user) return null;
+      return {
+        select: jest.fn(() => ({
+          lean: jest.fn(async () => user)
+        }))
+      };
+    }),
+    findOne: jest.fn(async (query: any) => {
+      if (query.phone?.$in) {
+        return usersStore.find(u => query.phone.$in.includes(u.phone)) || null;
+      }
+      return null;
+    }),
+  },
 }));
 
 // In-memory stores
 const carsStore: any[] = [];
 const picturesStore: any[] = [];
 const generationsStore: any[] = [];
+const usersStore: any[] = [];
 
 // Mock Car model
 jest.mock('@/models/Car', () => ({
@@ -77,7 +112,18 @@ describe('POST /api/whatsapp/generate', () => {
     carsStore.length = 0;
     picturesStore.length = 0;
     generationsStore.length = 0;
+    usersStore.length = 0;
     jest.clearAllMocks();
+    
+    // Add default test user
+    usersStore.push({
+      _id: 'user_123',
+      phone: '+27123456789',
+      profile: {
+        firstName: 'John',
+        lastName: 'Doe',
+      },
+    });
   });
 
   const createMockRequest = (body: any): NextRequest => {
@@ -126,6 +172,18 @@ describe('POST /api/whatsapp/generate', () => {
     });
 
     it('should include kilometers when available', async () => {
+      // Re-add user since global beforeEach clears it
+      if (usersStore.length === 0) {
+        usersStore.push({
+          _id: 'user_123',
+          phone: '+27123456789',
+          profile: {
+            firstName: 'John',
+            lastName: 'Doe',
+          },
+        });
+      }
+      
       // picture for car_km
       picturesStore.push({
         _id: 'pic_km',
@@ -204,6 +262,18 @@ describe('POST /api/whatsapp/generate', () => {
 
   describe('Successful Generation Preparation', () => {
     beforeEach(() => {
+      // Re-add user since global beforeEach clears it
+      if (usersStore.length === 0) {
+        usersStore.push({
+          _id: 'user_123',
+          phone: '+27123456789',
+          profile: {
+            firstName: 'John',
+            lastName: 'Doe',
+          },
+        });
+      }
+      
       // Add valid picture
       picturesStore.push({
         _id: 'pic_1',
@@ -514,6 +584,18 @@ describe('POST /api/whatsapp/generate', () => {
 
   describe('Response Format', () => {
     beforeEach(() => {
+      // Re-add user since global beforeEach clears it
+      if (usersStore.length === 0) {
+        usersStore.push({
+          _id: 'user_123',
+          phone: '+27123456789',
+          profile: {
+            firstName: 'John',
+            lastName: 'Doe',
+          },
+        });
+      }
+      
       picturesStore.push({
         _id: 'pic_format',
         imageUrl: 'https://example.com/format.jpg',
@@ -536,9 +618,15 @@ describe('POST /api/whatsapp/generate', () => {
       const response = await POST(request);
       const data = await response.json();
 
+      // Debug: log the response if it's an error
+      if (data.error) {
+        console.log('API Error:', data.error, 'Status:', response.status);
+      }
+
       expect(data).toHaveProperty('success');
       expect(data).toHaveProperty('generationId');
       expect(data).toHaveProperty('cars');
+      expect(data).toHaveProperty('user');
       expect(Array.isArray(data.cars)).toBe(true);
     });
 
@@ -568,6 +656,65 @@ describe('POST /api/whatsapp/generate', () => {
       expect(typeof car.year).toBe('number');
       expect(typeof car.price).toBe('number');
       expect(typeof car.coverImage).toBe('string');
+    });
+
+    it('should include user information in response', async () => {
+      const request = createMockRequest({ selectedCarIds: ['car_format'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.user).toBeDefined();
+      expect(data.user).toHaveProperty('name');
+      expect(data.user).toHaveProperty('phone');
+      expect(typeof data.user.name).toBe('string');
+      expect(typeof data.user.phone).toBe('string');
+    });
+
+    it('should format user name correctly when both first and last name exist', async () => {
+      const request = createMockRequest({ selectedCarIds: ['car_format'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.user.name).toBe('John Doe');
+    });
+
+    it('should use firstName only when lastName is missing', async () => {
+      usersStore[0].profile.lastName = undefined;
+      
+      const request = createMockRequest({ selectedCarIds: ['car_format'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.user.name).toBe('John');
+    });
+
+    it('should use lastName only when firstName is missing', async () => {
+      usersStore[0].profile.firstName = undefined;
+      usersStore[0].profile.lastName = 'Doe';
+      
+      const request = createMockRequest({ selectedCarIds: ['car_format'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.user.name).toBe('Doe');
+    });
+
+    it('should use "Sales" as default when no name is available', async () => {
+      usersStore[0].profile = {};
+      
+      const request = createMockRequest({ selectedCarIds: ['car_format'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.user.name).toBe('Sales');
+    });
+
+    it('should include phone number in response', async () => {
+      const request = createMockRequest({ selectedCarIds: ['car_format'] });
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.user.phone).toBe('+27123456789');
     });
   });
 });

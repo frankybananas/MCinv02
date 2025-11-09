@@ -64,6 +64,21 @@ export async function POST(request: NextRequest) {
     }
     console.log(trace, 'session:userId:ok');
 
+    // Fetch user information for contact line
+    const { default: UserModel } = await import('@/models/User');
+    const user = await UserModel.findById(userObjectId).select({ phone: 1, profile: 1 }).lean();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const userName = user.profile?.firstName && user.profile?.lastName
+      ? `${user.profile.firstName} ${user.profile.lastName}`
+      : user.profile?.firstName || user.profile?.lastName || 'Sales';
+    
+    const userPhone = user.phone || phone || '';
+    console.log(trace, 'user:fetched', { userName, userPhone });
+
     // Dedupe IDs
     const uniqueIds = Array.from(new Set(selectedCarIds));
 
@@ -162,7 +177,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       generationId: generation._id,
-      cars: carData
+      cars: carData,
+      user: {
+        name: userName,
+        phone: userPhone
+      }
     });
 
   } catch (error) {
