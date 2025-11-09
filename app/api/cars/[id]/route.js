@@ -213,7 +213,7 @@ export async function PUT(request, { params }) {
 
       // Handle other form fields
       for (const [key, value] of data.entries()) {
-        if (key !== 'images' && key !== 'existingImages' && key !== 'imageTitles' && key !== 'imageOrder') {
+        if (key !== 'images' && key !== 'existingImages' && key !== 'imageTitles' && key !== 'imageOrder' && key !== 'coverImageIndex' && key !== 'vinImageIndex') {
           if (['year', 'price', 'kilometers'].includes(key)) {
             const num = key === 'price' ? Number(value) : parseInt(String(value), 10);
             if (!Number.isNaN(num)) updateData[key] = num;
@@ -223,6 +223,24 @@ export async function PUT(request, { params }) {
             updateData[key] = value;
           }
         }
+      }
+
+      // Handle image role indices separately
+      const coverImageIndexRaw = data.get('coverImageIndex');
+      const vinImageIndexRaw = data.get('vinImageIndex');
+      
+      if (coverImageIndexRaw !== null && coverImageIndexRaw !== undefined) {
+        const coverIdx = parseInt(String(coverImageIndexRaw), 10);
+        updateData.coverImageIndex = !Number.isNaN(coverIdx) ? coverIdx : null;
+      } else {
+        updateData.coverImageIndex = null;
+      }
+      
+      if (vinImageIndexRaw !== null && vinImageIndexRaw !== undefined) {
+        const vinIdx = parseInt(String(vinImageIndexRaw), 10);
+        updateData.vinImageIndex = !Number.isNaN(vinIdx) ? vinIdx : null;
+      } else {
+        updateData.vinImageIndex = null;
       }
 
       // Combine image lists respecting client-provided order if available

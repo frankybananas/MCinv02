@@ -5,7 +5,7 @@ import type { Car } from "../types"
 import { useState, useRef, useEffect } from "react"
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner"
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -256,10 +256,25 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   };
 
   const handleSetVin = (index: number) => {
-    setVinImageIndex(index);
+    setDisplayedImages((prev) => {
+      if (index < 0 || index >= prev.length) return prev;
+      const selected = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      const next = [...rest, selected];
+      return next;
+    });
+
+    setVinImageIndex((prev) => {
+      // VIN image will be at the last position after move
+      return displayedImages.length - 1;
+    });
+
     // If this image was cover, unset it
     if (index === coverImageIndex) {
       setCoverImageIndex(null);
+    } else if (coverImageIndex !== null && coverImageIndex > index) {
+      // Adjust cover index if needed
+      setCoverImageIndex(coverImageIndex - 1);
     }
   };
 
@@ -269,6 +284,52 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
 
   const handleRemoveVin = () => {
     setVinImageIndex(null);
+  };
+
+  // Move image up in the order
+  const handleMoveImageUp = (index: number) => {
+    if (index <= 0) return;
+    setDisplayedImages((prev) => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+
+    // Adjust cover and VIN indices
+    if (coverImageIndex === index) {
+      setCoverImageIndex(index - 1);
+    } else if (coverImageIndex === index - 1) {
+      setCoverImageIndex(index);
+    }
+
+    if (vinImageIndex === index) {
+      setVinImageIndex(index - 1);
+    } else if (vinImageIndex === index - 1) {
+      setVinImageIndex(index);
+    }
+  };
+
+  // Move image down in the order
+  const handleMoveImageDown = (index: number) => {
+    if (index >= displayedImages.length - 1) return;
+    setDisplayedImages((prev) => {
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+
+    // Adjust cover and VIN indices
+    if (coverImageIndex === index) {
+      setCoverImageIndex(index + 1);
+    } else if (coverImageIndex === index + 1) {
+      setCoverImageIndex(index);
+    }
+
+    if (vinImageIndex === index) {
+      setVinImageIndex(index + 1);
+    } else if (vinImageIndex === index + 1) {
+      setVinImageIndex(index);
+    }
   };
 
   // Get images sorted by role: cover first, then regular images, then VIN last
@@ -381,7 +442,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                   </CardHeader>
                   <CardContent className="overflow-auto">
                     <div className="grid gap-2 sm:gap-3 grid-cols-3">
-                      {getSortedImages().map((img, idx) => (
+                      {displayedImages.map((img, idx) => (
                         <div
                           key={img.id}
                           className="relative group aspect-square"
@@ -394,13 +455,10 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                             className="w-full h-full object-cover rounded-md"
                             data-testid="car-image-img"
                           />
-                          {idx === 0 && (
+                          {coverImageIndex === idx && (
                             <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
                           )}
-                          {coverImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
-                            <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
-                          )}
-                          {vinImageIndex === displayedImages.findIndex(i => i.id === img.id) && (
+                          {vinImageIndex === idx && (
                             <span className="absolute top-1 right-1 bg-blue-600/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">VIN</span>
                           )}
                           {formData.doNotAdvertise && (
@@ -650,30 +708,63 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                 alt="Selected car image"
                 className="w-full h-64 object-cover rounded-md"
               />
-              <div className="flex gap-4">
-                <Button
-                  size="lg"
-                  className="flex-1"
-                  onClick={() => {
-                    const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
-                    handleSetCover(imageIndex);
-                    setShowRoleModal(false);
-                  }}
-                >
-                  {coverImageIndex === displayedImages.findIndex(img => img.id === selectedImageForRole.id) ? 'Is Cover' : 'Set as Cover'}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
-                    handleSetVin(imageIndex);
-                    setShowRoleModal(false);
-                  }}
-                >
-                  {vinImageIndex === displayedImages.findIndex(img => img.id === selectedImageForRole.id) ? 'Is VIN' : 'Mark as VIN'}
-                </Button>
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <Button
+                    size="lg"
+                    className="flex-1"
+                    onClick={() => {
+                      const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
+                      handleSetCover(imageIndex);
+                      setShowRoleModal(false);
+                    }}
+                  >
+                    {coverImageIndex === displayedImages.findIndex(img => img.id === selectedImageForRole.id) ? 'Is Cover' : 'Set as Cover'}
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
+                      handleSetVin(imageIndex);
+                      setShowRoleModal(false);
+                    }}
+                  >
+                    {vinImageIndex === displayedImages.findIndex(img => img.id === selectedImageForRole.id) ? 'Is VIN' : 'Mark as VIN'}
+                  </Button>
+                </div>
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium mb-2">Reorder Image</p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
+                        handleMoveImageUp(imageIndex);
+                      }}
+                      disabled={displayedImages.findIndex(img => img.id === selectedImageForRole.id) === 0}
+                    >
+                      <ChevronUp className="w-4 h-4 mr-2" />
+                      Move Up
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        const imageIndex = displayedImages.findIndex(img => img.id === selectedImageForRole.id);
+                        handleMoveImageDown(imageIndex);
+                      }}
+                      disabled={displayedImages.findIndex(img => img.id === selectedImageForRole.id) === displayedImages.length - 1}
+                    >
+                      <ChevronDown className="w-4 h-4 mr-2" />
+                      Move Down
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

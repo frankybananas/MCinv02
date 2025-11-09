@@ -89,6 +89,14 @@ const CarSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Picture',
   }],
+  coverImageIndex: {
+    type: Number,
+    default: null,
+  },
+  vinImageIndex: {
+    type: Number,
+    default: null,
+  },
   auditLog: [{
     action: String,
     details: String,
