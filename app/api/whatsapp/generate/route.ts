@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
     // Return car data for client-side image generation
     const carData = validCars.map((car) => {
       let coverImage = '';
+      let allImages: string[] = [];
       try {
         const idxRaw = (car as any).coverImageIndex;
         const idx = typeof idxRaw === 'number' && idxRaw >= 0 ? idxRaw : 0;
@@ -129,6 +130,18 @@ export async function POST(request: NextRequest) {
           coverImage = candidate;
         } else if (candidate && typeof candidate === 'object' && 'imageUrl' in candidate) {
           coverImage = (candidate as any).imageUrl || '';
+        }
+        
+        // Get all images for thumbnails
+        if (car.images && Array.isArray(car.images)) {
+          allImages = car.images.map((img: any) => {
+            if (typeof img === 'string') {
+              return img;
+            } else if (img && typeof img === 'object' && 'imageUrl' in img) {
+              return img.imageUrl || '';
+            }
+            return '';
+          }).filter((url: string) => url !== '');
         }
       } catch {}
 
@@ -139,7 +152,10 @@ export async function POST(request: NextRequest) {
         year: car.year,
         price: car.price,
         kilometers: car.kilometers,
-        coverImage
+        transmission: car.transmission,
+        fuelType: car.fuelType,
+        coverImage,
+        allImages
       };
     });
 
