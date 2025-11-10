@@ -7,7 +7,6 @@ interface CarData {
   coverImage: string;
   kilometers?: number;
   transmission?: string;
-  fuelType?: string;
   allImages?: string[];
 }
 
@@ -206,14 +205,6 @@ async function generateCarImage(car: CarData, user: UserInfo): Promise<Blob> {
       }
       if (car.transmission) {
         details.push(car.transmission.charAt(0).toUpperCase() + car.transmission.slice(1));
-      }
-      if (car.fuelType) {
-        // Format fuel type properly
-        const fuelDisplay = car.fuelType
-          .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-        details.push(fuelDisplay);
       }
       
       const detailsText = details.join(' • ');

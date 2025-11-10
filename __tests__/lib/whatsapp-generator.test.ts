@@ -80,7 +80,7 @@ function mockFetchSuccess(cars: any[], user = { name: 'John Doe', phone: '+27123
     });
 }
 
-function carFixture(overrides: Partial<{ id: string; make: string; model: string; year: number; price: number; coverImage: string; kilometers: number; transmission: string; fuelType: string; allImages: string[] }>= {}) {
+function carFixture(overrides: Partial<{ id: string; make: string; model: string; year: number; price: number; coverImage: string; kilometers: number; transmission: string; allImages: string[] }>= {}) {
   return {
     id: 'car_1',
     make: 'BMW',
@@ -90,7 +90,6 @@ function carFixture(overrides: Partial<{ id: string; make: string; model: string
     coverImage: 'https://example.com/car.jpg',
     kilometers: 12000,
     transmission: 'automatic',
-    fuelType: 'petrol',
     allImages: ['https://example.com/car.jpg'],
     ...overrides,
   };
@@ -233,16 +232,16 @@ describe('lib/whatsapp-generator generateWhatsAppImages', () => {
     expect(contactCallIndex).toBeLessThan(priceCallIndex);
   });
 
-  it('includes car details with transmission and fuel type', async () => {
+  it('includes car details with transmission', async () => {
     const env = setupCanvasAndImage(true);
-    mockFetchSuccess([carFixture({ transmission: 'manual', fuelType: 'diesel' })]);
+    mockFetchSuccess([carFixture({ transmission: 'manual' })]);
 
     await generateWhatsAppImages(['car_1']);
 
     const fillTextCalls = env.fillText.mock.calls;
     const detailsCall = fillTextCalls.find(call => 
       call[0] && typeof call[0] === 'string' && 
-      (call[0].includes('Manual') || call[0].includes('Diesel'))
+      call[0].includes('Manual')
     );
     
     expect(detailsCall).toBeDefined();

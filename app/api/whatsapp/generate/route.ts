@@ -168,7 +168,6 @@ export async function POST(request: NextRequest) {
         price: car.price,
         kilometers: car.kilometers,
         transmission: car.transmission,
-        fuelType: car.fuelType,
         coverImage,
         allImages
       };
