@@ -125,6 +125,11 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
         // Only send newly added docs; compare by url or localKey
         docs: docs.filter((d) => !delivery.docs?.some((ex) => (ex.url && d.url && ex.url === d.url) || (ex.localKey && d.localKey && ex.localKey === d.localKey))),
       });
+      // Navigate back to previous view after successful save
+      onBack();
+    } catch (error) {
+      console.error('Failed to save delivery:', error);
+      alert('Failed to save delivery. Please try again.');
     } finally {
       setSaving(false);
     }

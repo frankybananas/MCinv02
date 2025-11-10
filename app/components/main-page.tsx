@@ -775,9 +775,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                   body: JSON.stringify(update)
                 });
                 if (res.ok) {
-                  const { data } = await res.json();
-                  setSelectedDelivery(data);
-                  // refresh list
+                  // refresh list in background
                   const dRes = await fetch('/api/deliveries');
                   if (dRes.ok) {
                     const dJson = await dRes.json();
@@ -786,9 +784,11 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
                 } else {
                   const errText = await res.text();
                   console.error('Save failed:', errText);
+                  throw new Error(errText);
                 }
               } catch (e) {
                 console.error('Save error', e);
+                throw e;
               }
             }} 
           />
