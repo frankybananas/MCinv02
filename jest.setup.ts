@@ -130,9 +130,11 @@ if (typeof (global as any).Request === 'undefined') {
     method: string;
     headers: any;
     private _body?: any;
+    private _init?: RequestInit;
     constructor(url: string, init?: RequestInit) {
       this.url = url;
       this.method = init?.method || 'GET';
+      this._init = init;
       const hdrs = new Map<string, string>();
       const incoming = (init?.headers || {}) as any;
       if (incoming && typeof incoming.forEach === 'function') {
@@ -149,6 +151,17 @@ if (typeof (global as any).Request === 'undefined') {
     async json() {
       if (typeof this._body === 'string') return JSON.parse(this._body);
       return this._body ?? {};
+    }
+    clone() {
+      return new SimpleRequest(this.url, this._init);
+    }
+    async blob() {
+      if (typeof Blob !== 'undefined') {
+        if (this._body instanceof Blob) return this._body as Blob;
+        if (typeof this._body === 'string') return new Blob([this._body]);
+        try { return new Blob([JSON.stringify(this._body ?? {})]); } catch { return new Blob(['']); }
+      }
+      return this._body as any;
     }
   }
   ;(global as any).Request = SimpleRequest as any;

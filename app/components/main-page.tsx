@@ -102,13 +102,23 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   }, [reserveCarId]);
 
-  // Sync selectedClient with updated clients array when data refreshes
+  // Refetch selectedClient with full data when clients array updates
   useEffect(() => {
     if (selectedClient && selectedClient._id) {
-      const updatedClient = clients.find(c => c._id === selectedClient._id);
-      if (updatedClient) {
-        setSelectedClient(updatedClient);
-      }
+      // Refetch the full client data with populated cars
+      (async () => {
+        try {
+          const res = await fetch(`/api/clients/${selectedClient._id}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.data) {
+              setSelectedClient(json.data);
+            }
+          }
+        } catch (error) {
+          console.error('Error refetching client details:', error);
+        }
+      })();
     }
   }, [clients]);
 
@@ -520,8 +530,28 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   };
 
-  const handleClientSelect = (client: Client | null) => {
-    setSelectedClient(client);
+  const handleClientSelect = async (client: Client | null) => {
+    if (!client) {
+      setSelectedClient(null);
+      setSelectedCar(null);
+      return;
+    }
+
+    // Fetch full client data with populated cars
+    try {
+      const res = await fetch(`/api/clients/${client._id}`);
+      if (res.ok) {
+        const json = await res.json();
+        setSelectedClient(json.data || client);
+      } else {
+        // Fallback to the client from the list if fetch fails
+        setSelectedClient(client);
+      }
+    } catch (error) {
+      console.error('Error fetching client details:', error);
+      // Fallback to the client from the list
+      setSelectedClient(client);
+    }
     setSelectedCar(null);
   };
 

@@ -13,55 +13,66 @@ jest.mock('@/lib/mongodb', () => ({
   connect: jest.fn(async () => ({ connection: { readyState: 1 } })),
 }));
 
-// In-memory user store
+// In-memory user store - must be declared before jest.mock
 const usersStore: any[] = [];
 let userIdCounter = 1;
 
-// Mock User model
-const mockUserModel = {
-  find: jest.fn(() => ({
-    sort: jest.fn(() => Promise.resolve(usersStore)),
-  })),
-    findOne: jest.fn(async (query: any) => {
-      return usersStore.find(u => u.phone === query.phone);
-    }),
-    findById: jest.fn(async (id: string) => {
-      return usersStore.find(u => u._id === id);
-    }),
-    findByIdAndUpdate: jest.fn(async (id: string, update: any, options: any) => {
-      const userIndex = usersStore.findIndex(u => u._id === id);
-      if (userIndex === -1) return null;
-      
-      const user = usersStore[userIndex];
-      if (update.$set) {
-        Object.keys(update.$set).forEach(key => {
-          if (key.includes('.')) {
-            const [parent, child] = key.split('.');
-            if (!user[parent]) user[parent] = {};
-            user[parent][child] = update.$set[key];
-          } else {
-            user[key] = update.$set[key];
-          }
-        });
-      }
-      return user;
-    }),
-    findByIdAndDelete: jest.fn(async (id: string) => {
-      const userIndex = usersStore.findIndex(u => u._id === id);
-      if (userIndex === -1) return null;
-      const deleted = usersStore[userIndex];
-      usersStore.splice(userIndex, 1);
-      return deleted;
-    }),
+// Mock User model with factory function
+jest.mock('@/models/User', () => {
+  const MockUserConstructor: any = function(this: any, data: any) {
+    Object.assign(this, data);
+    this._id = `user${userIdCounter++}`;
+    this.createdAt = new Date();
+    this.save = jest.fn(async () => {
+      usersStore.push(this);
+      return this;
+    });
   };
 
-jest.mock('@/models/User', () => ({
-  __esModule: true,
-  default: mockUserModel,
-}));
+  MockUserConstructor.find = jest.fn(() => ({
+    sort: jest.fn(() => Promise.resolve(usersStore)),
+  }));
+  MockUserConstructor.findOne = jest.fn(async (query: any) => {
+    return usersStore.find(u => u.phone === query.phone);
+  });
+  MockUserConstructor.findById = jest.fn(async (id: string) => {
+    return usersStore.find(u => u._id === id);
+  });
+  MockUserConstructor.findByIdAndUpdate = jest.fn(async (id: string, update: any, options: any) => {
+    const userIndex = usersStore.findIndex(u => u._id === id);
+    if (userIndex === -1) return null;
+    
+    const user = usersStore[userIndex];
+    if (update.$set) {
+      Object.keys(update.$set).forEach(key => {
+        if (key.includes('.')) {
+          const [parent, child] = key.split('.');
+          if (!user[parent]) user[parent] = {};
+          user[parent][child] = update.$set[key];
+        } else {
+          user[key] = update.$set[key];
+        }
+      });
+    }
+    return user;
+  });
+  MockUserConstructor.findByIdAndDelete = jest.fn(async (id: string) => {
+    const userIndex = usersStore.findIndex(u => u._id === id);
+    if (userIndex === -1) return null;
+    const deleted = usersStore[userIndex];
+    usersStore.splice(userIndex, 1);
+    return deleted;
+  });
+
+  return {
+    __esModule: true,
+    default: MockUserConstructor,
+  };
+});
 
 // Import route handlers after mocks
 import { GET, POST, PATCH, DELETE } from '@/app/api/admin/users/route';
+import User from '@/models/User';
 
 describe('Admin Users API Routes', () => {
   beforeEach(() => {
@@ -69,10 +80,10 @@ describe('Admin Users API Routes', () => {
     usersStore.length = 0;
     userIdCounter = 1;
     
-    // Add test users
+    // Add test users with valid SA phone numbers
     usersStore.push({
       _id: 'user1',
-      phone: '+1234567890',
+      phone: '+27821234567',
       profile: { firstName: 'John', lastName: 'Doe' },
       department: 'new',
       role: 'user',
@@ -84,7 +95,7 @@ describe('Admin Users API Routes', () => {
     });
     usersStore.push({
       _id: 'user2',
-      phone: '+0987654321',
+      phone: '+27829876543',
       profile: { firstName: 'Jane', lastName: 'Smith' },
       department: 'used',
       role: 'manager',
@@ -109,7 +120,7 @@ describe('Admin Users API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.data).toHaveLength(2);
-      expect(data.data[0].phone).toBe('+1234567890');
+      expect(data.data[0].phone).toBe('+27821234567');
     });
 
     it('should return 403 for non-admin users', async () => {
@@ -138,7 +149,7 @@ describe('Admin Users API Routes', () => {
   describe('POST /api/admin/users', () => {
     it('should create a new user with valid data', async () => {
       const newUser = {
-        phone: '+1111111111',
+        phone: '0823456789',
         firstName: 'Test',
         lastName: 'User',
         department: 'new',
@@ -154,33 +165,13 @@ describe('Admin Users API Routes', () => {
         body: JSON.stringify(newUser),
       });
 
-      // Mock User constructor for this test
-      const originalMock = mockUserModel;
-      const mockSave = jest.fn(async function(this: any) {
-        const user = {
-          ...this,
-          _id: `user${userIdCounter++}`,
-          createdAt: new Date(),
-        };
-        usersStore.push(user);
-        return user;
-      });
-
-      // Override with constructor function
-      const MockUserConstructor: any = function(this: any, data: any) {
-        Object.assign(this, data);
-        this.save = mockSave;
-      };
-      Object.assign(MockUserConstructor, originalMock);
-      jest.spyOn(require('@/models/User'), 'default').mockReturnValue(MockUserConstructor as any);
-      (require('@/models/User').default as any) = MockUserConstructor;
-
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(201);
       expect(data.message).toContain('successfully');
-      expect(data.user.phone).toBe(newUser.phone);
+      expect(data.user.phone).toBe('+27823456789'); // Normalized to E.164
+      expect(usersStore.length).toBe(3); // 2 initial + 1 new
     });
 
     it('should return 400 when required fields are missing', async () => {
@@ -190,7 +181,7 @@ describe('Admin Users API Routes', () => {
           'Content-Type': 'application/json',
           'x-user-role': 'admin',
         },
-        body: JSON.stringify({ phone: '+1111111111' }),
+        body: JSON.stringify({ phone: '0823456789' }),
       });
 
       const response = await POST(request);
@@ -208,7 +199,7 @@ describe('Admin Users API Routes', () => {
           'x-user-role': 'admin',
         },
         body: JSON.stringify({
-          phone: '+1234567890', // Existing user
+          phone: '+27821234567', // Existing user
           firstName: 'Test',
           lastName: 'User',
           department: 'new',
@@ -231,7 +222,7 @@ describe('Admin Users API Routes', () => {
           'x-user-role': 'user',
         },
         body: JSON.stringify({
-          phone: '+1111111111',
+          phone: '0823456789',
           firstName: 'Test',
           lastName: 'User',
           department: 'new',
@@ -382,7 +373,7 @@ describe('Admin Users API Routes', () => {
         },
         body: JSON.stringify({
           userId: 'user1',
-          phone: '+9999999999',
+          phone: '0827654321',
         }),
       });
 
@@ -391,7 +382,7 @@ describe('Admin Users API Routes', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.user.phone).toBe('+9999999999');
+      expect(data.user.phone).toBe('+27827654321'); // Normalized to E.164
     });
 
     it('should return 400 when userId is missing', async () => {

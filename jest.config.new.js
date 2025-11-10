@@ -6,6 +6,9 @@ const createJestConfig = nextJest({
   moduleNameMapper: { 
     '^@/(.*)$': '<rootDir>/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(bson|mongodb)/)',
+  ],
 });
 
 /** @type {import('jest').Config} */

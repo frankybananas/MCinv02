@@ -8,6 +8,34 @@
 
 import { SignJWT } from 'jose';
 import { TextEncoder } from 'util';
+import { NextRequest, NextResponse } from 'next/server';
+
+// Mock NextResponse.redirect
+jest.mock('next/server', () => {
+  const actual = jest.requireActual('next/server');
+  return {
+    ...actual,
+    NextResponse: {
+      ...actual.NextResponse,
+      redirect: jest.fn((url: URL | string) => {
+        const response = new Response(null, {
+          status: 307,
+          headers: { Location: url.toString() },
+        });
+        return response;
+      }),
+      next: jest.fn((options?: any) => {
+        const response = new Response(null, { status: 200 });
+        if (options?.request?.headers) {
+          Object.entries(options.request.headers).forEach(([key, value]) => {
+            response.headers.set(key, value as string);
+          });
+        }
+        return response;
+      }),
+    },
+  };
+});
 
 // Mock environment
 const mockEnv = {
@@ -34,17 +62,35 @@ describe('Middleware - 7-Day OTP Validation', () => {
       .sign(jwtSecret);
   }
 
-  function createRequest(pathname: string, token?: string): Request {
+  function createRequest(pathname: string, token?: string): any {
     const url = `http://localhost:3000${pathname}`;
-    const headers: Record<string, string> = {
+    const headers = new Headers({
       'Content-Type': 'application/json',
-    };
+    });
     
     if (token) {
-      headers['cookie'] = `session_token=${token}`;
+      headers.set('cookie', `session_token=${token}`);
     }
 
-    return new Request(url, { headers });
+    const request = new Request(url, { headers });
+    
+    // Create URL with clone method
+    const nextUrl = new URL(url);
+    (nextUrl as any).clone = () => new URL(url);
+    
+    // Add NextRequest-specific properties
+    return Object.assign(request, {
+      nextUrl,
+      cookies: {
+        get: (name: string) => {
+          const cookieHeader = headers.get('cookie') || '';
+          const match = cookieHeader.match(new RegExp(`${name}=([^;]+)`));
+          return match ? { value: match[1] } : undefined;
+        },
+      },
+      page: {},
+      ua: {},
+    });
   }
 
   describe('7-Day OTP Validation', () => {
