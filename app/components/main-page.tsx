@@ -102,6 +102,16 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
     }
   }, [reserveCarId]);
 
+  // Sync selectedClient with updated clients array when data refreshes
+  useEffect(() => {
+    if (selectedClient && selectedClient._id) {
+      const updatedClient = clients.find(c => c._id === selectedClient._id);
+      if (updatedClient) {
+        setSelectedClient(updatedClient);
+      }
+    }
+  }, [clients]);
+
   const handleLogout = async () => {
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });

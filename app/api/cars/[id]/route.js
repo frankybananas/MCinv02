@@ -98,11 +98,14 @@ export async function PUT(request, { params }) {
                 if (canLink) {
                   linkedClientId = clientId;
                   // Set car owner and add car to client's list if not present
+                  console.log(`[CAR RESERVATION] Linking car ${id} to client ${clientId}`);
                   carToUpdate.owner = clientId;
-                  await Client.updateOne(
+                  const clientUpdateResult = await Client.updateOne(
                     { _id: clientId },
                     { $addToSet: { cars: id } }
                   );
+                  console.log(`[CAR RESERVATION] Client update result:`, clientUpdateResult);
+                  console.log(`[CAR RESERVATION] Car owner field set to:`, carToUpdate.owner);
                 }
               }
 
@@ -150,7 +153,9 @@ export async function PUT(request, { params }) {
       }
 
       carToUpdate.status = status;
+      console.log(`[CAR RESERVATION] Saving car with status=${status}, owner=${carToUpdate.owner}`);
       const updatedCar = await carToUpdate.save();
+      console.log(`[CAR RESERVATION] Car saved successfully. Owner in DB:`, updatedCar.owner);
 
       await updatedCar.populate('images');
 
