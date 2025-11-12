@@ -444,9 +444,36 @@ export function Dashboard({
                             </div>
                             <div className="flex items-center justify-between gap-2 min-w-0">
                               <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
-                              <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap`}>
-                                {formatStatusLabel(car.status)}
-                              </Badge>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    data-testid="car-status-trigger"
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                    }}
+                                    className="outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary rounded-full"
+                                  >
+                                    <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap cursor-pointer`}>
+                                      {formatStatusLabel(car.status)}
+                                    </Badge>
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                  {STATUS_OPTIONS.map((statusOption) => (
+                                    <DropdownMenuItem
+                                      key={statusOption}
+                                      data-testid={`car-status-option-${statusOption}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        onStatusChange(car._id, statusOption)
+                                      }}
+                                    >
+                                      {formatStatusLabel(statusOption)}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
                         </div>

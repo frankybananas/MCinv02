@@ -1,7 +1,9 @@
 /**
  * Tests for Dashboard mobile view - compact list view with word-wrapped model names
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { forwardRef, cloneElement, isValidElement, type ComponentPropsWithoutRef, type ReactElement, type ReactNode } from 'react'
 import { Dashboard } from '@/app/components/dashboard'
 import type { Car, Client, DashboardTab, Delivery, NotificationItem } from '@/app/types'
 
@@ -28,6 +30,58 @@ jest.mock('@/app/components/marketing', () => ({
 jest.mock('@/app/components/todo', () => ({
   Todo: () => <div data-testid="todo">Todo</div>,
 }))
+
+jest.mock('@/components/ui/dropdown-menu', () => {
+  const DropdownMenu = ({ children }: { children?: ReactNode }) => (
+    <div data-testid="dropdown-menu">{children}</div>
+  )
+  const DropdownMenuTrigger = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<'div'> & { asChild?: boolean }>(
+    ({ children, asChild, ...props }, ref) => {
+      if (asChild && isValidElement(children)) {
+        return cloneElement(children as ReactElement, {
+          ...(props as Record<string, unknown>),
+          ref,
+        } as any)
+      }
+      return (
+        <div ref={ref} {...props}>
+          {children}
+        </div>
+      )
+    },
+  )
+  DropdownMenuTrigger.displayName = 'DropdownMenuTrigger'
+  const DropdownMenuContent = ({ children }: { children?: ReactNode }) => (
+    <div data-testid="dropdown-menu-content">{children}</div>
+  )
+  const DropdownMenuItem = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<'button'>>(
+    ({ children, onClick, ...props }, ref) => (
+      <button type="button" onClick={onClick} ref={ref} {...props}>
+        {children}
+      </button>
+    ),
+  )
+  DropdownMenuItem.displayName = 'DropdownMenuItem'
+  const DropdownMenuLabel = ({ children }: { children?: ReactNode }) => <div>{children}</div>
+  const DropdownMenuSeparator = () => <hr />
+  const DropdownMenuRadioGroup = ({ children }: { children?: ReactNode }) => <div>{children}</div>
+  const DropdownMenuRadioItem = ({ children, onClick, value, ...props }: ComponentPropsWithoutRef<'button'>) => (
+    <button type="button" data-value={value} onClick={onClick} {...props}>
+      {children}
+    </button>
+  )
+  return {
+    __esModule: true,
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+  }
+})
 
 describe('Dashboard Mobile View - Compact List', () => {
   const mockCars: Car[] = [
@@ -260,11 +314,46 @@ describe('Dashboard Mobile View - Compact List', () => {
 
     it('should handle car click events', () => {
       render(<Dashboard {...defaultProps} />)
-      
+
       const carRows = screen.getAllByTestId('dashboard-car-row')
-      fireEvent.click(carRows[0])
-      
+      const toyotaRow = carRows.find((row) => within(row).queryByText(/Very Long Model Name That Would Normally Get Cut Off/))
+      expect(toyotaRow).toBeDefined()
+
+      fireEvent.click(toyotaRow as HTMLElement)
+
       expect(defaultProps.onCarSelect).toHaveBeenCalledWith(mockCars[0])
+    })
+
+    it('should call onStatusChange when selecting a status from the dropdown', async () => {
+      const user = userEvent.setup()
+      render(<Dashboard {...defaultProps} />)
+
+      const carRows = screen.getAllByTestId('dashboard-car-row')
+      const toyotaRow = carRows.find((row) => within(row).queryByText(/Very Long Model Name That Would Normally Get Cut Off/))
+      expect(toyotaRow).toBeDefined()
+
+      const statusTrigger = within(toyotaRow as HTMLElement).getByTestId('car-status-trigger')
+      await user.click(statusTrigger)
+
+      const reservedOption = within(toyotaRow as HTMLElement).getByTestId('car-status-option-reserved')
+      await user.click(reservedOption)
+
+      expect(defaultProps.onStatusChange).toHaveBeenCalledWith('1', 'reserved')
+      expect(defaultProps.onCarSelect).not.toHaveBeenCalled()
+    })
+
+    it('should not trigger car selection when interacting with the status dropdown', async () => {
+      const user = userEvent.setup()
+      render(<Dashboard {...defaultProps} />)
+
+      const carRows = screen.getAllByTestId('dashboard-car-row')
+      const toyotaRow = carRows.find((row) => within(row).queryByText(/Very Long Model Name That Would Normally Get Cut Off/))
+      expect(toyotaRow).toBeDefined()
+
+      const statusTrigger = within(toyotaRow as HTMLElement).getByTestId('car-status-trigger')
+      await user.click(statusTrigger)
+
+      expect(defaultProps.onCarSelect).not.toHaveBeenCalled()
     })
   })
 
