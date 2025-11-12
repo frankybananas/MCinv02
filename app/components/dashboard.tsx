@@ -452,7 +452,7 @@ export function Dashboard({
                                     onClick={(event) => {
                                       event.stopPropagation()
                                     }}
-                                    className="outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary rounded-full"
+                                    className="outline-none focus-visible:outline-none rounded-full"
                                   >
                                     <Badge className={`${getStatusColor(car.status)} flex-shrink-0 whitespace-nowrap cursor-pointer`}>
                                       {formatStatusLabel(car.status)}
