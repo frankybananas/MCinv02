@@ -536,7 +536,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                             <SelectValue placeholder="Select year" />
                           </SelectTrigger>
                           <SelectContent>
-                            {Array.from({ length: 20 }).map((_, idx) => {
+                            {Array.from({ length: new Date().getFullYear() - 1960 + 1 }).map((_, idx) => {
                               const y = new Date().getFullYear() - idx;
                               return (
                                 <SelectItem key={y} value={String(y)}>
