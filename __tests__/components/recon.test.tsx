@@ -9,6 +9,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Recon from '@/app/components/recon';
+import ReconPageShell from '@/app/recon/recon-page-shell';
 import type { Delivery } from '@/app/types';
 
 // Mock fetch
@@ -150,6 +151,49 @@ describe('Recon component', () => {
       expect(screen.getByTestId('recon-card')).toBeInTheDocument();
     });
     expect(screen.getByText(/Recon 1\/2/)).toBeInTheDocument();
+  });
+
+  it('ReconPageShell renders MainMenu and keeps bottom nav visible', async () => {
+    const mockNotifications = [
+      { _id: 'n1', createdAt: new Date().toISOString() },
+    ] as any;
+
+    global.fetch = jest.fn(async (input: RequestInfo) => {
+      const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+
+      if (url.includes('/api/auth/me')) {
+        return {
+          ok: true,
+          json: async () => ({ data: { notificationsLastSeenAt: null, role: 'recon' } }),
+        } as Response;
+      }
+
+      if (url.includes('/api/notifications')) {
+        return {
+          ok: true,
+          json: async () => ({ data: mockNotifications }),
+        } as Response;
+      }
+
+      if (url.includes('/api/deliveries')) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: sampleDeliveries() }),
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        json: async () => ({}),
+      } as Response;
+    }) as unknown as typeof fetch;
+
+    render(<ReconPageShell />);
+
+    expect(await screen.findByTestId('recon-card')).toBeInTheDocument();
+    expect(screen.getByText('Recon')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Back to Dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
   });
 
   it('toggles a recon task checkbox and updates UI', async () => {
