@@ -222,3 +222,84 @@ export interface AppState {
   editingClient: Client | null
   activeTabId?: CarStatus | "clients"
 }
+
+// Facebook Auth Types
+export interface FacebookAuthData {
+  userId: string;
+  accountType: 'personal' | 'business_page';
+  facebookUserId?: string;
+  facebookPageId?: string;
+  facebookPageName?: string;
+  isActive: boolean;
+  expiresAt: string;
+  lastUsed?: string;
+  grantedPermissions: string[];
+}
+
+export interface FacebookOAuthResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  userId?: string;
+  pages?: FacebookPage[];
+}
+
+export interface FacebookPage {
+  id: string;
+  name: string;
+  accessToken: string;
+  category: string;
+  tasks: string[];
+}
+
+// Facebook Post Types
+export interface FacebookPostData {
+  id: string;
+  userId: string;
+  carId: string;
+  content: string;
+  hashtags: string[];
+  imageUrls: string[];
+  status: 'pending' | 'processing' | 'published' | 'failed' | 'scheduled';
+  scheduledFor?: string;
+  publishedAt?: string;
+  facebookPostId?: string;
+  error?: string;
+  analytics?: FacebookPostAnalytics;
+  createdAt: string;
+}
+
+export interface FacebookPostAnalytics {
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  reach?: number;
+  engagement?: number;
+  lastSynced?: string;
+}
+
+export interface CreatePostRequest {
+  carIds: string[];
+  scheduledFor?: string;
+  customMessage?: string;
+}
+
+export interface GeneratedPost {
+  carId: string;
+  content: string;
+  hashtags: string[];
+  imageUrls: string[];
+}
+
+// User Profile Extensions
+export interface UserContactInfo {
+  whatsappNumber?: string;
+  location?: string;
+  businessName?: string;
+}
+
+export interface UserFacebookPreferences {
+  defaultPostSchedule?: string;
+  autoHashtags: boolean;
+  postingCooldown: number;
+}

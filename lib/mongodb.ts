@@ -1,7 +1,5 @@
 import mongoose, { Connection } from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
 type MongooseCache = {
   conn: Connection | null;
   promise: Promise<Connection> | null;
@@ -28,6 +26,7 @@ export async function connect(): Promise<Connection> {
     return cache.conn;
   }
   if (!cache.promise) {
+    const MONGODB_URI = process.env.MONGODB_URI;
     if (!MONGODB_URI) {
       throw new Error('Missing MONGODB_URI. Please set it in your environment (e.g., .env.local).');
     }

@@ -21,6 +21,22 @@ export interface IUser extends Document {
   otpSecret?: string;
   otpExpiry?: Date;
   isTestAccount: boolean;
+  
+  // Facebook Contact Information
+  whatsappNumber?: string;
+  location?: string;
+  businessName?: string;
+  
+  // Facebook Connection Status
+  facebookConnected: boolean;
+  facebookAccountType?: 'personal' | 'business_page';
+  facebookLastSyncedAt?: Date;
+  
+  // Facebook Posting Preferences
+  defaultPostSchedule?: string;
+  autoHashtags: boolean;
+  postingCooldown: number;
+  
   createdAt: Date;
   updatedAt: Date;
   isTestNumber(): boolean;
@@ -47,6 +63,31 @@ const UserSchema = new Schema<IUser>({
   otpSecret: { type: String },
   otpExpiry: { type: Date },
   isTestAccount: { type: Boolean, default: false },
+  
+  // Facebook Contact Information
+  whatsappNumber: {
+    type: String,
+    validate: {
+      validator: function(v: string) {
+        if (!v) return true; // Optional field
+        return /^\+\d{10,15}$/.test(v);
+      },
+      message: 'WhatsApp number must be in E.164 format (+27824544656)'
+    }
+  },
+  location: { type: String, maxlength: 200 },
+  businessName: { type: String, maxlength: 100 },
+  
+  // Facebook Connection Status
+  facebookConnected: { type: Boolean, default: false },
+  facebookAccountType: { type: String, enum: ['personal', 'business_page'] },
+  facebookLastSyncedAt: { type: Date },
+  
+  // Facebook Posting Preferences
+  defaultPostSchedule: { type: String, default: 'immediate' },
+  autoHashtags: { type: Boolean, default: true },
+  postingCooldown: { type: Number, default: 5, min: 1, max: 60 },
+  
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
