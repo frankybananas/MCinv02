@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -163,6 +164,21 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
             </form>
           )}
           {error && <p className="mt-4 text-sm text-center text-red-500">{error}</p>}
+          <p className="mt-6 text-[11px] text-center text-gray-400">
+            By continuing, you agree to our{' '}
+            <Link href="/terms" className="underline">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline">
+              Privacy Policy
+            </Link>
+            . Learn about{' '}
+            <Link href="/data-deletion" className="underline">
+              data deletion
+            </Link>
+            .
+          </p>
         </CardContent>
       </Card>
     </div>

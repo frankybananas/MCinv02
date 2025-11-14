@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireSession } from '@/lib/auth-session';
 import crypto from 'crypto';
 
 /**
@@ -14,13 +13,8 @@ import crypto from 'crypto';
 export async function GET(request: NextRequest) {
   try {
     // Verify user is authenticated
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.phone) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in first.' },
-        { status: 401 }
-      );
-    }
+    const session = await requireSession(request);
+    const userPhone = session.phone;
 
     // Validate required environment variables
     const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
@@ -78,7 +72,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Store user phone for callback verification
-    response.cookies.set('fb_oauth_user', session.user.phone, {
+    response.cookies.set('fb_oauth_user', userPhone, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -86,7 +80,7 @@ export async function GET(request: NextRequest) {
       path: '/'
     });
     
-    console.log(`[Facebook OAuth] Initiating OAuth flow for user: ${session.user.phone}`);
+    console.log(`[Facebook OAuth] Initiating OAuth flow for user: ${userPhone}`);
     
     return response;
     

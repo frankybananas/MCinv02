@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -246,6 +247,23 @@ export default function LoginPage() {
             </CardFooter>
           </form>
         )}
+        <CardFooter>
+          <p className="mt-4 text-[11px] text-center text-gray-400 w-full">
+            By continuing, you agree to our{' '}
+            <Link href="/terms" className="underline">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline">
+              Privacy Policy
+            </Link>
+            . Learn about{' '}
+            <Link href="/data-deletion" className="underline">
+              data deletion
+            </Link>
+            .
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
