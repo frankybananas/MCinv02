@@ -19,12 +19,15 @@ const SessionSchema = new Schema<ISession>({
   isActive: { type: Boolean, default: true },
   deviceType: { type: String, enum: ['mobile', 'desktop'], required: true, index: true },
   lastOtpAt: { type: Date, required: true },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true }, // Index removed - TTL index added below
   ipAddress: String,
   userAgent: String,
   createdAt: { type: Date, default: Date.now },
   lastAccessedAt: { type: Date, default: Date.now },
 });
+
+// TTL index to auto-delete expired sessions
+SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const Session: Model<ISession> = mongoose.models.Session || mongoose.model<ISession>('Session', SessionSchema);
 export default Session;
