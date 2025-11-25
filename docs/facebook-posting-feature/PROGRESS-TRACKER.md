@@ -3,7 +3,9 @@
 **Project:** MCinv02  
 **Feature:** Automated Facebook Posting  
 **Started:** November 13, 2025  
-**Current Phase:** Phase 1 - Data Models & Schema
+**Status:** 🛑 SHELVED - Business Setup Required  
+**Shelved Date:** November 25, 2025  
+**Reason:** Facebook Business account setup required to proceed with OAuth implementation
 
 ---
 
@@ -12,13 +14,13 @@
 | Phase | Status | Started | Completed | Duration | Notes |
 |-------|--------|---------|-----------|----------|-------|
 | **Phase 1: Data Models** | 🟢 Complete | 2025-11-13 | 2025-11-13 | <1 day | Models done, tests pending |
-| **Phase 2: Facebook OAuth** | ⚪ Pending | - | - | - | Ready to start |
-| **Phase 3: User Profile** | ⚪ Pending | - | - | - | Depends on Phase 2 |
-| **Phase 4: Gemini AI** | ⚪ Pending | - | - | - | Depends on Phase 1, 3 |
-| **Phase 5: Marketing UI** | ⚪ Pending | - | - | - | Depends on Phase 2, 3 |
-| **Phase 6: Posting Engine** | ⚪ Pending | - | - | - | Depends on Phase 2, 4, 5 |
-| **Phase 7: Queue & Errors** | ⚪ Pending | - | - | - | Depends on Phase 6 |
-| **Phase 8: Analytics** | ⚪ Pending | - | - | - | Depends on Phase 6, 7 |
+| **Phase 2: Facebook OAuth** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
+| **Phase 3: User Profile** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
+| **Phase 4: Gemini AI** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
+| **Phase 5: Marketing UI** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
+| **Phase 6: Posting Engine** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
+| **Phase 7: Queue & Errors** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
+| **Phase 8: Analytics** | 🛑 Shelved | - | - | - | Blocked: Business setup required |
 
 **Legend:**
 - ⚪ Pending
@@ -26,6 +28,7 @@
 - 🟢 Completed
 - 🔴 Blocked
 - ⚠️ Issues Found
+- 🛑 Shelved
 
 ---
 
@@ -87,9 +90,11 @@
 
 ## 📋 Phase 2: Facebook OAuth2 Integration
 
-**Status:** 🟡 In Progress  
+**Status:** 🛑 Shelved  
 **Started:** 2025-11-13  
-**Dependencies:** Phase 1 complete ✅
+**Shelved:** 2025-11-25  
+**Dependencies:** Phase 1 complete ✅  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
 - [x] Create OAuth init endpoint ✅
@@ -98,10 +103,10 @@
 - [x] Create status check endpoint ✅
 - [x] Create disconnect endpoint ✅
 - [x] Create token refresh endpoint ✅
-- [ ] Set up Facebook App in Meta Developer Portal (user action required)
-- [ ] Configure OAuth redirect URIs (user action required)
-- [ ] Write tests for OAuth endpoints
-- [ ] Test OAuth flow end-to-end
+- [🛑] Set up Facebook App in Meta Developer Portal (BLOCKED: Business setup required)
+- [🛑] Configure OAuth redirect URIs (BLOCKED: Business setup required)
+- [🛑] Write tests for OAuth endpoints (SHELVED)
+- [🛑] Test OAuth flow end-to-end (SHELVED)
 
 ### Environment Setup Needed
 - [ ] `FACEBOOK_APP_ID`
@@ -113,33 +118,35 @@
 
 ## 📋 Phase 3: User Profile Enhancements
 
-**Status:** ⚪ Pending  
-**Dependencies:** Phase 2 complete
+**Status:** 🛑 Shelved  
+**Dependencies:** Phase 2 complete  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
-- [ ] Update Profile page UI (Facebook connection section)
-- [ ] Add contact information form
-- [ ] Add posting preferences section
-- [ ] Create contact update API endpoint
-- [ ] Create preferences update API endpoint
-- [ ] Test form validation
-- [ ] Test mobile responsiveness
+- [🛑] Update Profile page UI (Facebook connection section) - SHELVED
+- [🛑] Add contact information form - SHELVED
+- [🛑] Add posting preferences section - SHELVED
+- [🛑] Create contact update API endpoint - SHELVED
+- [🛑] Create preferences update API endpoint - SHELVED
+- [🛑] Test form validation - SHELVED
+- [🛑] Test mobile responsiveness - SHELVED
 
 ---
 
 ## 📋 Phase 4: Gemini AI Integration
 
-**Status:** ⚪ Pending  
-**Dependencies:** Phase 1, 3 complete
+**Status:** 🛑 Shelved  
+**Dependencies:** Phase 1, 3 complete  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
-- [ ] Create `lib/ai/gemini-service.ts`
-- [ ] Create generate post API endpoint
-- [ ] Test prompt variations
-- [ ] Implement fallback templates
-- [ ] Test different car types (luxury, budget, etc.)
-- [ ] Verify hashtag generation
-- [ ] Test error handling
+- [🛑] Create `lib/ai/gemini-service.ts` - SHELVED
+- [🛑] Create generate post API endpoint - SHELVED
+- [🛑] Test prompt variations - SHELVED
+- [🛑] Implement fallback templates - SHELVED
+- [🛑] Test different car types (luxury, budget, etc.) - SHELVED
+- [🛑] Verify hashtag generation - SHELVED
+- [🛑] Test error handling - SHELVED
 
 ### Environment Setup Needed
 - [ ] `GOOGLE_GEMINI_API_KEY`
@@ -149,54 +156,57 @@
 
 ## 📋 Phase 5: Marketing Page UI
 
-**Status:** ⚪ Pending  
-**Dependencies:** Phase 2, 3 complete
+**Status:** 🛑 Shelved  
+**Dependencies:** Phase 2, 3 complete  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
-- [ ] Add FBPage button to Marketing page
-- [ ] Add connection status check
-- [ ] Implement click handler
-- [ ] Test button styling and layout
-- [ ] Test mobile responsiveness
-- [ ] Test disabled states
-- [ ] Test DNA car exclusion
-- [ ] Test confirmation dialog
+- [🛑] Add FBPage button to Marketing page - SHELVED
+- [🛑] Add connection status check - SHELVED
+- [🛑] Implement click handler - SHELVED
+- [🛑] Test button styling and layout - SHELVED
+- [🛑] Test mobile responsiveness - SHELVED
+- [🛑] Test disabled states - SHELVED
+- [🛑] Test DNA car exclusion - SHELVED
+- [🛑] Test confirmation dialog - SHELVED
 
 ---
 
 ## 📋 Phase 6: Facebook Posting Engine
 
-**Status:** ⚪ Pending  
-**Dependencies:** Phase 2, 4, 5 complete
+**Status:** 🛑 Shelved  
+**Dependencies:** Phase 2, 4, 5 complete  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
-- [ ] Create batch post queueing endpoint
-- [ ] Create process single post endpoint
-- [ ] Create `lib/facebook/post-publisher.ts`
-- [ ] Implement single image posting
-- [ ] Implement album posting (2-10 images)
-- [ ] Test VIN image exclusion
-- [ ] Test cooldown enforcement
-- [ ] Test error scenarios
-- [ ] Mock Facebook API for tests
+- [🛑] Create batch post queueing endpoint - SHELVED
+- [🛑] Create process single post endpoint - SHELVED
+- [🛑] Create `lib/facebook/post-publisher.ts` - SHELVED
+- [🛑] Implement single image posting - SHELVED
+- [🛑] Implement album posting (2-10 images) - SHELVED
+- [🛑] Test VIN image exclusion - SHELVED
+- [🛑] Test cooldown enforcement - SHELVED
+- [🛑] Test error scenarios - SHELVED
+- [🛑] Mock Facebook API for tests - SHELVED
 
 ---
 
 ## 📋 Phase 7: Queue & Error Handling
 
-**Status:** ⚪ Pending  
-**Dependencies:** Phase 6 complete
+**Status:** 🛑 Shelved  
+**Dependencies:** Phase 6 complete  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
-- [ ] Create `lib/facebook/post-queue.ts`
-- [ ] Create cron endpoint for queue processing
-- [ ] Create cleanup cron endpoint
-- [ ] Implement retry logic with exponential backoff
-- [ ] Implement user notifications
-- [ ] Set up Coolify cron jobs
-- [ ] Test queue processing
-- [ ] Test retry limits
-- [ ] Test scheduled posts
+- [🛑] Create `lib/facebook/post-queue.ts` - SHELVED
+- [🛑] Create cron endpoint for queue processing - SHELVED
+- [🛑] Create cleanup cron endpoint - SHELVED
+- [🛑] Implement retry logic with exponential backoff - SHELVED
+- [🛑] Implement user notifications - SHELVED
+- [🛑] Set up Coolify cron jobs - SHELVED
+- [🛑] Test queue processing - SHELVED
+- [🛑] Test retry limits - SHELVED
+- [🛑] Test scheduled posts - SHELVED
 
 ### Environment Setup Needed
 - [ ] `CRON_SECRET`
@@ -205,20 +215,21 @@
 
 ## 📋 Phase 8: Preview, History & Analytics
 
-**Status:** ⚪ Pending  
-**Dependencies:** Phase 6, 7 complete
+**Status:** 🛑 Shelved  
+**Dependencies:** Phase 6, 7 complete  
+**Blocker:** Facebook Business account setup required
 
 ### Checklist
-- [ ] Create post preview component (optional)
-- [ ] Create Facebook history page
-- [ ] Create analytics dashboard
-- [ ] Create history API endpoint
-- [ ] Create retry endpoint
-- [ ] Create analytics API endpoint
-- [ ] Add navigation links
-- [ ] Test filtering and search
-- [ ] Test pagination
-- [ ] Test retry functionality
+- [🛑] Create post preview component (optional) - SHELVED
+- [🛑] Create Facebook history page - SHELVED
+- [🛑] Create analytics dashboard - SHELVED
+- [🛑] Create history API endpoint - SHELVED
+- [🛑] Create retry endpoint - SHELVED
+- [🛑] Create analytics API endpoint - SHELVED
+- [🛑] Add navigation links - SHELVED
+- [🛑] Test filtering and search - SHELVED
+- [🛑] Test pagination - SHELVED
+- [🛑] Test retry functionality - SHELVED
 
 ---
 
@@ -227,13 +238,13 @@
 | Phase | Files Created | Tests Written | Coverage | Status |
 |-------|---------------|---------------|----------|--------|
 | Phase 1 | 7/7 | 0/3 | 0% | 🟢 Models Complete |
-| Phase 2 | 0/6 | 0/1 | 0% | ⚪ Pending |
-| Phase 3 | 0/2 | 0/1 | 0% | ⚪ Pending |
-| Phase 4 | 0/2 | 0/1 | 0% | ⚪ Pending |
-| Phase 5 | 0/1 | 0/1 | 0% | ⚪ Pending |
-| Phase 6 | 0/3 | 0/1 | 0% | ⚪ Pending |
-| Phase 7 | 0/3 | 0/1 | 0% | ⚪ Pending |
-| Phase 8 | 0/6 | 0/2 | 0% | ⚪ Pending |
+| Phase 2 | 0/6 | 0/1 | 0% | 🛑 Shelved |
+| Phase 3 | 0/2 | 0/1 | 0% | 🛑 Shelved |
+| Phase 4 | 0/2 | 0/1 | 0% | 🛑 Shelved |
+| Phase 5 | 0/1 | 0/1 | 0% | 🛑 Shelved |
+| Phase 6 | 0/3 | 0/1 | 0% | 🛑 Shelved |
+| Phase 7 | 0/3 | 0/1 | 0% | 🛑 Shelved |
+| Phase 8 | 0/6 | 0/2 | 0% | 🛑 Shelved |
 
 **Target:** 85%+ coverage per phase
 
@@ -244,13 +255,13 @@
 | Variable | Required Phase | Status | Notes |
 |----------|----------------|--------|-------|
 | `FACEBOOK_TOKEN_ENCRYPTION_KEY` | Phase 1 | ✅ Complete | Generated and added to .env |
-| `FACEBOOK_APP_ID` | Phase 2 | ⚪ Pending | From Meta Developer Portal |
-| `FACEBOOK_APP_SECRET` | Phase 2 | ⚪ Pending | From Meta Developer Portal |
-| `FACEBOOK_GRAPH_API_VERSION` | Phase 2 | ⚪ Pending | Use v18.0 |
-| `GOOGLE_GEMINI_API_KEY` | Phase 4 | ⚪ Pending | From Google AI Studio |
-| `GEMINI_MODEL` | Phase 4 | ⚪ Pending | Use gemini-1.5-flash |
-| `CRON_SECRET` | Phase 7 | ⚪ Pending | Generate random secret |
-| `NEXT_PUBLIC_BASE_URL` | Phase 2 | ⚪ Pending | http://localhost:3000 (dev) |
+| `FACEBOOK_APP_ID` | Phase 2 | 🛑 Shelved | From Meta Developer Portal |
+| `FACEBOOK_APP_SECRET` | Phase 2 | 🛑 Shelved | From Meta Developer Portal |
+| `FACEBOOK_GRAPH_API_VERSION` | Phase 2 | 🛑 Shelved | Use v18.0 |
+| `GOOGLE_GEMINI_API_KEY` | Phase 4 | 🛑 Shelved | From Google AI Studio |
+| `GEMINI_MODEL` | Phase 4 | 🛑 Shelved | Use gemini-1.5-flash |
+| `CRON_SECRET` | Phase 7 | 🛑 Shelved | Generate random secret |
+| `NEXT_PUBLIC_BASE_URL` | Phase 2 | 🛑 Shelved | http://localhost:3000 (dev) |
 
 ---
 
@@ -313,12 +324,13 @@
 
 ---
 
-## 🎯 Current Focus
+## 🎯 Current Status
 
 **Phase 1 Complete!** ✅  
-**Next up:** Generate encryption key, run migration, then start Phase 2 (Facebook OAuth)  
-**Blocked by:** None
+**Feature Status:** 🛑 SHELVED - Business Setup Required  
+**Next up:** Resume when Facebook Business account is set up  
+**Blocked by:** Facebook Business account setup required
 
 ---
 
-**Last Updated:** 2025-11-13 15:54 UTC+02:00
+**Last Updated:** 2025-11-25 20:43 UTC+02:00
