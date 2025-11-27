@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import { connect as connectDb } from '@/lib/mongodb'
 import User from '@/models/User'
-import { getSession } from '@/lib/auth-session'
+import { requireSession, verifyActiveSession } from '@/lib/auth-session'
 
 export async function PUT(request: Request) {
   try {
-    const session = await getSession(request)
-    const phone = session?.phone
-    if (!phone) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+    const session = await requireSession(request)
+    await verifyActiveSession(session)
+    const phone = session.phone
 
     const body = await request.json().catch(() => null)
     const id = typeof body?.id === 'string' ? body.id : ''

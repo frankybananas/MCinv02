@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth-session';
+import { requireSession } from '@/lib/auth-session';
 import { connect } from '@/lib/mongodb';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 
@@ -9,10 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     // Check authentication and admin access
-    const session = await getSession(request);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await requireSession(request);
 
     // Import User model to check role
     const User = (await import('@/models/User')).default;

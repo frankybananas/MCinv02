@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connect as connectDb } from '@/lib/mongodb'
 import User, { type IUser } from '@/models/User'
-import { getSession } from '@/lib/auth-session'
+import { requireSession, verifyActiveSession } from '@/lib/auth-session'
 import type { HydratedDocument } from 'mongoose'
 
 type UserDoc = HydratedDocument<IUser>
@@ -21,11 +21,9 @@ function parseTimestamp(value: unknown): Date {
 
 export async function PUT(request: Request) {
   try {
-    const session = await getSession(request)
-    const phone = session?.phone
-    if (!phone) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+    const session = await requireSession(request)
+    await verifyActiveSession(session)
+    const phone = session.phone
 
     await connectDb()
 

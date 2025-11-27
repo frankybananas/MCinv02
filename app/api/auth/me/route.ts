@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import User, { type IUser } from '@/models/User'
 import { connect as connectDb } from '@/lib/mongodb'
-import { requireSession } from '@/lib/auth-session'
+import { requireSession, verifyActiveSession } from '@/lib/auth-session'
 import { formatHttpError, isHttpError, NotFoundError } from '@/lib/errors'
 import type { HydratedDocument } from 'mongoose'
 
@@ -25,6 +25,7 @@ function serializeUser(user: UserDoc) {
 export async function PUT(request: Request) {
   try {
     const session = await requireSession(request)
+    await verifyActiveSession(session)
     const phoneFromSession = session.phone
 
     const body = await request.json()

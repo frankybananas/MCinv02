@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireSession } from '@/lib/auth-session'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,7 @@ interface ImagesRequestBody {
  */
 export async function POST(request: Request) {
   try {
+    await requireSession(request)
     const body = (await request.json()) as ImagesRequestBody
     const { urls } = body || {}
 

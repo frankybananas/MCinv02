@@ -1,41 +1,31 @@
 import { NextResponse } from 'next/server';
 import { connect as dbConnect } from '@/lib/mongodb';
 import User from '@/models/User';
-import { headers } from 'next/headers';
 import parsePhoneNumber from 'libphonenumber-js';
+import { requireSession, verifyActiveSession } from '@/lib/auth-session';
 
 export async function GET(request: Request) {
-  const requestHeaders = request.headers;
-  const userRole = requestHeaders.get('x-user-role');
-
-  if (userRole !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
-  }
-
   try {
+    const session = await requireSession(request);
+    if (session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
+    }
     await dbConnect();
-    const users = await User.find({}).sort({ createdAt: -1 }); // Fetch all users, sorted by creation date
+    const users = await User.find({}).sort({ createdAt: -1 });
     return NextResponse.json({ success: true, data: users });
   } catch (error) {
     console.error('Error fetching users:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  // --- DIAGNOSTIC LOG --- 
-  console.log('Logging headers function from next/headers:', headers);
-  const requestHeaders = request.headers;
-  console.log('Logging request headers object:', requestHeaders);
-  const userRole = requestHeaders.get('x-user-role');
-  // const userRole = headers().get('x-user-role'); // Temporarily disabled for debugging
-
-  // Double-check for admin role, even though middleware should protect this route
-  if (userRole !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
-  }
-
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
+    if (session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
+    }
     await dbConnect();
 
     const body = await request.json();
@@ -45,46 +35,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
     }
 
-    // Normalize phone number to E.164 format
     const phoneNumber = parsePhoneNumber(rawPhone, 'ZA');
     if (!phoneNumber || !phoneNumber.isValid()) {
       return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
     }
     const phone = phoneNumber.format('E.164');
 
-    // Check if user already exists
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
       return NextResponse.json({ error: 'User with this phone number already exists' }, { status: 409 });
     }
 
-    // Create new user
     const newUser = new User({
       phone,
       profile: { firstName, lastName },
       department,
       role,
-      isAuthorized: true, // Authorize new users by default
+      isAuthorized: true,
     });
 
     await newUser.save();
-
     return NextResponse.json({ message: 'User created successfully', user: newUser }, { status: 201 });
-
   } catch (error) {
     console.error('Error creating user:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
-  const requestHeaders = request.headers;
-  const userRole = requestHeaders.get('x-user-role');
-  if (userRole !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
-  }
-
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
+    if (session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
+    }
     await dbConnect();
     const body = await request.json();
     const { userId, matchingEnabled, todoEnabled, marketingEnabled, role, department, firstName, lastName, phone: rawPhone } = body || {};
@@ -99,7 +83,6 @@ export async function PATCH(request: Request) {
     if (role && ['admin', 'user', 'manager', 'recon'].includes(role)) set.role = role;
     if (department && ['new', 'used'].includes(department)) set.department = department;
     if (rawPhone) {
-      // Normalize phone number to E.164 format
       const phoneNumber = parsePhoneNumber(rawPhone, 'ZA');
       if (!phoneNumber || !phoneNumber.isValid()) {
         return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
@@ -121,18 +104,17 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true, user: updated });
   } catch (error) {
     console.error('Error updating user:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
-  const requestHeaders = request.headers;
-  const userRole = requestHeaders.get('x-user-role');
-  if (userRole !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
-  }
-
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
+    if (session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden: User is not an admin.' }, { status: 403 });
+    }
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -149,6 +131,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }

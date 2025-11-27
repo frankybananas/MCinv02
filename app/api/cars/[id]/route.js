@@ -11,11 +11,12 @@ import User from '@/models/User.ts';
 import WhatsAppGeneration from '@/models/WhatsAppGeneration.ts';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { requireSession, isPrivileged } from '@/lib/auth-session';
+import { requireSession, isPrivileged, verifyActiveSession } from '@/lib/auth-session';
 
 // GET handler
 export async function GET(request, { params }) {
   try {
+    await requireSession(request);
     await connectToDatabase();
     await request.blob();
     const { id } = await params;
@@ -34,14 +35,15 @@ export async function GET(request, { params }) {
 
 // PUT handler now supports both JSON (for status updates) and formData (for full edits)
 export async function PUT(request, { params }) {
-  const headersList = await headers();
-  const userPhone = headersList.get('x-user-phone');
-  const userName = headersList.get('x-user-name');
-  const userRole = headersList.get('x-user-role');
-
-  const { id } = await params;
-
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
+    const headersList = await headers();
+    const userPhone = headersList.get('x-user-phone');
+    const userName = headersList.get('x-user-name');
+    const userRole = headersList.get('x-user-role');
+
+    const { id } = await params;
     const contentType = request.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
@@ -344,9 +346,9 @@ export async function PUT(request, { params }) {
 // DELETE handler
 export async function DELETE(request, { params }) {
   try {
-    await connectToDatabase();
-    // Ensure session and admin privilege
     const session = await requireSession(request);
+    await verifyActiveSession(session);
+    await connectToDatabase();
     if (!isPrivileged({ ...session, role: session.role })) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }

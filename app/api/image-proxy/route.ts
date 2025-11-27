@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSession } from '@/lib/auth-session'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireSession(request)
     const { searchParams } = new URL(request.url)
     const src = searchParams.get('src')
 

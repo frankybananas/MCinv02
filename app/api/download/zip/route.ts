@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import JSZip from 'jszip'
+import { requireSession } from '@/lib/auth-session'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,6 +12,7 @@ interface ZipRequestBody {
 
 export async function POST(request: Request) {
   try {
+    await requireSession(request)
     const body = (await request.json()) as ZipRequestBody
     const { urls, filenamePrefix = 'images' } = body || {}
 

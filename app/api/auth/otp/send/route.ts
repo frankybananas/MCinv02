@@ -3,7 +3,9 @@ import { Twilio } from 'twilio';
 import parsePhoneNumber from 'libphonenumber-js';
 import User from '@/models/User';
 import { connect } from '@/lib/mongodb';
-import { createTestUser, getTestOtp } from '@/lib/test-accounts';
+import { createTestUser, getTestOtp, getTestPhoneNumbers } from '@/lib/test-accounts';
+import { checkOtpRateLimit } from '@/lib/rate-limit';
+import { TooManyRequestsError } from '@/lib/errors';
 
 export async function POST(req: Request) {
   try {
@@ -23,24 +25,33 @@ export async function POST(req: Request) {
 
     const phone = phoneNumber.format('E.164'); // Normalize to E.164
 
-    // Handle test accounts
+    // Reject test phone numbers in production
+    if (process.env.NODE_ENV === 'production' && getTestPhoneNumbers().includes(phone)) {
+      return NextResponse.json({ error: 'This phone number is not allowed.' }, { status: 403 });
+    }
+
+    // Rate limiting: max 5 sends per phone per hour
+    await checkOtpRateLimit(phone, 'send');
+
+    // Handle test accounts (non-production only)
     const testOtp = getTestOtp(phone);
     if (testOtp) {
       await createTestUser(phone); // Ensure test user exists
-      console.log(`Test account login for ${phone}. OTP: ${testOtp}`);
+      // Only log OTP in non-production
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Test account login for ${phone}. OTP: ${testOtp}`);
+      }
       return NextResponse.json({ success: true, message: 'Test OTP sent', testOtp });
     }
 
     // For real users, check if they exist in the database
     const user = await User.findOne({ phone });
-    console.log(`Looking up user with phone: ${phone}, found:`, user ? `${user.profile?.firstName} ${user.profile?.lastName}` : 'NOT FOUND');
     if (!user) {
       return NextResponse.json({ error: 'This phone number is not authorized.' }, { status: 403 });
     }
     
     // Check if user is authorized
     if (!user.isAuthorized) {
-      console.log(`User ${phone} exists but is not authorized`);
       return NextResponse.json({ error: 'This account is not authorized to login.' }, { status: 403 });
     }
 
@@ -67,10 +78,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, message: 'OTP sent successfully.' });
 
   } catch (error) {
+    // Handle rate limit errors
+    if (error instanceof TooManyRequestsError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 429 });
+    }
     console.error('Error in /api/auth/otp/send:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
     const isDev = !process.env.NODE_ENV || process.env.NODE_ENV !== 'production';
     return NextResponse.json({ 
+      success: false,
       error: 'Failed to send OTP.', 
       details: isDev ? errorMessage : undefined 
     }, { status: 500 });

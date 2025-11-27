@@ -5,11 +5,13 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
+import { requireSession, verifyActiveSession } from '@/lib/auth-session';
 
 // The middleware now handles all authentication.
 
-export async function GET() {
+export async function GET(request) {
   try {
+    await requireSession(request);
     await connectToDatabase();
     const cars = await Car.find({}).sort({ createdAt: -1 }).populate('owner').populate('images');
     const formattedCars = cars.map(car => ({
@@ -25,6 +27,13 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
+    // Role check: only admin/manager/recon can create cars
+    const allowedRoles = ['admin', 'manager', 'recon'];
+    if (!allowedRoles.includes(session.role)) {
+      return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+    }
     await connectToDatabase();
     const headersList = await headers();
     const userPhone = headersList.get('x-user-phone');

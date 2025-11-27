@@ -4,7 +4,7 @@ import User, { type IUser } from '@/models/User'
 import Car from '@/models/Car'
 import Delivery from '@/models/Delivery'
 import Todo from '@/models/Todo'
-import { getSession } from '@/lib/auth-session'
+import { requireSession } from '@/lib/auth-session'
 import type { NotificationItem } from '@/app/types'
 import type { HydratedDocument, Types } from 'mongoose'
 
@@ -96,10 +96,7 @@ function buildCarNotificationId(prefix: string, carId: Types.ObjectId, timestamp
 
 export async function GET(request: Request) {
   try {
-    const session = await getSession(request)
-    if (!session?.phone) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+    const session = await requireSession(request)
 
     await connectDb()
 
@@ -284,8 +281,6 @@ export async function GET(request: Request) {
             description: `Happening ${scheduledText}`,
             createdAt: new Date(reminderCreatedMs).toISOString(),
             data: {
-              clientId: undefined,
-              matchId: undefined,
               todoId: String(todo._id),
             },
           })

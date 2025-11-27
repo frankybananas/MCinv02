@@ -1,23 +1,13 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import { jwtVerify } from 'jose'
 import { connect as connectDb } from '@/lib/mongodb'
 import Delivery from '@/models/Delivery'
 import User from '@/models/User'
 import Client from '@/models/Client'
 import '@/models/Car'
+import { requireSession, verifyActiveSession } from '@/lib/auth-session'
 
 export const runtime = 'nodejs'
-
-function parseCookie(header: string | null, name: string): string | null {
-  if (!header) return null
-  const parts = header.split(';')
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=')
-    if (k === name) return decodeURIComponent(rest.join('='))
-  }
-  return null
-}
 
 async function findOneLean(model: any, query: any) {
   const q = model.findOne(query)
@@ -25,61 +15,22 @@ async function findOneLean(model: any, query: any) {
   return await q
 }
 
-async function getUserIdFromRequest(request: Request): Promise<string | null> {
-  // Prefer explicit header when present (test/dev helpers)
-  const phoneHeader = request.headers.get('x-user-phone') || undefined
-  if (phoneHeader) {
-    try {
-      await connectDb()
-      const user = await (User as any).findOne({ phone: phoneHeader }).select('_id')
-      return user?._id?.toString() || null
-    } catch {
-      // Fall through to JWT if DB lookup fails
-    }
+async function getUserIdFromSession(session: { userId: string | null; phone: string }): Promise<string | null> {
+  if (session.userId && typeof session.userId === 'string' && /^[a-fA-F0-9]{24}$/.test(session.userId)) {
+    return session.userId
   }
-  const cookieHeader = request.headers.get('cookie')
-  const token = parseCookie(cookieHeader, 'session_token')
-  const jwtSecret = process.env.JWT_SECRET
-  if (!token || !jwtSecret) return null
-  try {
-    const secret = new TextEncoder().encode(jwtSecret)
-    const { payload } = await jwtVerify(token, secret)
-    let userId = (payload as any).userId as any
-    if (typeof userId !== 'undefined') {
-      if (typeof userId !== 'string') {
-        try {
-          if (userId?.data && Array.isArray(userId.data)) {
-            userId = Buffer.from(userId.data).toString('utf8')
-          } else if (ArrayBuffer.isView(userId)) {
-            userId = Buffer.from(userId as Uint8Array).toString('utf8')
-          } else if (typeof userId?.toString === 'function') {
-            userId = userId.toString()
-          }
-        } catch {}
-      }
-      if (typeof userId === 'string' && /^[a-fA-F0-9]{24}$/.test(userId)) {
-        return userId
-      }
-    }
-    const phone = (payload as any).phone as string | undefined
-    if (!phone) {
-      const phoneHeader = request.headers.get('x-user-phone') || undefined
-      if (!phoneHeader) return null
-      await connectDb()
-      const user2 = await (User as any).findOne({ phone: phoneHeader }).select('_id')
-      return user2?._id?.toString() || null
-    }
+  if (session.phone) {
     await connectDb()
-    const user = await (User as any).findOne({ phone }).select('_id')
+    const user = await (User as any).findOne({ phone: session.phone }).select('_id')
     return user?._id?.toString() || null
-  } catch {
-    return null
   }
+  return null
 }
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userId = await getUserIdFromRequest(request)
+    const session = await requireSession(request)
+    const userId = await getUserIdFromSession(session)
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     try { await (request as any).blob?.() } catch {}
     const { id } = await (params as any)
@@ -100,7 +51,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userId = await getUserIdFromRequest(request)
+    const session = await requireSession(request)
+    await verifyActiveSession(session)
+    const userId = await getUserIdFromSession(session)
     if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     try { await (request as any).clone?.().blob?.() } catch {}
     const { id } = await (params as any)

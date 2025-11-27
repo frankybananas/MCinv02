@@ -112,6 +112,6 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export const config = {
-  // Run on all paths; PUBLIC_PATHS above will early-return for assets and auth
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\.(?:png|jpg|jpeg|svg|gif|webp|ico)|manifest.json|docs).*)'],
+  // Run on all paths including /api; PUBLIC_PATHS above will early-return for assets and auth
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico)|manifest.json|docs|auth/login).*)'],
 };

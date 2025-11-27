@@ -4,36 +4,21 @@ import Client from '@/models/Client';
 import Phone from '@/models/Phone'; 
 import Car from '@/models/Car'; // Ensure Car model is registered
 import Document from '@/models/Document'; // Ensure Document model is registered
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
+import { requireSession, isPrivileged, verifyActiveSession } from '@/lib/auth-session';
 
 // The middleware now handles all authentication. 
 // These routes will only be reached if the user has a valid session token.
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const session = await requireSession(request);
     await connectToDatabase();
-    // Verify user and apply role-based filtering
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
 
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    const role = session.role || 'user';
+    const phone = session.phone;
 
-    let role = 'user';
-    let phone = '';
-    try {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-      role = (payload.role ?? 'user');
-      phone = (payload.phone ?? '');
-    } catch (_) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isPrivileged = role === 'admin' || role === 'manager';
-    const query = isPrivileged ? {} : { createdByPhone: phone };
+    const privileged = isPrivileged(session);
+    const query = privileged ? {} : { createdByPhone: phone };
     const clients = await Client.find(query).sort({ createdAt: -1 });
     return NextResponse.json({ success: true, data: clients });
   } catch (error) {
@@ -43,23 +28,12 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
     await connectToDatabase();
     const body = await request.json();
 
-    // Verify user creating the client
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-    let phone = '';
-    try {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-      phone = (payload.phone ?? '');
-    } catch (_) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    const phone = session.phone;
 
     Object.keys(body).forEach(key => {
       if (body[key] === '') delete body[key];

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { requireSession, verifyActiveSession } from '@/lib/auth-session'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   try {
+    const session = await requireSession(request)
+    await verifyActiveSession(session)
     const contentType = request.headers.get('content-type') || ''
     if (!contentType.includes('multipart/form-data')) {
       return NextResponse.json({ success: false, error: 'multipart/form-data required' }, { status: 400 })

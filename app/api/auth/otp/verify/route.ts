@@ -6,8 +6,10 @@ import parsePhoneNumber from 'libphonenumber-js';
 import { connect } from '@/lib/mongodb';
 import User from '@/models/User';
 import Session from '@/models/Session';
-import { getTestOtp } from '@/lib/test-accounts';
+import { getTestOtp, getTestPhoneNumbers } from '@/lib/test-accounts';
 import { Twilio } from 'twilio';
+import { checkOtpRateLimit } from '@/lib/rate-limit';
+import { TooManyRequestsError } from '@/lib/errors';
 
 export async function POST(request: Request) {
   const jwtSecret = process.env.JWT_SECRET;
@@ -41,14 +43,24 @@ export async function POST(request: Request) {
     }
     const phone = phoneNumber.format('E.164');
 
-    // 1. Handle test accounts by checking the code directly
+    // Reject test phone numbers in production
+    if (process.env.NODE_ENV === 'production' && getTestPhoneNumbers().includes(phone)) {
+      return NextResponse.json({ error: 'This phone number is not allowed.' }, { status: 403 });
+    }
+
+    // Rate limiting: max 10 verifies per phone per hour
+    await checkOtpRateLimit(phone, 'verify');
+
+    // 1. Handle test accounts by checking the code directly (non-production only)
     const testOtp = getTestOtp(phone);
     let isApproved = false;
 
     if (testOtp) {
       if (code === testOtp) {
         isApproved = true;
-        console.log(`Test OTP verification successful for ${phone}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`Test OTP verification successful for ${phone}`);
+        }
       } else {
         return NextResponse.json({ success: false, error: 'Invalid test OTP.' }, { status: 400 });
       }
@@ -133,7 +145,7 @@ export async function POST(request: Request) {
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // 7 days
         path: '/',
-        sameSite: 'lax' // Add sameSite for better compatibility
+        sameSite: 'strict' // Strict for better CSRF protection
       });
 
       return response;
@@ -142,8 +154,17 @@ export async function POST(request: Request) {
     }
 
   } catch (error) {
+    // Handle rate limit errors
+    if (error instanceof TooManyRequestsError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 429 });
+    }
     console.error('Error verifying OTP:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return NextResponse.json({ error: 'Failed to verify OTP.', details: errorMessage }, { status: 500 });
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to verify OTP.', 
+      details: isDev ? errorMessage : undefined 
+    }, { status: 500 });
   }
 }

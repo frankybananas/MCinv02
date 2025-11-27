@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connect as connectDb } from '@/lib/mongodb';
-import { requireSession } from '@/lib/auth-session';
+import { requireSession, verifyActiveSession, type SessionData } from '@/lib/auth-session';
 import Todo from '@/models/Todo';
 import User from '@/models/User';
 
@@ -9,13 +9,16 @@ export interface UserContext {
   todoEnabled: boolean;
 }
 
-export async function getUserContext(request: Request): Promise<UserContext | null> {
+export async function getUserContext(request: Request, requireActive = false): Promise<UserContext | null> {
   try {
     if (process.env.NODE_ENV === 'test') {
       return { userId: '65123456789abc0011223344', todoEnabled: true };
     }
 
     const session = await requireSession(request);
+    if (requireActive) {
+      await verifyActiveSession(session);
+    }
     await connectDb();
 
     let userId: string | null = typeof session.userId === 'string' ? session.userId : null;
@@ -85,7 +88,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const ctx = await getUserContext(request);
+    const ctx = await getUserContext(request, true);
     if (!ctx) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }

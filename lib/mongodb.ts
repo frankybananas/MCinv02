@@ -46,14 +46,19 @@ export async function connect(): Promise<Connection> {
       srvServiceName: 'mongodb', // Default SRV service name
     };
     
-    console.log('[MongoDB] Attempting connection...');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[MongoDB] Attempting connection...');
+    }
     cache.promise = mongoose.connect(MONGODB_URI, opts)
       .then((mongooseInstance) => {
-        console.log('[MongoDB] ✅ Connected successfully');
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[MongoDB] Connected successfully');
+        }
         return mongooseInstance.connection;
       })
       .catch((error) => {
-        console.error('[MongoDB] ❌ Connection failed:', error.message);
+        // Always log connection failures
+        console.error('[MongoDB] Connection failed:', error.message);
         if (error.message.includes('ESERVFAIL')) {
           console.error('[MongoDB] DNS resolution failed. Check:');
           console.error('  1. Docker DNS configuration');

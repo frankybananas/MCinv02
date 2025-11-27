@@ -3,33 +3,20 @@ import Client from '@/models/Client';
 import Delivery from '@/models/Delivery';
 import User from '@/models/User';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
+import { requireSession, isPrivileged as checkPrivileged, verifyActiveSession } from '@/lib/auth-session';
 
 // Get a single client by ID
 export async function GET(request, { params }) {
   try {
+    const session = await requireSession(request);
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
     // Use clone() because we also need to read the JSON body later.
     await request.clone().blob();
     const { id } = await params;
-    // Verify user
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-    let role = 'user';
-    let phone = '';
-    try {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-      role = (payload.role ?? 'user');
-      phone = (payload.phone ?? '');
-    } catch (_) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    
+    const role = session.role || 'user';
+    const phone = session.phone;
 
     const client = await Client.findById(id).populate({
       path: 'cars',
@@ -39,7 +26,7 @@ export async function GET(request, { params }) {
     if (!client) {
       return NextResponse.json({ success: false, message: 'Client not found' }, { status: 404 });
     }
-    const isPrivileged = role === 'admin' || role === 'manager';
+    const isPrivileged = checkPrivileged(session);
     if (!isPrivileged && client.createdByPhone && client.createdByPhone !== phone) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
@@ -92,27 +79,16 @@ export async function GET(request, { params }) {
 // Update a client by ID
 export async function PUT(request, { params }) {
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
     await request.clone().blob();
     const { id } = await params;
     const body = await request.json();
-    // Verify user
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-    let role = 'user';
-    let phone = '';
-    try {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-      role = (payload.role ?? 'user');
-      phone = (payload.phone ?? '');
-    } catch (_) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    
+    const role = session.role || 'user';
+    const phone = session.phone;
 
     // Build $set and $unset updates; ignore immutable/owner fields
     const set = {};
@@ -137,7 +113,7 @@ export async function PUT(request, { params }) {
     }
 
     // Enforce ownership for non-privileged users
-    const isPrivileged = role === 'admin' || role === 'manager';
+    const isPrivileged = checkPrivileged(session);
     const filter = isPrivileged ? { _id: id } : { _id: id, createdByPhone: phone };
 
     const update = {};
@@ -163,28 +139,17 @@ export async function PUT(request, { params }) {
 // Delete a client by ID
 export async function DELETE(request, { params }) {
   try {
+    const session = await requireSession(request);
+    await verifyActiveSession(session);
     await connectToDatabase();
     // Workaround for Next.js bug where params cannot be accessed without awaiting request
     await request.blob();
     const { id } = await params;
-    // Verify user
-    const cookieStore = await cookies();
-    const token = cookieStore.get('session_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-    let role = 'user';
-    let phone = '';
-    try {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-      role = (payload.role ?? 'user');
-      phone = (payload.phone ?? '');
-    } catch (_) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
+    
+    const role = session.role || 'user';
+    const phone = session.phone;
 
-    const isPrivileged = role === 'admin' || role === 'manager';
+    const isPrivileged = checkPrivileged(session);
     const filter = isPrivileged ? { _id: id } : { _id: id, createdByPhone: phone };
 
     const client = await Client.findOneAndDelete(filter);

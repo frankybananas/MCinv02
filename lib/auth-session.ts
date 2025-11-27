@@ -83,3 +83,30 @@ export function isPrivileged(session: SessionData | null | undefined): boolean {
 export function getRateLimitIdentity(session: SessionData): string {
   return session.phone
 }
+
+/**
+ * Verifies that the session is still active in the database.
+ * Should be called on write operations (POST/PUT/DELETE/PATCH).
+ * Throws UnauthorizedError if session is invalid or inactive.
+ */
+export async function verifyActiveSession(session: SessionData): Promise<void> {
+  // Skip DB check in test environment
+  if (process.env.NODE_ENV === 'test') {
+    return
+  }
+
+  const jti = session.payload.jti as string | undefined
+  if (!jti) {
+    throw new UnauthorizedError('Invalid session')
+  }
+
+  // Lazy import to avoid circular deps
+  const { connect } = await import('@/lib/mongodb')
+  const Session = (await import('@/models/Session')).default
+
+  await connect()
+  const active = await Session.findOne({ jwtId: jti, isActive: true })
+  if (!active) {
+    throw new UnauthorizedError('Invalid session')
+  }
+}
