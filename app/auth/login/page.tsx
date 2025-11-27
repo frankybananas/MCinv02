@@ -205,9 +205,6 @@ export default function LoginPage() {
                   onChange={(e) => setPhone(e.target.value)}
                   required
                 />
-                <p className="text-xs text-gray-500">
-                  For testing, use: +16505553434
-                </p>
               </div>
             </CardContent>
             <CardFooter>
@@ -232,9 +229,6 @@ export default function LoginPage() {
                   onChange={(e) => setOtp(e.target.value)}
                   required
                 />
-                 <p className="text-xs text-gray-500">
-                  For testing, use: 123456
-                </p>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
