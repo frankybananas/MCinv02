@@ -6,11 +6,21 @@
  * Target Coverage: 80%+
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-
 // Mock dependencies
 jest.mock('@/lib/mongodb', () => ({
   connect: jest.fn(async () => ({ connection: { readyState: 1 } })),
+}));
+
+// Mock auth-session - must be before imports
+let mockSessionRole = 'admin';
+jest.mock('@/lib/auth-session', () => ({
+  requireSession: jest.fn(async () => ({ 
+    phone: '+27821234567', 
+    userId: 'admin-user-id', 
+    role: mockSessionRole,
+    payload: { jti: 'test-jti' }
+  })),
+  verifyActiveSession: jest.fn(async () => {}),
 }));
 
 // In-memory user store - must be declared before jest.mock
@@ -73,12 +83,22 @@ jest.mock('@/models/User', () => {
 // Import route handlers after mocks
 import { GET, POST, PATCH, DELETE } from '@/app/api/admin/users/route';
 import User from '@/models/User';
+import { requireSession } from '@/lib/auth-session';
+
+const mockRequireSession = requireSession as jest.Mock;
 
 describe('Admin Users API Routes', () => {
   beforeEach(() => {
     // Clear store
     usersStore.length = 0;
     userIdCounter = 1;
+    // Reset to admin role
+    mockRequireSession.mockResolvedValue({
+      phone: '+27821234567',
+      userId: 'admin-user-id',
+      role: 'admin',
+      payload: { jti: 'test-jti' }
+    });
     
     // Add test users with valid SA phone numbers
     usersStore.push({
@@ -124,9 +144,15 @@ describe('Admin Users API Routes', () => {
     });
 
     it('should return 403 for non-admin users', async () => {
+      mockRequireSession.mockResolvedValueOnce({
+        phone: '+27821234567',
+        userId: 'user-id',
+        role: 'user',
+        payload: { jti: 'test-jti' }
+      });
+      
       const request = new Request('http://localhost:3000/api/admin/users', {
         method: 'GET',
-        headers: { 'x-user-role': 'user' },
       });
 
       const response = await GET(request);
@@ -136,7 +162,14 @@ describe('Admin Users API Routes', () => {
       expect(data.error).toContain('Forbidden');
     });
 
-    it('should return 403 when no role header', async () => {
+    it('should return 403 for manager role', async () => {
+      mockRequireSession.mockResolvedValueOnce({
+        phone: '+27821234567',
+        userId: 'manager-id',
+        role: 'manager',
+        payload: { jti: 'test-jti' }
+      });
+      
       const request = new Request('http://localhost:3000/api/admin/users', {
         method: 'GET',
       });
@@ -215,12 +248,16 @@ describe('Admin Users API Routes', () => {
     });
 
     it('should return 403 for non-admin users', async () => {
+      mockRequireSession.mockResolvedValueOnce({
+        phone: '+27821234567',
+        userId: 'user-id',
+        role: 'user',
+        payload: { jti: 'test-jti' }
+      });
+      
       const request = new Request('http://localhost:3000/api/admin/users', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': 'user',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: '0823456789',
           firstName: 'Test',
@@ -444,12 +481,16 @@ describe('Admin Users API Routes', () => {
     });
 
     it('should return 403 for non-admin users', async () => {
+      mockRequireSession.mockResolvedValueOnce({
+        phone: '+27821234567',
+        userId: 'user-id',
+        role: 'user',
+        payload: { jti: 'test-jti' }
+      });
+      
       const request = new Request('http://localhost:3000/api/admin/users', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': 'user',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: 'user1',
           matchingEnabled: false,
@@ -504,9 +545,15 @@ describe('Admin Users API Routes', () => {
     });
 
     it('should return 403 for non-admin users', async () => {
+      mockRequireSession.mockResolvedValueOnce({
+        phone: '+27821234567',
+        userId: 'user-id',
+        role: 'user',
+        payload: { jti: 'test-jti' }
+      });
+      
       const request = new Request('http://localhost:3000/api/admin/users?userId=user1', {
         method: 'DELETE',
-        headers: { 'x-user-role': 'user' },
       });
 
       const response = await DELETE(request);

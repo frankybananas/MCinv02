@@ -91,7 +91,6 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
               {data.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={data.avatar} alt="avatar" className="h-full w-full object-cover" />
               ) : (
                 <span className="text-sm text-gray-400">No Image</span>

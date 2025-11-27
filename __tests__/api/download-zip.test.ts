@@ -1,3 +1,13 @@
+// Mock auth-session
+jest.mock('@/lib/auth-session', () => ({
+  requireSession: jest.fn(async () => ({ 
+    phone: '+27821234567', 
+    userId: 'user-id', 
+    role: 'user',
+    payload: { jti: 'test-jti' }
+  })),
+}));
+
 import { POST } from '@/app/api/download/zip/route'
 
 // Mock global fetch used inside the API route to download remote images

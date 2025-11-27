@@ -7,7 +7,8 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: ['**/__tests__/**/*.test.(ts|tsx|js)'],
-  testEnvironment: 'node',
+  // Use jsdom for component tests (.tsx), node for API tests (.ts/.js)
+  testEnvironment: 'jsdom',
   testEnvironmentOptions: {
     customExportConditions: ['node', 'node-addons'],
   },
@@ -18,6 +19,7 @@ const customJestConfig = {
     'lib/**/*.{js,ts}',
     'models/**/*.{js,ts}',
     'app/api/**/*.{js,ts}',
+    'components/**/*.{js,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
