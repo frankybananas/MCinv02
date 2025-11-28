@@ -28,7 +28,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: '*',
+            value: process.env.ALLOWED_ORIGIN || 'https://htg.lotlynx.app',
           },
           {
             key: 'Access-Control-Allow-Methods',

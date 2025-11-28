@@ -6,6 +6,7 @@ import { connect } from '@/lib/mongodb';
 import { createTestUser, getTestOtp, getTestPhoneNumbers } from '@/lib/test-accounts';
 import { checkOtpRateLimit } from '@/lib/rate-limit';
 import { TooManyRequestsError } from '@/lib/errors';
+import { logAuthEvent, getClientIp, getDeviceType } from '@/lib/audit-logger';
 
 export async function POST(req: Request) {
   try {
@@ -37,11 +38,11 @@ export async function POST(req: Request) {
     const testOtp = getTestOtp(phone);
     if (testOtp) {
       await createTestUser(phone); // Ensure test user exists
-      // Only log OTP in non-production
+      // SECURITY: Only log OTP to server console, never expose in response
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`Test account login for ${phone}. OTP: ${testOtp}`);
+        console.log(`[TEST OTP] Phone: ${phone}, Code: ${testOtp}`);
       }
-      return NextResponse.json({ success: true, message: 'Test OTP sent', testOtp });
+      return NextResponse.json({ success: true, message: 'Test OTP sent' });
     }
 
     // For real users, check if they exist in the database
@@ -75,11 +76,32 @@ export async function POST(req: Request) {
       .verifications
       .create({ to: phone, channel: 'sms' });
 
+    // Log successful OTP send
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    logAuthEvent({
+      event: 'otp_sent',
+      phone,
+      userId: String(user._id),
+      ip: getClientIp(req),
+      userAgent,
+      deviceType: getDeviceType(userAgent),
+      success: true,
+    });
+
     return NextResponse.json({ success: true, message: 'OTP sent successfully.' });
 
   } catch (error) {
     // Handle rate limit errors
     if (error instanceof TooManyRequestsError) {
+      // Log rate limit event
+      logAuthEvent({
+        event: 'rate_limited',
+        phone: 'unknown',
+        ip: getClientIp(req),
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        success: false,
+        reason: error.message,
+      });
       return NextResponse.json({ success: false, error: error.message }, { status: 429 });
     }
     console.error('Error in /api/auth/otp/send:', error);

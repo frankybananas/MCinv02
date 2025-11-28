@@ -60,6 +60,21 @@ export async function middleware(request: NextRequest) {
       return res;
     }
 
+    // Token age check: warn in logs if token is getting old (for monitoring)
+    const tokenIssuedAt = (payload as any).iat as number | undefined;
+    if (tokenIssuedAt) {
+      const tokenAgeHours = (now - tokenIssuedAt * 1000) / (60 * 60 * 1000);
+      if (tokenAgeHours > 144) { // > 6 days
+        console.log(JSON.stringify({
+          type: 'AUTH_WARNING',
+          event: 'token_expiring_soon',
+          phone: (payload as any).phone,
+          tokenAgeHours: Math.round(tokenAgeHours),
+          timestamp: new Date().toISOString(),
+        }));
+      }
+    }
+
     // Role-based authorization for admin panel
     if (ADMIN_PATHS.some((p) => pathname.startsWith(p))) {
       if (payload.role !== 'admin') {
@@ -92,7 +107,7 @@ export async function middleware(request: NextRequest) {
       }
     });
 
-  } catch (err) {
+  } catch (_err) {
     // Invalid / expired JWT
     return redirectToLogin(request);
   }

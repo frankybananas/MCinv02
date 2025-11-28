@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
-import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 import parsePhoneNumber from 'libphonenumber-js';
 import { connect } from '@/lib/mongodb';
@@ -8,8 +7,9 @@ import User from '@/models/User';
 import Session from '@/models/Session';
 import { getTestOtp, getTestPhoneNumbers } from '@/lib/test-accounts';
 import { Twilio } from 'twilio';
-import { checkOtpRateLimit } from '@/lib/rate-limit';
+import { checkOtpBlock, recordOtpFailure, resetOtpBlock } from '@/lib/rate-limit';
 import { TooManyRequestsError } from '@/lib/errors';
+import { logAuthEvent, getClientIp, getDeviceType } from '@/lib/audit-logger';
 
 export async function POST(request: Request) {
   const jwtSecret = process.env.JWT_SECRET;
@@ -48,8 +48,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This phone number is not allowed.' }, { status: 403 });
     }
 
-    // Rate limiting: max 10 verifies per phone per hour
-    await checkOtpRateLimit(phone, 'verify');
+    // Progressive blocking: check if phone is blocked
+    await checkOtpBlock(phone);
 
     // 1. Handle test accounts by checking the code directly (non-production only)
     const testOtp = getTestOtp(phone);
@@ -62,6 +62,18 @@ export async function POST(request: Request) {
           console.log(`Test OTP verification successful for ${phone}`);
         }
       } else {
+        // Record failed attempt for progressive blocking
+        await recordOtpFailure(phone);
+        const ua = request.headers.get('user-agent') || 'unknown';
+        logAuthEvent({
+          event: 'login_failure',
+          phone,
+          ip: getClientIp(request),
+          userAgent: ua,
+          deviceType: getDeviceType(ua),
+          success: false,
+          reason: 'Invalid test OTP',
+        });
         return NextResponse.json({ success: false, error: 'Invalid test OTP.' }, { status: 400 });
       }
     } else {
@@ -72,6 +84,18 @@ export async function POST(request: Request) {
       if (verificationCheck.status === 'approved') {
         isApproved = true;
       } else {
+        // Record failed attempt for progressive blocking
+        await recordOtpFailure(phone);
+        const ua = request.headers.get('user-agent') || 'unknown';
+        logAuthEvent({
+          event: 'login_failure',
+          phone,
+          ip: getClientIp(request),
+          userAgent: ua,
+          deviceType: getDeviceType(ua),
+          success: false,
+          reason: 'Invalid OTP',
+        });
         return NextResponse.json({ success: false, error: 'Invalid OTP.' }, { status: 400 });
       }
     }
@@ -79,6 +103,9 @@ export async function POST(request: Request) {
     // 2. If approved, proceed with session creation
     if (isApproved) {
       await connect();
+
+      // Reset progressive blocking on successful login
+      await resetOtpBlock(phone);
 
       // 3. Find user and enforce device limits
       const user = await User.findOne({ phone });
@@ -138,7 +165,18 @@ export async function POST(request: Request) {
       });
       await newSession.save();
 
-      // 6. Create the response and set the cookie
+      // 6. Log successful login
+      logAuthEvent({
+        event: 'login_success',
+        phone,
+        userId: String(user._id),
+        ip: getClientIp(request),
+        userAgent: ua,
+        deviceType,
+        success: true,
+      });
+
+      // 7. Create the response and set the cookie
       const response = NextResponse.json({ success: true, message: 'OTP verified successfully.', user: { role: user.role } });
       response.cookies.set('session_token', token, {
         httpOnly: true,
@@ -156,6 +194,14 @@ export async function POST(request: Request) {
   } catch (error) {
     // Handle rate limit errors
     if (error instanceof TooManyRequestsError) {
+      logAuthEvent({
+        event: 'blocked',
+        phone: 'unknown',
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        success: false,
+        reason: error.message,
+      });
       return NextResponse.json({ success: false, error: error.message }, { status: 429 });
     }
     console.error('Error verifying OTP:', error);
