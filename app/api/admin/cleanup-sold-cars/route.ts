@@ -62,7 +62,23 @@ export async function POST(request: Request) {
         const Delivery = (await import('@/models/Delivery')).default;
         const delivery: any = await Delivery.findOne({ car: (car as any)._id }).lean();
 
-        // Create archive record
+        // Identify Cover and VIN images to preserve
+        const images = Array.isArray(car.images) ? car.images : [];
+        const coverIdx = typeof car.coverImageIndex === 'number' ? car.coverImageIndex : 0;
+        const vinIdx = typeof car.vinImageIndex === 'number' ? car.vinImageIndex : null;
+        
+        // Get Cover image (defaults to first image if coverImageIndex not set)
+        const coverImage = images[coverIdx] || images[0] || null;
+        // Get VIN image if specified
+        const vinImage = vinIdx !== null ? images[vinIdx] : null;
+        
+        // Extract preserved image URLs
+        const coverImageUrl = coverImage?.imageUrl || null;
+        const coverThumbnailUrl = coverImage?.thumbnailUrl || null;
+        const vinImageUrl = vinImage?.imageUrl || null;
+        const vinThumbnailUrl = vinImage?.thumbnailUrl || null;
+        
+        // Create archive record with preserved images
         const soldCarRecord = new SoldCar({
           originalCarId: (car as any)._id.toString(),
           make: car.make,
@@ -78,28 +94,41 @@ export async function POST(request: Request) {
           finalPrice: car.price,
           customerName: delivery?.customerName || null,
           notes: car.notes || null,
+          // Preserved images
+          coverImageUrl,
+          coverThumbnailUrl,
+          vinImageUrl,
+          vinThumbnailUrl,
         });
 
         await soldCarRecord.save();
         archivedCount.cars++;
 
-        // Delete images from R2
-        const images = Array.isArray(car.images) ? car.images : [];
+        // Delete images from R2 (except Cover and VIN)
         const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
+        
+        // Collect URLs to preserve (don't delete from R2)
+        const preservedUrls = new Set<string>([
+          coverImageUrl, coverThumbnailUrl, vinImageUrl, vinThumbnailUrl
+        ].filter(Boolean) as string[]);
 
-        for (const pic of images) {
+        for (let i = 0; i < images.length; i++) {
+          const pic = images[i];
           try {
             if (!pic || typeof pic !== 'object') continue;
 
             const imageUrl = (pic as any).imageUrl || '';
             const thumbnailUrl = (pic as any).thumbnailUrl || '';
+            
+            // Check if this image should be preserved
+            const isPreserved = preservedUrls.has(imageUrl) || preservedUrls.has(thumbnailUrl);
 
-            // Delete from R2
-            if (process.env.R2_BUCKET_NAME) {
+            // Delete from R2 only if not preserved
+            if (process.env.R2_BUCKET_NAME && !isPreserved) {
               const { s3 } = await import('@/lib/s3');
               
               for (const url of [imageUrl, thumbnailUrl]) {
-                if (!url) continue;
+                if (!url || preservedUrls.has(url)) continue;
                 
                 let key = '';
                 if (publicBase && url.startsWith(publicBase + '/')) {
@@ -123,7 +152,7 @@ export async function POST(request: Request) {
               }
             }
 
-            // Delete Picture document
+            // Delete Picture document (all of them, URLs are preserved in SoldCar)
             if ((pic as any)._id) {
               await Picture.findByIdAndDelete((pic as any)._id);
             }

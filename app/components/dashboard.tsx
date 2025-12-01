@@ -105,6 +105,19 @@ export function Dashboard({
     const kmOf = (c: any) => (typeof c?.kilometers === 'number' ? c.kilometers : (typeof c?.mileage === 'number' ? c.mileage : 0))
     const arr = [...cars]
     arr.sort((a, b) => {
+      // Always push SOLD cars to the bottom of the list (unless viewing "sold" tab specifically)
+      const aIsSold = a.status === 'sold'
+      const bIsSold = b.status === 'sold'
+      if (aIsSold !== bIsSold) {
+        return aIsSold ? 1 : -1 // Sold cars go to end
+      }
+      // Among sold cars, sort by soldAt (most recently sold first)
+      if (aIsSold && bIsSold) {
+        const aSoldAt = new Date((a as any).soldAt ?? 0).getTime()
+        const bSoldAt = new Date((b as any).soldAt ?? 0).getTime()
+        return bSoldAt - aSoldAt // Most recent sold first
+      }
+      // Normal sorting for non-sold cars
       switch (sortKey) {
         case 'recent': {
           const da = new Date((a as any).createdAt ?? 0).getTime()

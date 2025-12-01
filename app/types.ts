@@ -150,6 +150,8 @@ export interface Car {
   // Image role indices for persistent ordering
   coverImageIndex?: number | null
   vinImageIndex?: number | null
+  // Timestamp when car was marked as sold
+  soldAt?: string | null
 }
 
 export interface Interaction {

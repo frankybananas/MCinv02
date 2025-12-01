@@ -48,6 +48,11 @@ interface SoldCar {
   soldByUserName?: string;
   deliveryDate?: string;
   customerName?: string;
+  // Preserved images
+  coverImageUrl?: string;
+  coverThumbnailUrl?: string;
+  vinImageUrl?: string;
+  vinThumbnailUrl?: string;
 }
 
 export default function StorageMonitor() {
@@ -394,30 +399,60 @@ export default function StorageMonitor() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
+                  <th className="text-left py-3 px-4 font-medium">Cover</th>
+                  <th className="text-left py-3 px-4 font-medium">VIN</th>
                   <th className="text-left py-3 px-4 font-medium">Sold Date</th>
                   <th className="text-left py-3 px-4 font-medium">Vehicle</th>
-                  <th className="text-left py-3 px-4 font-medium">Year</th>
                   <th className="text-right py-3 px-4 font-medium">Price</th>
                   <th className="text-left py-3 px-4 font-medium">Sold By</th>
                   <th className="text-left py-3 px-4 font-medium">Customer</th>
-                  <th className="text-left py-3 px-4 font-medium">Delivery</th>
                 </tr>
               </thead>
               <tbody>
                 {soldCars.map((car) => (
                   <tr key={car._id} className="border-b hover:bg-muted/50">
+                    <td className="py-2 px-4">
+                      {car.coverThumbnailUrl || car.coverImageUrl ? (
+                        <a href={car.coverImageUrl} target="_blank" rel="noopener noreferrer">
+                          <img 
+                            src={car.coverThumbnailUrl || car.coverImageUrl} 
+                            alt="Cover" 
+                            className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80"
+                          />
+                        </a>
+                      ) : (
+                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">N/A</div>
+                      )}
+                    </td>
+                    <td className="py-2 px-4">
+                      {car.vinThumbnailUrl || car.vinImageUrl ? (
+                        <a href={car.vinImageUrl} target="_blank" rel="noopener noreferrer">
+                          <img 
+                            src={car.vinThumbnailUrl || car.vinImageUrl} 
+                            alt="VIN" 
+                            className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80"
+                          />
+                        </a>
+                      ) : (
+                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">N/A</div>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-sm">{formatDate(car.soldDate)}</td>
                     <td className="py-3 px-4">
-                      {car.make} {car.carModel}
+                      <div className="font-medium">{car.make} {car.carModel}</div>
+                      <div className="text-sm text-muted-foreground">{car.year}</div>
                     </td>
-                    <td className="py-3 px-4">{car.year}</td>
                     <td className="py-3 px-4 text-right font-mono">
                       R{car.price.toLocaleString()}
                     </td>
                     <td className="py-3 px-4 text-sm">{car.soldByUserName || 'N/A'}</td>
-                    <td className="py-3 px-4 text-sm">{car.customerName || 'N/A'}</td>
                     <td className="py-3 px-4 text-sm">
-                      {car.deliveryDate ? formatDate(car.deliveryDate) : 'N/A'}
+                      <div>{car.customerName || 'N/A'}</div>
+                      {car.deliveryDate && (
+                        <div className="text-xs text-muted-foreground">
+                          Delivered: {formatDate(car.deliveryDate)}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

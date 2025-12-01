@@ -15,6 +15,11 @@ export interface ISoldCar extends Document {
   finalPrice?: number; // In case price changed at sale
   customerName?: string;
   notes?: string;
+  // Preserved images from archive (Cover + VIN only)
+  coverImageUrl?: string;
+  coverThumbnailUrl?: string;
+  vinImageUrl?: string;
+  vinThumbnailUrl?: string;
   archivedAt: Date;
   createdAt: Date;
 }
@@ -34,6 +39,11 @@ const SoldCarSchema = new Schema<ISoldCar>({
   finalPrice: { type: Number },
   customerName: { type: String, trim: true },
   notes: { type: String, trim: true },
+  // Preserved images from archive (Cover + VIN only)
+  coverImageUrl: { type: String },
+  coverThumbnailUrl: { type: String },
+  vinImageUrl: { type: String },
+  vinThumbnailUrl: { type: String },
   archivedAt: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },
 });

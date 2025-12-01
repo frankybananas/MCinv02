@@ -16,8 +16,8 @@ export async function GET(request: Request) {
     await connect();
     
     const user = await User.findOne({ phone: session.phone });
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+    if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
+      return NextResponse.json({ error: 'Forbidden - Manager or Admin access required' }, { status: 403 });
     }
 
     // Parse query parameters
