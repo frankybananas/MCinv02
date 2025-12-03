@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { DashboardTab } from "../types";
 import {
@@ -52,25 +53,32 @@ function MainMenuComponent({
   className,
   onAdminNavigate,
 }: MainMenuProps) {
+  const router = useRouter();
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  
   const handleAdminNavigate = React.useCallback(() => {
     if (typeof onAdminNavigate === "function") {
       onAdminNavigate();
       return;
     }
     try {
-      window.location.href = "/admin";
+      router.push("/admin");
     } catch (error) {
       console.error("Navigation to admin failed", error);
+      // Fallback
+      window.location.href = "/admin";
     }
-  }, [onAdminNavigate]);
+  }, [onAdminNavigate, router]);
+
   const handleReconNavigate = React.useCallback(() => {
     try {
-      window.location.href = "/recon";
+      router.push("/recon");
     } catch (error) {
       console.error("Navigation to recon failed", error);
+      // Fallback
+      window.location.href = "/recon";
     }
-  }, []);
+  }, [router]);
 
   const menuItems = React.useMemo<MenuItem[]>(() => {
     const items: MenuItem[] = [
@@ -94,21 +102,23 @@ function MainMenuComponent({
       items.push({ id: "todo", label: "TODO", icon: Calendar });
     }
 
-    // Add marketing after TODO when enabled
-    if (marketingEnabled) {
+    // Add marketing after TODO when enabled or active
+    if (marketingEnabled || activeStatus === "marketing") {
       items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
     }
 
-    if (userRole === "admin" || userRole === "manager" || userRole === "recon") {
+    // Add Recon if role permits OR if we are currently on the Recon page
+    if (activeStatus === ("recon" as any) || userRole === "admin" || userRole === "manager" || userRole === "recon") {
       items.push({ id: "recon" as any, label: "Recon", icon: Wrench });
     }
 
-    if (userRole === "admin") {
+    // Add Admin if role permits OR if we are currently on the Admin page
+    if (activeStatus === ("admin" as any) || userRole === "admin") {
       items.push({ id: "admin", label: "Admin", icon: Shield });
     }
 
     return items;
-  }, [todoEnabled, marketingEnabled, unreadNotificationsCount, userRole]);
+  }, [todoEnabled, marketingEnabled, unreadNotificationsCount, userRole, activeStatus]);
 
   React.useEffect(() => {
     try {
