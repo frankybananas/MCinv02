@@ -141,12 +141,6 @@ function MainMenuComponent({
         className,
       )}
     >
-      {/* DEBUG OVERLAY */}
-      <div className="fixed left-0 top-1/2 bg-black/80 text-white p-2 text-[10px] z-[9999] pointer-events-none">
-        Status: {activeStatus}<br/>
-        Role: {String(userRole)}
-      </div>
-
       <div className="pointer-events-auto w-full max-w-4xl pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <nav
           aria-label="Primary navigation"
