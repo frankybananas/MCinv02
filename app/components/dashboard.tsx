@@ -393,19 +393,22 @@ export function Dashboard({
                 </div>
               ) : (
                 <>
-                  {/* Sort */}
-                  <div className="flex justify-end mb-3">
+                  {/* Sort & Count Header */}
+                  <div className="flex items-center justify-between mb-4 pt-2 px-0.5">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {sortedCars.length} {sortedCars.length === 1 ? 'Vehicle' : 'Vehicles'}
+                    </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="secondary"
                           size="sm"
-                          className="h-9 rounded-md px-4 shrink-0"
-                      >
-                        Sort: {currentSortLabel}
-                        <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
+                          className="h-9 gap-1.5 rounded-lg px-4 shadow-sm transition-all hover:bg-secondary/80"
+                        >
+                          <span>Sort: {currentSortLabel}</span>
+                          <span className="opacity-60 text-xs">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
                       <DropdownMenuLabel>Sort by</DropdownMenuLabel>
                       <DropdownMenuSeparator />
