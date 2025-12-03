@@ -8,15 +8,24 @@ import { MainMenu } from '@/app/components/main-menu';
 import Recon from '@/app/components/recon';
 import type { DashboardTab, NotificationItem } from '@/app/types';
 
+import { useRouter } from 'next/navigation';
+
 const LAST_ACTIVE_TAB_STORAGE_KEY = 'mcinv:last-active-tab';
 
 const reconTab: DashboardTab = 'recon';
 
 export default function ReconPageShell() {
+  const router = useRouter();
   const [unreadNotificationsCount, setUnreadNotificationsCount] = React.useState(0);
   const [todoEnabled, setTodoEnabled] = React.useState(false);
   const [marketingEnabled, setMarketingEnabled] = React.useState(false);
-  const [userRole, setUserRole] = React.useState<string | null>('recon');
+  // Initialize from localStorage to prevent flicker
+  const [userRole, setUserRole] = React.useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem('mcinv:user-role') || 'recon';
+    }
+    return 'recon';
+  });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -31,7 +40,12 @@ export default function ReconPageShell() {
 
         setTodoEnabled(data?.todoEnabled === true);
         setMarketingEnabled(data?.marketingEnabled === true);
-        setUserRole(typeof data?.role === 'string' ? data.role : 'recon');
+        const role = typeof data?.role === 'string' ? data.role : 'recon';
+        setUserRole(role);
+        // Update storage with fresh role
+        if (role && typeof window !== 'undefined') {
+          window.localStorage.setItem('mcinv:user-role', role);
+        }
 
         try {
           const notificationsRes = await fetch('/api/notifications');
@@ -61,11 +75,12 @@ export default function ReconPageShell() {
     try {
       if (typeof window === 'undefined') return;
       window.localStorage.setItem(LAST_ACTIVE_TAB_STORAGE_KEY, tab);
-      window.location.href = '/';
+      router.push('/');
     } catch (error) {
       console.error('Failed to navigate from recon menu', error);
+      window.location.href = '/';
     }
-  }, []);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-background pb-[calc(7.5rem+env(safe-area-inset-bottom))]">

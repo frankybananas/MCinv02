@@ -418,7 +418,13 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
             if (typeof data?.notificationsLastSeenAt === 'string') setNotificationsLastSeenAt(data.notificationsLastSeenAt);
             setTodoEnabled(data?.todoEnabled === true);
             setMarketingEnabled(data?.marketingEnabled === true);
-            setRole(typeof data?.role === 'string' ? data.role : null);
+            const userRole = typeof data?.role === 'string' ? data.role : null;
+            setRole(userRole);
+            if (userRole) {
+              try {
+                window.localStorage.setItem('mcinv:user-role', userRole);
+              } catch {}
+            }
             setAuthChecked(true);
           }
         } else {
@@ -860,7 +866,7 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           onStatusChange={handleStatusChange as (carId: string, status: CarState) => void}
           onClientSelect={handleClientSelect}
           onClientDelete={handleClientDelete}
-          onLogout={handleLogout}
+          _onLogout={handleLogout}
           userRole={role}
           deliveries={deliveries}
           onDeliverySelect={(d) => { setSelectedDelivery(d); setSelectedCar(null); setSelectedClient(null); }}
@@ -868,8 +874,8 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           unreadNotificationsCount={unreadNotificationsCount}
           todoEnabled={todoEnabled}
           marketingEnabled={marketingEnabled}
-          onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
-          onNotificationDone={handleNotificationDone}
+          _onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+          _onNotificationDone={handleNotificationDone}
           onNotificationSelect={async (n) => {
             try {
               if (n?.data?.deliveryId) {

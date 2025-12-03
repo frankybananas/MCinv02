@@ -12,14 +12,20 @@ import { MainMenu } from '@/app/components/main-menu';
 import type { DashboardTab, NotificationItem } from '@/app/types';
 
 const LAST_ACTIVE_TAB_STORAGE_KEY = 'mcinv:last-active-tab';
-const adminTab: DashboardTab = 'admin' as any;
+const adminTab: DashboardTab = 'admin';
 
 export default function AdminPageShell() {
   const router = useRouter();
   const [unreadNotificationsCount, setUnreadNotificationsCount] = React.useState(0);
   const [todoEnabled, setTodoEnabled] = React.useState(false);
   const [marketingEnabled, setMarketingEnabled] = React.useState(false);
-  const [userRole, setUserRole] = React.useState<string | null>('admin');
+  // Initialize from localStorage to prevent flicker
+  const [userRole, setUserRole] = React.useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem('mcinv:user-role') || 'admin';
+    }
+    return 'admin';
+  });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -34,7 +40,12 @@ export default function AdminPageShell() {
 
         setTodoEnabled(data?.todoEnabled === true);
         setMarketingEnabled(data?.marketingEnabled === true);
-        setUserRole(typeof data?.role === 'string' ? data.role : 'admin');
+        const role = typeof data?.role === 'string' ? data.role : 'admin';
+        setUserRole(role);
+        // Update storage with fresh role
+        if (role && typeof window !== 'undefined') {
+          window.localStorage.setItem('mcinv:user-role', role);
+        }
 
         try {
           const notificationsRes = await fetch('/api/notifications');
