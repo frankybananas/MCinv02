@@ -109,7 +109,7 @@ function MainMenuComponent({
 
     // Add Recon if role permits OR if we are currently on the Recon page
     if (activeStatus === "recon" || userRole === "admin" || userRole === "manager" || userRole === "recon") {
-      items.push({ id: "recon" as any, label: "Recon", icon: Wrench });
+      items.push({ id: "recon", label: "Recon", icon: Wrench });
     }
 
     // Add Admin if role permits OR if we are currently on the Admin page
@@ -141,6 +141,12 @@ function MainMenuComponent({
         className,
       )}
     >
+      {/* DEBUG OVERLAY */}
+      <div className="fixed left-0 top-1/2 bg-black/80 text-white p-2 text-[10px] z-[9999] pointer-events-none">
+        Status: {activeStatus}<br/>
+        Role: {String(userRole)}
+      </div>
+
       <div className="pointer-events-auto w-full max-w-4xl pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <nav
           aria-label="Primary navigation"
@@ -165,7 +171,7 @@ function MainMenuComponent({
                           handleAdminNavigate();
                           return;
                         }
-                        if (item.id === ("recon" as any)) {
+                        if (item.id === "recon") {
                           handleReconNavigate();
                           return;
                         }

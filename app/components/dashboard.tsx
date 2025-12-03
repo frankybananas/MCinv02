@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import React from 'react'
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -65,6 +66,7 @@ export function Dashboard({
   marketingEnabled = false,
   _onMarkAllNotificationsRead
 }: DashboardProps) {
+  const router = useRouter()
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -76,14 +78,13 @@ export function Dashboard({
   const showMarketing = activeStatus === "marketing"
   const handleAdminNavigate = React.useCallback(() => {
     try {
-      const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : null
-      if (globalWindow) {
-        globalWindow.location.href = "/admin"
-      }
+      router.push("/admin")
     } catch (error) {
       console.error("Navigation to admin failed", error)
+      // Fallback
+      if (typeof window !== 'undefined') window.location.href = "/admin"
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (showTodo && fabOpen) {
