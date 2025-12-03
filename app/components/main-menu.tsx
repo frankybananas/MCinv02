@@ -30,7 +30,7 @@ interface MainMenuProps {
   onAdminNavigate?: () => void;
 }
 
-type MenuItemId = DashboardTab | "admin";
+type MenuItemId = DashboardTab;
 
 type MenuItem = {
   id: MenuItemId;
@@ -108,12 +108,12 @@ function MainMenuComponent({
     }
 
     // Add Recon if role permits OR if we are currently on the Recon page
-    if (activeStatus === ("recon" as any) || userRole === "admin" || userRole === "manager" || userRole === "recon") {
+    if (activeStatus === "recon" || userRole === "admin" || userRole === "manager" || userRole === "recon") {
       items.push({ id: "recon" as any, label: "Recon", icon: Wrench });
     }
 
     // Add Admin if role permits OR if we are currently on the Admin page
-    if (activeStatus === ("admin" as any) || userRole === "admin") {
+    if (activeStatus === "admin" || userRole === "admin") {
       items.push({ id: "admin", label: "Admin", icon: Shield });
     }
 
@@ -152,7 +152,7 @@ function MainMenuComponent({
           >
             <ul className="flex items-center justify-start gap-1.5 py-1.5 sm:py-2 md:justify-center max-[320px]:flex-col max-[320px]:items-stretch">
               {menuItems.map((item) => {
-                const isActive = item.id !== "admin" && activeStatus === item.id;
+                const isActive = activeStatus === item.id;
                 return (
                   <li key={item.id} className="max-[320px]:w-full">
                     <button

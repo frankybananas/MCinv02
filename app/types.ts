@@ -1,6 +1,6 @@
 export type CarState = "in-stock" | "coming" | "reserved" | "sold";
 export type CarStatus = "all" | CarState | "demo";
-export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications" | "todo" | "marketing" | "recon";
+export type DashboardTab = CarStatus | "clients" | "delivery" | "notifications" | "todo" | "marketing" | "recon" | "admin";
 
 export interface Picture {
   _id?: string;
