@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 
 interface MainMenuProps {
-  activeStatus: DashboardTab;
-  onStatusFilterChange: (tab: DashboardTab) => void;
+  activeStatus: string; // Changed from DashboardTab to string for broader compatibility
+  onStatusFilterChange: (tab: any) => void;
   unreadNotificationsCount?: number;
   todoEnabled?: boolean;
   marketingEnabled?: boolean;
@@ -30,7 +30,7 @@ interface MainMenuProps {
   onAdminNavigate?: () => void;
 }
 
-type MenuItemId = DashboardTab;
+type MenuItemId = DashboardTab | "admin";
 
 type MenuItem = {
   id: MenuItemId;
@@ -55,7 +55,7 @@ function MainMenuComponent({
 }: MainMenuProps) {
   const router = useRouter();
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
-  
+
   const handleAdminNavigate = React.useCallback(() => {
     if (typeof onAdminNavigate === "function") {
       onAdminNavigate();
@@ -81,43 +81,53 @@ function MainMenuComponent({
   }, [router]);
 
   const menuItems = React.useMemo<MenuItem[]>(() => {
-    const items: MenuItem[] = [
-      { id: "all", label: "All", icon: CarIcon },
-      { id: "in-stock", label: "In-Stock", icon: CheckCircle },
-      { id: "coming", label: "Coming", icon: Clock },
-      { id: "reserved", label: "Reserved", icon: BookmarkCheck },
-      { id: "sold", label: "Sold", icon: Tag },
-      { id: "demo", label: "Demo", icon: Wand2 },
-      { id: "clients", label: "Clients", icon: Users },
-      { id: "delivery", label: "Delivery", icon: Truck },
+    // Normalize role for easier checking
+    const role = (userRole || '').toLowerCase();
+    const currentStatus = (activeStatus || '').toLowerCase();
+    
+    const baseItems: (MenuItem & { visible?: boolean })[] = [
+      { id: "all" as any, label: "All", icon: CarIcon, visible: true },
+      { id: "in-stock" as any, label: "In-Stock", icon: CheckCircle, visible: true },
+      { id: "coming" as any, label: "Coming", icon: Clock, visible: true },
+      { id: "reserved" as any, label: "Reserved", icon: BookmarkCheck, visible: true },
+      { id: "sold" as any, label: "Sold", icon: Tag, visible: true },
+      { id: "demo" as any, label: "Demo", icon: Wand2, visible: true },
+      { id: "clients" as any, label: "Clients", icon: Users, visible: true },
+      { id: "delivery" as any, label: "Delivery", icon: Truck, visible: true },
       {
-        id: "notifications",
+        id: "notifications" as any,
         label: "Notifications",
         icon: Bell,
         badge: Math.max(0, unreadNotificationsCount || 0),
+        visible: true
       },
+      { 
+        id: "todo" as any, 
+        label: "TODO", 
+        icon: Calendar, 
+        visible: todoEnabled 
+      },
+      { 
+        id: "marketing" as any, 
+        label: "Marketing", 
+        icon: Wand2, 
+        visible: marketingEnabled || currentStatus === 'marketing' 
+      },
+      { 
+        id: "recon" as any, 
+        label: "Recon", 
+        icon: Wrench, 
+        visible: currentStatus === 'recon' || ['admin', 'manager', 'recon'].includes(role)
+      },
+      { 
+        id: "admin" as any, 
+        label: "Admin", 
+        icon: Shield, 
+        visible: currentStatus === 'admin' || role === 'admin'
+      }
     ];
 
-    if (todoEnabled) {
-      items.push({ id: "todo", label: "TODO", icon: Calendar });
-    }
-
-    // Add marketing after TODO when enabled or active
-    if (marketingEnabled || activeStatus === "marketing") {
-      items.push({ id: "marketing", label: "Marketing", icon: Wand2 });
-    }
-
-    // Add Recon if role permits OR if we are currently on the Recon page
-    if (activeStatus === "recon" || userRole === "admin" || userRole === "manager" || userRole === "recon") {
-      items.push({ id: "recon", label: "Recon", icon: Wrench });
-    }
-
-    // Add Admin if role permits OR if we are currently on the Admin page
-    if (activeStatus === "admin" || userRole === "admin") {
-      items.push({ id: "admin", label: "Admin", icon: Shield });
-    }
-
-    return items;
+    return baseItems.filter(item => item.visible !== false).map(({ visible, ...item }) => item);
   }, [todoEnabled, marketingEnabled, unreadNotificationsCount, userRole, activeStatus]);
 
   React.useEffect(() => {

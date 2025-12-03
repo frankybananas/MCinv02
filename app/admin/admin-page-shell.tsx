@@ -101,7 +101,7 @@ export default function AdminPageShell() {
         </div>
       </div>
       <MainMenu
-        activeStatus={adminTab}
+        activeStatus="admin"
         onStatusFilterChange={handleStatusFilterChange}
         unreadNotificationsCount={unreadNotificationsCount}
         todoEnabled={todoEnabled}

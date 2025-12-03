@@ -99,7 +99,7 @@ export default function ReconPageShell() {
         <Recon />
       </div>
       <MainMenu
-        activeStatus={reconTab}
+        activeStatus="recon"
         onStatusFilterChange={handleStatusFilterChange}
         unreadNotificationsCount={unreadNotificationsCount}
         todoEnabled={todoEnabled}
