@@ -16,8 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files (keep .env.example for documentation)
 .env*
+!.env.example
 
 
 # typescript
@@ -28,3 +29,22 @@ next-env.d.ts
 
 # Ignore Coverage Output
 coverage/
+
+# Test artifacts
+test-output.txt
+test-results.json
+failing-tests.txt
+build-trace.log
+
+# IDE / Editor
+.windsurf/
+.cursor/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

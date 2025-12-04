@@ -1,89 +1,144 @@
-import { connectToDatabase } from '@/lib/mongodb';
-import Car from '@/models/Car.js';
-import Picture from '@/models/Picture';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
+import { connectToDatabase } from '@/lib/mongodb';
+import Car from '@/models/Car.js';
+import Picture from '@/models/Picture';
 import { requireSession, verifyActiveSession } from '@/lib/auth-session';
 
-// The middleware now handles all authentication.
+interface CarFormData {
+  [key: string]: string | number | boolean | undefined;
+  year?: number;
+  price?: number;
+  kilometers?: number;
+  demo?: boolean;
+  doNotAdvertise?: boolean;
+  make?: string;
+  model?: string;
+}
 
-export async function GET(request) {
+/**
+ * GET /api/cars
+ * Fetch all cars (requires authentication)
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     await requireSession(request);
     await connectToDatabase();
-    const cars = await Car.find({}).sort({ createdAt: -1 }).populate('owner').populate('images');
+    
+    const cars = await Car.find({})
+      .sort({ createdAt: -1 })
+      .populate('owner')
+      .populate('images');
+    
     const formattedCars = cars.map(car => ({
       ...car.toObject(),
       id: car._id.toString(),
     }));
+    
     return NextResponse.json({ success: true, data: formattedCars });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch cars.';
     console.error('Cars API GET Error:', error);
-    return NextResponse.json({ success: false, message: 'Failed to fetch cars.', error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch cars.', error: message },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request) {
+/**
+ * POST /api/cars
+ * Create a new car with optional images
+ * Requires: admin, manager, or recon role
+ */
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await requireSession(request);
     await verifyActiveSession(session);
+    
     // Role check: only admin/manager/recon can create cars
     const allowedRoles = ['admin', 'manager', 'recon'];
-    if (!allowedRoles.includes(session.role)) {
+    if (!session.role || !allowedRoles.includes(session.role)) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
+    
     await connectToDatabase();
+    
     const headersList = await headers();
     const userPhone = headersList.get('x-user-phone');
     const userName = headersList.get('x-user-name');
+    
     // Ensure indexes are in sync (applies partial unique index for licensePlate)
     try {
       await Car.syncIndexes();
       // Extra: if existing index is incompatible, drop and recreate with partial filter
       const indexes = await Car.collection.indexes();
-      const lp = indexes.find(i => i.name === 'licensePlate_1');
+      const lp = indexes.find((i) => i.name === 'licensePlate_1') as {
+        name?: string;
+        unique?: boolean;
+        partialFilterExpression?: { licensePlate?: unknown };
+      } | undefined;
       const needsRecreate = lp && lp.unique && (!lp.partialFilterExpression || !lp.partialFilterExpression.licensePlate);
       if (needsRecreate) {
-        try { await Car.collection.dropIndex('licensePlate_1'); } catch (e) { console.warn('dropIndex warning:', e?.message || e); }
+        try {
+          await Car.collection.dropIndex('licensePlate_1');
+        } catch (e) {
+          console.warn('dropIndex warning:', e instanceof Error ? e.message : e);
+        }
         try {
           await Car.collection.createIndex(
             { licensePlate: 1 },
-            { name: 'licensePlate_1', unique: true, partialFilterExpression: { licensePlate: { $type: 'string', $ne: '' } } }
+            { 
+              name: 'licensePlate_1', 
+              unique: true, 
+              partialFilterExpression: { licensePlate: { $type: 'string', $ne: '' } } 
+            }
           );
-        } catch (e) { console.warn('createIndex warning:', e?.message || e); }
+        } catch (e) {
+          console.warn('createIndex warning:', e instanceof Error ? e.message : e);
+        }
       }
-    } catch (e) { console.warn('Car.syncIndexes warning:', e?.message || e); }
+    } catch (e) {
+      console.warn('Car.syncIndexes warning:', e instanceof Error ? e.message : e);
+    }
+    
     const data = await request.formData();
-    const carData = {};
-    const files = data.getAll('images');
+    const carData: CarFormData = {};
+    const files = data.getAll('images') as File[];
 
     for (const [key, value] of data.entries()) {
       if (key === 'images') continue;
+      
       if (['year', 'price', 'kilometers'].includes(key)) {
         const num = key === 'price' ? Number(value) : parseInt(String(value), 10);
-        if (!Number.isNaN(num)) carData[key] = num;
+        if (!Number.isNaN(num)) {
+          carData[key as 'year' | 'price' | 'kilometers'] = num;
+        }
       } else if (['demo', 'doNotAdvertise'].includes(key)) {
-        carData[key] = value === 'true' || value === true;
+        carData[key as 'demo' | 'doNotAdvertise'] = String(value) === 'true';
       } else {
-        carData[key] = value;
+        carData[key] = String(value);
       }
     }
 
-    let newCar;
+    // Create car document
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let newCar: any;
     try {
       newCar = await Car.create(carData);
     } catch (err) {
       // Handle duplicate key for licensePlate when it's null/empty due to legacy index
-      if (err && err.code === 11000 && err.message?.includes('licensePlate')) {
+      const mongoError = err as { code?: number; message?: string };
+      if (mongoError.code === 11000 && mongoError.message?.includes('licensePlate')) {
         // Retry without licensePlate if none was provided
         if (!('licensePlate' in carData) || carData.licensePlate == null || carData.licensePlate === '') {
           const clone = { ...carData };
           delete clone.licensePlate;
           try {
             newCar = await Car.create(clone);
-          } catch (e2) {
+          } catch {
             throw err; // rethrow original
           }
         } else {
@@ -93,6 +148,7 @@ export async function POST(request) {
         throw err;
       }
     }
+    
     // Record creation in audit log
     newCar.auditLog.push({
       action: 'Car Created',
@@ -100,19 +156,29 @@ export async function POST(request) {
       user: userName || userPhone || 'unknown',
     });
 
+    // Process image uploads
     if (files && files.length > 0) {
       const newPictureIds = await Promise.all(
         files
-          .filter(f => f.size > 0)
-          .map(async file => {
+          .filter((f: File) => f.size > 0)
+          .map(async (file: File) => {
             const arrayBuf = await file.arrayBuffer();
             const input = Buffer.from(arrayBuf);
+            
             // Lazy-load sharp only on the server
             const sharp = (await import('sharp')).default;
 
             // Create medium (hero) variant ~1600px and thumbnail ~320px
-            const medium = await sharp(input).rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
-            const thumb = await sharp(input).rotate().resize({ width: 320, height: 320, fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+            const medium = await sharp(input)
+              .rotate()
+              .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+              .webp({ quality: 80 })
+              .toBuffer();
+            const thumb = await sharp(input)
+              .rotate()
+              .resize({ width: 320, height: 320, fit: 'inside', withoutEnlargement: true })
+              .webp({ quality: 80 })
+              .toBuffer();
 
             const idBase = uuidv4();
             const mediumKey = `pictures/${idBase}_m.webp`;
@@ -129,6 +195,7 @@ export async function POST(request) {
               ContentType: 'image/webp',
               CacheControl,
             }));
+            
             // Upload thumb
             await s3.send(new PutObjectCommand({
               Bucket: process.env.R2_BUCKET_NAME,
@@ -151,18 +218,22 @@ export async function POST(request) {
             return newPicture._id;
           })
       );
+      
       newCar.images.push(...newPictureIds);
       await newCar.save();
-    }
-    // Ensure audit entry persists even when there are no images uploaded
-    if (!files || files.length === 0) {
+    } else {
+      // Ensure audit entry persists even when there are no images uploaded
       await newCar.save();
     }
 
     const populatedCar = await Car.findById(newCar._id).populate('owner').populate('images');
-    return NextResponse.json({ success: true, data: populatedCar.toObject({ virtuals: true }) }, { status: 201 });
+    return NextResponse.json(
+      { success: true, data: populatedCar?.toObject({ virtuals: true }) },
+      { status: 201 }
+    );
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Cars API POST Error:', error);
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }
