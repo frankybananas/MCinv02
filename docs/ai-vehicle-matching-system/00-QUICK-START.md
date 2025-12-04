@@ -16,9 +16,9 @@ The AI-Powered Vehicle Matching System automatically matches client vehicle pref
 ### For Decision Makers (5-minute read)
 👉 Start with [Executive Summary](./00-EXECUTIVE-SUMMARY.md)
 - Business value and ROI
-- Timeline: 6 weeks
-- Cost: ~$30-50/month operational
-- Risk assessment
+- Timeline: 4 weeks (simplified)
+- Cost: ~$5-15/month operational (Gemini AI only)
+- No Redis required - simpler infrastructure
 
 ### For Architects (15-minute read)
 👉 Review [Technical Design - Architecture](./01-TECHNICAL-DESIGN-ARCHITECTURE.md)
@@ -82,7 +82,7 @@ Before starting Phase 1, ensure you have:
 
 ### New Services Required
 - [ ] **Gemini AI API Key** - Get from https://makersuite.google.com/app/apikey (Free tier: 60 req/min)
-- [ ] **Redis Instance** - Set up on Coolify (15 minutes, 512MB RAM)
+- ✅ **No Redis Required** - Using cron-based processing
 
 ### Development Environment
 - [ ] Node.js 20+ installed
@@ -91,12 +91,10 @@ Before starting Phase 1, ensure you have:
 - [ ] Local MongoDB connection (for testing)
 
 ### Team Alignment
-- [ ] Backend engineer assigned (6 weeks)
-- [ ] Frontend engineer assigned (3 weeks for Phase 5)
-- [ ] QA engineer assigned (2 weeks for Phase 6)
-- [ ] Kickoff meeting scheduled
+- [ ] Full-stack engineer assigned (4 weeks)
+- [ ] QA/testing integrated throughout
 
-**Estimated Setup Time**: 1-2 hours
+**Estimated Setup Time**: 30 minutes (just need Gemini API key)
 
 ---
 
@@ -174,13 +172,13 @@ Before starting Phase 1, ensure you have:
 - Flag low confidence for manual review
 - Implement retry logic with fallback
 
-### 3. Background Jobs Not Processing 🔄
-**Mistake**: Not monitoring job queue
-**Impact**: Matches not created, notifications not sent
+### 3. Cron Jobs Not Running 🔄
+**Mistake**: Not verifying cron job is configured
+**Impact**: Matches not created, requests not parsed
 **Solution**:
-- Set up monitoring/alerting
-- Implement job queue dashboard
-- Test worker process thoroughly
+- Verify cron job in Coolify dashboard
+- Check CRON_SECRET matches
+- Monitor application logs for cron activity
 
 ### 4. Performance Issues 🐢
 **Mistake**: Not creating proper indexes
@@ -211,7 +209,7 @@ docs/ai-vehicle-matching-system/
 
 ### External Resources
 - **Gemini AI Docs**: https://ai.google.dev/docs
-- **BullMQ Docs**: https://docs.bullmq.io/
+- **@google/generative-ai**: https://www.npmjs.com/package/@google/generative-ai
 - **MongoDB Best Practices**: https://www.mongodb.com/docs/manual/administration/production-notes/
 - **Next.js API Routes**: https://nextjs.org/docs/app/building-your-application/routing/route-handlers
 
@@ -256,26 +254,25 @@ Your implementation is ready for production when:
 
 **Ready to start?**
 
-1. **Week 0 (Preparation)**:
-   - ✅ Complete pre-implementation checklist
-   - ✅ Set up Redis on Coolify
+1. **Week 0 (Preparation - 30 minutes)**:
    - ✅ Acquire Gemini AI API key
-   - ✅ Schedule team kickoff
+   - ✅ Add GOOGLE_GEMINI_API_KEY to Coolify
+   - ✅ Install @google/generative-ai (`pnpm add @google/generative-ai`)
 
-2. **Week 1 (Phase 1)**:
-   - 👉 Start with [Implementation Summary - Phase 1](./02-IMPLEMENTATION-SUMMARY.md#phase-1-foundation-week-1---5-days)
+2. **Week 1 (AI Integration)**:
+   - 👉 Start with [Implementation Summary - Phase 1](./02-IMPLEMENTATION-SUMMARY.md)
    - Create feature branch: `feature/ai-vehicle-matching`
-   - Begin database schema implementation
+   - Implement Gemini parsing
 
-3. **Weeks 2-6**:
+3. **Weeks 2-4**:
    - Follow phase sequence
    - Complete acceptance criteria
    - Run tests continuously
 
 4. **Launch**:
    - Follow [Deployment Guide](./04-DEPLOYMENT-GUIDE.md)
+   - Set up cron job in Coolify
    - Execute smoke tests
-   - Monitor closely for 1 week
 
 ---
 
@@ -285,6 +282,11 @@ For questions or clarifications, refer to the comprehensive documentation in thi
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: November 13, 2024  
+**Document Version**: 2.0  
+**Last Updated**: December 4, 2024  
 **Status**: Ready for Implementation
+
+**Changes in v2.0**:
+- Simplified to 4-week timeline
+- Removed Redis/BullMQ dependency
+- Leveraging existing ClientRequest model

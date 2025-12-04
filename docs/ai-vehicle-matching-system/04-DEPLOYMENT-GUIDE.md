@@ -16,16 +16,15 @@ Step-by-step guide to deploy the AI-Powered Vehicle Matching System to productio
 **Required Services**:
 - ✅ MongoDB Atlas (existing)
 - ✅ Cloudflare R2 (existing)
-- ⚠️ Redis instance (new - for BullMQ)
-- ⚠️ Gemini AI API key (new)
-- ✅ Email service (existing - SendGrid/SES)
+- ✅ Coolify cron jobs (existing)
+- ⚠️ Gemini AI API key (new - free tier available)
+
+**No Redis Required**: This simplified architecture uses cron-based processing.
 
 ### 2. Access Requirements
 - Admin access to Coolify dashboard
 - MongoDB Atlas admin credentials
-- Cloudflare R2 API keys
 - Gemini AI API key
-- Email service API key
 
 ---
 
@@ -67,84 +66,33 @@ FROM_EMAIL=noreply@yourdomain.com
 
 ---
 
-## Step 2: Set Up Redis on Coolify
+## Step 2: Configure Environment Variables in Coolify
 
-### 2.1 Create Redis Instance
-
-**In Coolify Dashboard**:
-1. Navigate to **Resources** → **Databases**
-2. Click **+ New Database**
-3. Select **Redis 7**
-4. Configure:
-   - Name: `mcinv02-redis`
-   - Version: `7-alpine`
-   - Memory Limit: `512MB` (sufficient for job queue)
-   - Persistence: **Enabled** (important for job durability)
-5. Click **Create**
-
-### 2.2 Get Redis Connection Details
-
-**After creation**:
-1. Click on `mcinv02-redis` instance
-2. Note down:
-   - **Internal Host**: `mcinv02-redis` (internal network)
-   - **Port**: `6379`
-   - **Password**: Auto-generated (copy from Coolify UI)
-
-**Connection String Format**:
-```bash
-REDIS_URL=redis://:password@mcinv02-redis:6379
-```
-
-### 2.3 Test Redis Connection
-
-```bash
-# From your local machine (with redis-cli installed)
-redis-cli -h your-vps-ip -p 6379 -a your-password
-> PING
-# Should respond: PONG
-```
-
----
-
-## Step 3: Configure Environment Variables in Coolify
-
-### 3.1 Navigate to Application Settings
+### 2.1 Navigate to Application Settings
 
 **In Coolify**:
 1. Go to **Applications** → **mcinv02**
 2. Click **Environment Variables** tab
 
-### 3.2 Add New Environment Variables
+### 2.2 Add New Environment Variables
 
 **AI & Matching System Variables**:
 ```bash
-# Gemini AI
+# Gemini AI (REQUIRED)
 GOOGLE_GEMINI_API_KEY=AIza...your-api-key
 
-# Redis (for BullMQ)
-REDIS_URL=redis://:password@mcinv02-redis:6379
-
-# Matching Configuration
+# Matching Configuration (optional - defaults shown)
 MATCH_SCORE_THRESHOLD=70
 FAIR_MATCH_THRESHOLD=55
 MAX_MATCHES_PER_CLIENT=50
 
-# Notification Configuration
-MAX_NOTIFICATIONS_PER_HOUR=10
-MAX_EMAILS_PER_DAY=5
-NOTIFICATION_BATCH_WINDOW_MINUTES=5
-
-# AI Configuration
+# AI Configuration (optional - defaults shown)
 AI_CONFIDENCE_THRESHOLD=0.6
 AI_MAX_RETRIES=3
 AI_TIMEOUT_SECONDS=10
-
-# Worker Configuration (optional - defaults work)
-WORKER_CONCURRENCY=5
-JOB_ATTEMPTS=3
-JOB_BACKOFF_DELAY=2000
 ```
+
+**Note**: No Redis URL needed - using cron-based processing.
 
 **Existing Variables to Verify**:
 ```bash
@@ -159,12 +107,40 @@ FROM_EMAIL=...
 NODE_ENV=production
 ```
 
-### 3.3 Save and Deploy
+### 2.3 Save and Deploy
 
 **Important**: After adding variables:
 1. Click **Save**
 2. Coolify will automatically trigger a **redeploy**
 3. Wait for deployment to complete (~2-5 minutes)
+
+---
+
+## Step 3: Set Up Cron Job in Coolify
+
+### 3.1 Add Cron Job for Matching
+
+**In Coolify Dashboard**:
+1. Go to **Applications** → **mcinv02**
+2. Click **Cron Jobs** tab
+3. Add new cron job:
+   - **Name**: `match-requests`
+   - **Schedule**: `*/2 * * * *` (every 2 minutes)
+   - **URL**: `https://htg.lotlynx.app/api/cron/match-requests`
+   - **Method**: `POST`
+   - **Headers**: `Authorization: Bearer ${CRON_SECRET}`
+
+**Environment Variable Required**:
+```bash
+# Add to environment variables
+CRON_SECRET=your-secure-random-string
+```
+
+**Generate CRON_SECRET**:
+```bash
+# Generate a secure random string
+openssl rand -hex 32
+```
 
 ---
 
@@ -265,155 +241,55 @@ db.cars.countDocuments({ userId: { $exists: false } })
 
 ---
 
-## Step 5: Deploy Worker Process
+## Step 5: Smoke Testing
 
-### 5.1 Create Worker Service in Coolify
+### 5.1 Test Cron Endpoint
 
-**Option A: Separate Worker Service** (Recommended):
-
-1. In Coolify, go to **Applications** → **+ New Application**
-2. Select **Docker Compose** deployment
-3. Configure:
-   - Name: `mcinv02-worker`
-   - Repository: Same as main app
-   - Branch: `main`
-   - Docker Compose file: `docker-compose.worker.yml`
-
-**Create `docker-compose.worker.yml`**:
-```yaml
-version: '3.8'
-services:
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: node workers/matching-worker.js
-    environment:
-      - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI}
-      - REDIS_URL=${REDIS_URL}
-      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
-      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-5}
-    restart: unless-stopped
-    depends_on:
-      - redis
+**Manually trigger cron job**:
+```bash
+curl -X POST https://htg.lotlynx.app/api/cron/match-requests \
+  -H "Authorization: Bearer your-cron-secret"
+# Expected: { "processed": 0, "matches": 0 } (or counts if there are requests)
 ```
 
-**Option B: Single Service with PM2** (Alternative):
+### 5.2 Test AI Parsing
 
-**Create `ecosystem.config.js`**:
+**Create a client request via UI**:
+1. Go to Clients page
+2. Select a client
+3. Add a new request with freeText: "White Toyota Corolla 2020+ under R400k"
+4. Wait 2 minutes for cron to run
+5. Check request - filters should be populated
+
+**Or verify in database**:
 ```javascript
-module.exports = {
-  apps: [
-    {
-      name: 'web',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start',
-      instances: 1,
-      exec_mode: 'cluster'
-    },
-    {
-      name: 'worker',
-      script: 'workers/matching-worker.js',
-      instances: 1,
-      exec_mode: 'fork'
-    }
-  ]
-};
+db.clientrequests.findOne({
+  freeText: { $exists: true },
+  'aiParsing.parsedAt': { $exists: true }
+})
+// Should show populated filters and aiParsing metadata
 ```
 
-**Update `package.json`**:
-```json
-{
-  "scripts": {
-    "start": "pm2-runtime start ecosystem.config.js",
-    "start:web": "next start",
-    "start:worker": "node workers/matching-worker.js"
-  }
-}
+### 5.3 Test Matching
+
+**After adding a car that matches a request**:
+1. Wait for next cron run (2 minutes)
+2. Check Notifications page
+3. Should see match notification
+
+**Or verify in database**:
+```javascript
+db.vehiclematches.find().sort({ createdAt: -1 }).limit(5)
+// Should show recent matches with scores
 ```
 
-### 5.2 Verify Worker is Running
+### 5.4 Test Notifications API
 
-**Check logs in Coolify**:
-```
-[Worker] Connected to Redis
-[Worker] Connected to MongoDB
-[Worker] Worker started, processing jobs...
-```
-
----
-
-## Step 6: Smoke Testing
-
-### 6.1 Health Check
-
-**Test main application**:
+**Check notifications endpoint**:
 ```bash
-curl https://yourdomain.com/api/health
-# Expected: { "status": "ok" }
-```
-
-**Test Redis connection**:
-```bash
-# In application logs, look for:
-[BullMQ] Connected to Redis successfully
-```
-
-### 6.2 Test AI Parsing
-
-**Create test client** (via UI or API):
-```bash
-curl -X POST https://yourdomain.com/api/clients \
-  -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
-  -d '{
-    "clientName": "Test Client",
-    "lookingFor": {
-      "rawText": "White Toyota Corolla 2020+ under R400k"
-    }
-  }'
-```
-
-**Check job queue** (in worker logs):
-```
-[Worker] Processing job: parse-client-request
-[Worker] AI parsing completed with confidence: 0.87
-[Worker] Job completed successfully
-```
-
-### 6.3 Test Matching
-
-**Add test inventory**:
-```bash
-curl -X POST https://yourdomain.com/api/inventory \
-  -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
-  -d '{
-    "make": "Toyota",
-    "model": "Corolla",
-    "year": 2021,
-    "price": 380000,
-    "color": "White",
-    "status": "In-Stock"
-  }'
-```
-
-**Check for match creation** (in worker logs):
-```
-[Worker] Processing job: match-inventory-to-clients
-[Worker] Found 1 matching clients
-[Worker] Created match with score: 85
-[Worker] Notification sent
-```
-
-### 6.4 Test Notifications
-
-**Check notifications API**:
-```bash
-curl https://yourdomain.com/api/notifications \
+curl https://htg.lotlynx.app/api/notifications \
   -H "Cookie: your-session-cookie"
-# Should return notifications array with new match
+# Should include match notifications
 ```
 
 ---
@@ -542,25 +418,9 @@ db.cars.dropIndex('matchableFields.makeNormalized_1_matchableFields.modelNormali
 
 ---
 
-## Step 10: Production Optimization
+## Step 6: Production Optimization
 
-### 10.1 Enable Caching
-
-**Redis cache for API responses** (optional):
-```typescript
-// Middleware
-export async function cacheMiddleware(req, res, next) {
-  const key = `cache:${req.url}`;
-  const cached = await redis.get(key);
-  if (cached) {
-    return res.json(JSON.parse(cached));
-  }
-  // Continue to route handler
-  // Cache response in handler
-}
-```
-
-### 10.2 Enable Compression
+### 6.1 Enable Compression
 
 **In `next.config.mjs`**:
 ```javascript
@@ -570,7 +430,7 @@ export default {
 };
 ```
 
-### 10.3 Database Connection Pooling
+### 6.2 Database Connection Pooling
 
 **Verify in MongoDB connection**:
 ```typescript
@@ -586,15 +446,15 @@ const options = {
 
 ## Troubleshooting
 
-### Issue: Worker not processing jobs
+### Issue: Cron job not running
 
-**Symptoms**: Jobs stuck in "waiting" state
+**Symptoms**: Requests not being parsed, no matches created
 
 **Solution**:
-1. Check worker logs for errors
-2. Verify Redis connection: `REDIS_URL` correct?
-3. Restart worker service
-4. Check Redis is running: `redis-cli ping`
+1. Check Coolify cron job is enabled
+2. Verify CRON_SECRET matches in environment and cron configuration
+3. Manually trigger: `curl -X POST https://htg.lotlynx.app/api/cron/match-requests -H "Authorization: Bearer $CRON_SECRET"`
+4. Check application logs for cron errors
 
 ---
 
@@ -615,11 +475,16 @@ const options = {
 **Symptoms**: Inventory added, but no matches found
 
 **Solution**:
-1. Check if client has `parsedCriteria` (parse job completed?)
-2. Verify inventory status is "In-Stock" or "Coming"
-3. Check match threshold: Is score <70?
-4. Review scoring algorithm logs
-5. Manually test scoring with test data
+1. Check if ClientRequest has `aiParsing.parsedAt` (parse completed?)
+2. Check if ClientRequest.filters is populated
+3. Verify car status is "in-stock" or "coming"
+4. Check match threshold: Is score <70?
+5. Review application logs during cron run
+6. Test manually in database:
+```javascript
+db.clientrequests.find({ 'filters.makes': { $exists: true, $ne: [] } })
+db.vehiclematches.find().sort({ createdAt: -1 }).limit(5)
+```
 
 ---
 
@@ -628,11 +493,10 @@ const options = {
 **Symptoms**: Matches created, but UI shows no notifications
 
 **Solution**:
-1. Check notifications collection in MongoDB
-2. Verify notification creation in worker logs
-3. Check API endpoint: `GET /api/notifications`
-4. Clear browser cache and refresh
-5. Check userId matches between match and notification
+1. Check vehiclematches collection in MongoDB
+2. Check existing /api/notifications aggregation includes match type
+3. Clear browser cache and refresh
+4. Check createdByPhone matches between request and user
 
 ---
 
@@ -641,53 +505,43 @@ const options = {
 **Complete list for production**:
 
 ```bash
-# Application
+# Application (existing)
 NODE_ENV=production
 PORT=3000
 
-# MongoDB
+# MongoDB (existing)
 MONGODB_URI=mongodb+srv://...
 
-# Redis
-REDIS_URL=redis://:password@mcinv02-redis:6379
-
-# Cloudflare R2
+# Cloudflare R2 (existing)
 R2_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
 R2_BUCKET_NAME=...
 
-# Gemini AI
+# Session (existing)
+SESSION_SECRET=...
+JWT_SECRET=...
+
+# ===== NEW FOR AI MATCHING =====
+
+# Gemini AI (REQUIRED)
 GOOGLE_GEMINI_API_KEY=AIza...
 
-# Email
-SENDGRID_API_KEY=SG...
-FROM_EMAIL=noreply@yourdomain.com
+# Cron Job (REQUIRED)
+CRON_SECRET=your-secure-random-string
 
-# Matching Configuration
+# Matching Configuration (optional - defaults shown)
 MATCH_SCORE_THRESHOLD=70
 FAIR_MATCH_THRESHOLD=55
 MAX_MATCHES_PER_CLIENT=50
 
-# Notifications
-MAX_NOTIFICATIONS_PER_HOUR=10
-MAX_EMAILS_PER_DAY=5
-NOTIFICATION_BATCH_WINDOW_MINUTES=5
-
-# AI Configuration
+# AI Configuration (optional - defaults shown)
 AI_CONFIDENCE_THRESHOLD=0.6
 AI_MAX_RETRIES=3
 AI_TIMEOUT_SECONDS=10
-
-# Worker
-WORKER_CONCURRENCY=5
-JOB_ATTEMPTS=3
-JOB_BACKOFF_DELAY=2000
-
-# Session (existing)
-SESSION_SECRET=...
-JWT_SECRET=...
 ```
+
+**Note**: No Redis URL required - using cron-based processing.
 
 ---
 
@@ -695,18 +549,16 @@ JWT_SECRET=...
 
 ### Week 1 Checklist
 - [ ] Monitor error rates daily
-- [ ] Check job queue health
+- [ ] Verify cron job is running (check logs)
 - [ ] Review AI parsing accuracy (manual spot checks)
 - [ ] Monitor MongoDB slow queries
 - [ ] Collect user feedback
-- [ ] Check email delivery rates
 
 ### Week 2-4 Checklist
 - [ ] Analyze match quality metrics
 - [ ] Tune scoring algorithm if needed
 - [ ] Optimize slow database queries
-- [ ] Review and adjust rate limits
-- [ ] Plan iteration 2 features
+- [ ] Plan Phase 2: Email notifications
 
 ---
 

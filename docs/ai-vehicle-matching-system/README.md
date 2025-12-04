@@ -63,8 +63,9 @@ This folder contains comprehensive documentation for the AI-powered vehicle matc
 
 - **Users**: 10-30 concurrent
 - **Inventory**: 30-180 vehicles per user
-- **Response Time**: <30s for matching, <10s for AI parsing
+- **Response Time**: <30s for matching, <5s for AI parsing
 - **Accuracy**: >80% AI parsing accuracy
+- **Processing**: Cron-based (every 2 minutes)
 
 ## 🔒 Security
 
@@ -80,27 +81,26 @@ This folder contains comprehensive documentation for the AI-powered vehicle matc
 - **Database**: MongoDB Atlas
 - **Storage**: Cloudflare R2
 - **AI**: Gemini AI (gemini-1.5-flash)
-- **Queue**: BullMQ + Redis
-- **Email**: SendGrid/AWS SES/Resend
+- **Background Jobs**: Coolify Cron (no Redis needed)
 - **Deployment**: Coolify on Cloud VPS
 
 ## 📅 Timeline
 
-**Total**: 6 weeks (42 days)
-- Phase 1 (Foundation): 1 week
-- Phase 2 (AI Integration): 1 week
-- Phase 3 (Matching Engine): 1 week
-- Phase 4 (Notifications): 1 week
-- Phase 5 (Frontend): 1 week
-- Phase 6 (Testing & Optimization): 1 week
+**Total**: 4 weeks (20 days) - Simplified from original 6 weeks
+- Phase 1 (AI Integration): 1 week
+- Phase 2 (Matching Engine): 1 week
+- Phase 3 (UI Integration): 1 week
+- Phase 4 (Testing & Polish): 1 week
+
+**Key Simplification**: Leverages existing ClientRequest model and notification system
 
 ## 📝 Notes
 
-- All database queries MUST include userId filter
-- Gemini API calls are cached aggressively
-- Background jobs handle all heavy processing
+- All database queries MUST include createdByPhone filter (existing pattern)
+- Gemini API calls cached in MongoDB
+- Cron jobs handle all heavy processing (every 2 minutes)
 - Users never wait for async operations
-- System designed for future scalability
+- No Redis required - simpler infrastructure
 
 ## 🤝 Contributing
 

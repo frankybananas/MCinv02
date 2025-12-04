@@ -18,8 +18,8 @@ The AI-Powered Vehicle Matching System is built as an integrated module within t
 - **API Layer**: Next.js API routes with authentication middleware
 - **Business Logic Layer**: Matching engine, scoring algorithm, AI parsing
 - **Data Layer**: MongoDB Atlas with multi-tenant isolation
-- **Job Processing Layer**: BullMQ + Redis for background tasks
-- **External Services**: Gemini AI, Cloudflare R2, Email service
+- **Job Processing Layer**: Cron-based background tasks (via Coolify)
+- **External Services**: Gemini AI, Cloudflare R2
 
 ### Design Principles
 
@@ -45,30 +45,24 @@ The AI-Powered Vehicle Matching System is built as an integrated module within t
 │                      NEXT.JS APPLICATION                             │
 │  ┌──────────────────────────────────────────────────────────────┐  │
 │  │                    Frontend Components                        │  │
-│  │  • Clients Page (with "Looking for" input)                   │  │
-│  │  • Inventory Page (with match indicators)                    │  │
-│  │  • Notifications Page (match display)                        │  │
-│  │  • Toast Notifications                                       │  │
+│  │  • Client Detail (with ClientRequest list)                   │  │
+│  │  • Dashboard/Cars (with match indicators)                    │  │
+│  │  • Notifications Page (match display - existing)             │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                │                                     │
 │  ┌──────────────────────────────▼──────────────────────────────┐  │
 │  │                    API Routes Layer                          │  │
 │  │  ┌────────────────────────────────────────────────────┐     │  │
-│  │  │  Authentication Middleware                         │     │  │
+│  │  │  Authentication + Authorization (existing)         │     │  │
 │  │  │  • Extract userId from session/JWT                 │     │  │
-│  │  │  • Verify user is authenticated                    │     │  │
-│  │  └────────────────────────────────────────────────────┘     │  │
-│  │  ┌────────────────────────────────────────────────────┐     │  │
-│  │  │  Authorization Middleware                          │     │  │
-│  │  │  • Verify userId owns resource                     │     │  │
-│  │  │  • Enforce multi-tenant isolation                  │     │  │
+│  │  │  • createdByPhone isolation for clients            │     │  │
 │  │  └────────────────────────────────────────────────────┘     │  │
 │  │  ┌────────────────────────────────────────────────────┐     │  │
 │  │  │  API Endpoints                                     │     │  │
-│  │  │  • /api/clients/*                                  │     │  │
-│  │  │  • /api/inventory/*                                │     │  │
-│  │  │  • /api/matches/*                                  │     │  │
-│  │  │  • /api/notifications/*                            │     │  │
+│  │  │  • /api/clients/[id]/requests/* (existing CRUD)    │     │  │
+│  │  │  • /api/matches/* (new)                            │     │  │
+│  │  │  • /api/ai/parse (new - Gemini integration)        │     │  │
+│  │  │  • /api/cron/match-requests (new - cron trigger)   │     │  │
 │  │  └────────────────────────────────────────────────────┘     │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 │                                │                                     │
@@ -76,7 +70,7 @@ The AI-Powered Vehicle Matching System is built as an integrated module within t
 │  │                 Business Logic Layer                         │  │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │  │
 │  │  │ AI Parsing   │  │  Matching    │  │  Scoring     │      │  │
-│  │  │   Engine     │  │   Engine     │  │  Algorithm   │      │  │
+│  │  │  (Gemini)    │  │   Engine     │  │  Algorithm   │      │  │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘      │  │
 │  └──────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
@@ -85,29 +79,23 @@ The AI-Powered Vehicle Matching System is built as an integrated module within t
         │                       │                       │
         ▼                       ▼                       ▼
 ┌───────────────┐      ┌────────────────┐     ┌────────────────┐
-│   MONGODB     │      │ JOB QUEUE      │     │ EXTERNAL APIs  │
-│    ATLAS      │      │ (BullMQ+Redis) │     │                │
+│   MONGODB     │      │  CRON JOBS     │     │ EXTERNAL APIs  │
+│    ATLAS      │      │  (Coolify)     │     │                │
 │               │      │                │     │  • Gemini AI   │
-│ Collections:  │      │ Job Types:     │     │  • R2 Storage  │
-│ • clients     │      │ • parse-ai     │     │  • Email Svc   │
-│ • inventory   │      │ • match-client │     │                │
-│ • matches     │      │ • match-inven  │     └────────────────┘
-│ • notifs      │      │ • send-email   │
-└───────────────┘      └────────────────┘
-        │                       │
-        │              ┌────────▼────────┐
-        │              │  WORKER PROCESS │
-        │              │                 │
-        │              │  Processes jobs │
-        │◄─────────────┤  from queue     │
-        │              │  asynchronously │
-        │              └─────────────────┘
+│ Collections:  │      │ Triggers:      │     │  • R2 Storage  │
+│ • clients     │      │ • match-reqs   │     │                │
+│ • clientreqs  │      │   (every 2min) │     └────────────────┘
+│ • cars        │      │                │
+│ • vehmatches  │      └────────────────┘
+│ • notifs      │
+└───────────────┘
         │
-        │ (All queries filtered by userId)
+        │ (All queries filtered by createdByPhone/userId)
         │
 ┌───────▼────────────────────────────────────────┐
 │     MULTI-TENANT DATA ISOLATION                │
-│  Every query includes: { userId: ObjectId }    │
+│  Clients/Requests: { createdByPhone }          │
+│  Matches: { createdByPhone }                   │
 └────────────────────────────────────────────────┘
 ```
 
@@ -280,34 +268,41 @@ See `01-TECHNICAL-DESIGN-DATA-MODELS.md` for detailed schemas.
 
 ### 5. Job Processing Layer
 
-#### Job Queue (BullMQ)
-**Configuration**: `lib/jobs/queue-config.ts` (new)
+#### Cron-Based Processing
+**Endpoint**: `app/api/cron/match-requests/route.ts` (new)
 
+**How It Works**:
+1. Coolify triggers cron job every 2 minutes
+2. API route processes all pending/unmatched ClientRequests
+3. For each request: parse with Gemini → match against cars → create notifications
+4. Mark requests as processed
+
+**Configuration**:
 ```typescript
-const jobQueue = new Queue('vehicle-matching', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000
-    },
-    removeOnComplete: 100,  // Keep last 100 completed
-    removeOnFail: 500       // Keep last 500 failed
+// Cron endpoint with CRON_SECRET authentication
+export async function POST(request: Request) {
+  // Verify cron secret
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
-});
+  
+  // Process pending requests
+  const pendingRequests = await ClientRequest.find({
+    status: 'active',
+    parsedCriteria: null  // Not yet parsed
+  }).limit(50);
+  
+  for (const request of pendingRequests) {
+    await parseAndMatch(request);
+  }
+}
 ```
 
-#### Worker Process
-**File**: `workers/matching-worker.ts` (new)
-
-**Responsibilities**:
-- Process jobs from queue
-- Execute matching logic
-- Handle errors and retries
-- Update job status
-
-**Deployment**: Separate Node.js process on Coolify
+**Coolify Cron Setup**:
+- Schedule: `*/2 * * * *` (every 2 minutes)
+- URL: `POST /api/cron/match-requests`
+- Headers: `Authorization: Bearer {CRON_SECRET}`
 
 ---
 
@@ -327,10 +322,10 @@ const jobQueue = new Queue('vehicle-matching', {
 
 **Usage**: Vehicle image storage and retrieval
 
-#### Email Service
-**Client**: Uses existing email service (SendGrid/SES)
+#### Email Service (Phase 2 - Future)
+**Client**: Will use existing email service (SendGrid/SES)
 
-**Usage**: Email notifications for matches
+**Note**: Initial release focuses on in-app notifications only. Email notifications planned for Phase 2.
 
 ---
 
@@ -510,15 +505,15 @@ const jobQueue = new Queue('vehicle-matching', {
 - **Indexes**: Compound indexes on userId
 - **TTL**: Auto-expiry for old matches/notifications
 
-### Job Queue
-- **Queue**: BullMQ 4
-- **Storage**: Redis 7
-- **Dashboard**: Bull Board (optional)
+### Background Processing
+- **Scheduling**: Coolify Cron Jobs
+- **Frequency**: Every 2 minutes
+- **No Redis Required**: Simpler infrastructure
 
 ### External Services
-- **AI**: Gemini AI (gemini-1.5-flash)
+- **AI**: Gemini AI (gemini-1.5-flash) via @google/generative-ai
 - **Storage**: Cloudflare R2 (S3-compatible)
-- **Email**: SendGrid / AWS SES / Resend
+- **Email**: (Phase 2) SendGrid / AWS SES / Resend
 
 ### DevOps
 - **Deployment**: Coolify on Cloud VPS
@@ -551,9 +546,8 @@ const jobQueue = new Queue('vehicle-matching', {
 
 #### Horizontal Scaling
 - **Web servers**: Stateless Next.js instances (scale to N)
-- **Worker processes**: Independent worker instances (scale to M)
-- **Redis**: Redis Cluster for large queues
-- **MongoDB**: Sharding by userId (future)
+- **Cron jobs**: Single cron endpoint (sufficient for 10-30 users)
+- **MongoDB**: Sharding by userId (future, if needed)
 
 #### Vertical Scaling
 - **Current**: Single VPS (4 CPU, 8GB RAM)
@@ -566,24 +560,21 @@ const jobQueue = new Queue('vehicle-matching', {
 4. **Connection pooling**: MongoDB connection pool (min: 10, max: 100)
 
 #### Caching Strategy
-1. **AI Parsing**: Cache parsed results indefinitely (until rawText changes)
-2. **User sessions**: Redis or in-memory cache
-3. **Notification counts**: Cache with 30s TTL
-4. **Match results**: No caching (always fresh from DB)
+1. **AI Parsing**: Cache parsed results in MongoDB (until rawText changes)
+2. **User sessions**: Existing session management
+3. **Match results**: No caching (always fresh from DB)
 
-#### Job Queue Optimization
-1. **Priority queues**: High priority for new matches
-2. **Batch processing**: Group similar jobs
-3. **Rate limiting**: Prevent queue overflow
-4. **Dead letter queue**: Failed jobs after max retries
+#### Cron Job Optimization
+1. **Batch processing**: Process up to 50 requests per run
+2. **Rate limiting**: Gemini AI has 60 req/min on free tier
+3. **Error tracking**: Log failures for manual review
 
 ### Future Scaling (1000+ users)
 1. **MongoDB Sharding**: Shard by userId
-2. **Redis Cluster**: Distributed job queue
+2. **BullMQ + Redis**: Add job queue if cron becomes insufficient
 3. **CDN**: Cache static assets (R2 images)
 4. **Database Replicas**: Read replicas for queries
 5. **Microservices**: Split matching engine into separate service
-6. **Message Queue**: Replace BullMQ with RabbitMQ/Kafka
 
 ---
 
@@ -617,10 +608,9 @@ See `01-TECHNICAL-DESIGN-SECURITY.md` for comprehensive security details.
 
 ### Alerts
 - Error rate >5%
-- Job queue length >1000
+- Cron job failures
 - AI parsing failures >20%
 - Database slow queries >1s
-- Worker process down
 
 ### Logging
 - Structured JSON logs
