@@ -4,12 +4,10 @@ const ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;
 
 /**
- * Encrypts a token using AES-256-CBC encryption
- * @param token - The token to encrypt
- * @returns Encrypted token in format "iv:encryptedData"
+ * Validates the encryption key format
  * @throws Error if encryption key is not set or invalid
  */
-export const encryptToken = (token: string): string => {
+const validateEncryptionKey = (): string => {
   const ENCRYPTION_KEY = process.env.FACEBOOK_TOKEN_ENCRYPTION_KEY;
   
   if (!ENCRYPTION_KEY) {
@@ -20,6 +18,17 @@ export const encryptToken = (token: string): string => {
     throw new Error('FACEBOOK_TOKEN_ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
   }
   
+  return ENCRYPTION_KEY;
+};
+
+/**
+ * Encrypts a token using AES-256-CBC encryption
+ * @param token - The token to encrypt
+ * @returns Encrypted token in format "iv:encryptedData"
+ * @throws Error if encryption key is not set or invalid
+ */
+export const encryptToken = (token: string): string => {
+  const ENCRYPTION_KEY = validateEncryptionKey();
   const keyBuffer = Buffer.from(ENCRYPTION_KEY, 'hex');
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, keyBuffer as any, iv as any);
@@ -37,15 +46,7 @@ export const encryptToken = (token: string): string => {
  * @throws Error if encryption key is not set, invalid, or decryption fails
  */
 export const decryptToken = (encryptedToken: string): string => {
-  const ENCRYPTION_KEY = process.env.FACEBOOK_TOKEN_ENCRYPTION_KEY;
-  
-  if (!ENCRYPTION_KEY) {
-    throw new Error('FACEBOOK_TOKEN_ENCRYPTION_KEY environment variable is not set');
-  }
-  
-  if (ENCRYPTION_KEY.length !== 64) {
-    throw new Error('FACEBOOK_TOKEN_ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
-  }
+  const ENCRYPTION_KEY = validateEncryptionKey();
   
   try {
     const [ivHex, encrypted] = encryptedToken.split(':');
