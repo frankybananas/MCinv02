@@ -122,19 +122,19 @@ describe('MainPage Component', () => {
             }),
           } as Response);
         }
-        if (url.includes('/api/cars')) {
+        if (typeof url === 'string' && url.includes('/api/cars')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({ data: [createMockCar()] }),
           } as Response);
         }
-        if (url.includes('/api/clients')) {
+        if (typeof url === 'string' && url.includes('/api/clients')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({ data: [createMockClient()] }),
           } as Response);
         }
-        if (url.includes('/api/deliveries')) {
+        if (typeof url === 'string' && url.includes('/api/deliveries')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({ data: [] }),
@@ -207,19 +207,19 @@ describe('MainPage Component', () => {
             }),
           } as Response);
         }
-        if (url.includes('/api/cars')) {
+        if (typeof url === 'string' && url.includes('/api/cars')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({ data: [createMockCar()] }),
           } as Response);
         }
-        if (url.includes('/api/clients')) {
+        if (typeof url === 'string' && url.includes('/api/clients')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({ data: [createMockClient()] }),
           } as Response);
         }
-        if (url.includes('/api/deliveries')) {
+        if (typeof url === 'string' && url.includes('/api/deliveries')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({ data: [] }),
@@ -267,13 +267,13 @@ describe('MainPage Component', () => {
               json: async () => ({ data: mockClients.filter(c => c._id !== 'client-1') }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),
@@ -374,19 +374,19 @@ describe('MainPage Component', () => {
               }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/clients')) {
+          if (typeof url === 'string' && url.includes('/api/clients')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockClient()] }),
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),
@@ -429,19 +429,19 @@ describe('MainPage Component', () => {
               }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/clients')) {
+          if (typeof url === 'string' && url.includes('/api/clients')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockClient()] }),
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),
@@ -480,7 +480,7 @@ describe('MainPage Component', () => {
     it('should handle fetch errors gracefully', async () => {
       mockFetch.mockImplementation((url) => {
         if (typeof url === 'string') {
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: false,
               status: 500,
@@ -543,13 +543,13 @@ describe('MainPage Component', () => {
               json: async () => ({ data: clientsData }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),
@@ -636,19 +636,19 @@ describe('MainPage Component', () => {
               }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/clients')) {
+          if (typeof url === 'string' && url.includes('/api/clients')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockClient()] }),
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),
@@ -685,19 +685,19 @@ describe('MainPage Component', () => {
               }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/clients')) {
+          if (typeof url === 'string' && url.includes('/api/clients')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [mockClient] }),
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),
@@ -747,19 +747,19 @@ describe('MainPage Component', () => {
               }),
             } as Response);
           }
-          if (url.includes('/api/cars')) {
+          if (typeof url === 'string' && url.includes('/api/cars')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [createMockCar()] }),
             } as Response);
           }
-          if (url.includes('/api/clients')) {
+          if (typeof url === 'string' && url.includes('/api/clients')) {
             return Promise.resolve({
               ok: false,
               status: 500,
             } as Response);
           }
-          if (url.includes('/api/deliveries')) {
+          if (typeof url === 'string' && url.includes('/api/deliveries')) {
             return Promise.resolve({
               ok: true,
               json: async () => ({ data: [] }),

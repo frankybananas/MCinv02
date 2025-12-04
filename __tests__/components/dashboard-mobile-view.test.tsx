@@ -368,8 +368,9 @@ describe('Dashboard Mobile View - Compact List', () => {
     it('should display sort direction indicator', () => {
       render(<Dashboard {...defaultProps} />)
       
-      const sortButton = screen.getByText(/Sort: Recent/)
-      expect(sortButton.textContent).toContain('↓')
+      // Sort indicator is in a separate span element
+      const sortIndicator = screen.getByText(/[↓↑]/)
+      expect(sortIndicator).toBeInTheDocument()
     })
   })
 

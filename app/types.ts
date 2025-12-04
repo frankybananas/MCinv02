@@ -182,6 +182,7 @@ export interface ClientRequest {
   createdByPhone: string;
   title?: string;
   freeText?: string;
+  requestText?: string; // Legacy field for backward compatibility
   status: 'active' | 'paused' | 'completed';
   filters: {
     makes?: string[];
@@ -202,6 +203,19 @@ export interface ClientRequest {
   };
   source?: 'notes' | 'manual' | 'imported';
   priority?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Match result from AI vehicle matching
+export interface MatchItem {
+  _id: string;
+  request: string; // ClientRequest ID
+  car: string; // Car ID
+  score: number; // Similarity score 0-1
+  explanation?: string; // AI-generated explanation
+  status: 'new' | 'notified' | 'viewed' | 'dismissed' | 'converted';
+  carData?: Car; // Populated car data
   createdAt: string;
   updatedAt: string;
 }
