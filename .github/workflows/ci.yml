@@ -43,6 +43,8 @@ jobs:
         env:
           NODE_ENV: test
           JWT_SECRET: test-secret-for-ci-minimum-32-chars
+          # Dummy encryption key for Facebook token encryption (64 hex chars)
+          FACEBOOK_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -83,3 +85,5 @@ jobs:
           MONGODB_URI: mongodb://localhost:27017/test
           JWT_SECRET: build-time-secret-not-used-at-runtime
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
+          # Dummy encryption key for Facebook token encryption (64 hex chars)
+          FACEBOOK_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
