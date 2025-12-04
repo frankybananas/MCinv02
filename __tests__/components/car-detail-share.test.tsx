@@ -96,8 +96,8 @@ describe('CarDetail Share Functionality', () => {
     const whatsappUrl = callArgs[0] as string
     const decodedText = decodeURIComponent(whatsappUrl.split('text=')[1] || '')
     expect(decodedText).toContain('2024 BMW M3 Competition')
-    expect(decodedText).toMatch(/Price:\s*R\s*1\s*899\s*000/)
-    expect(decodedText).toMatch(/Kilometers:\s*12\s*000\s*km/)
+    expect(decodedText).toMatch(/Price:\s*R\s*1[,\s]*899[,\s]*000/)
+    expect(decodedText).toMatch(/Kilometers:\s*12[,\s]*000\s*km/)
     expect(decodedText).toContain('Color: Grey')
     expect(decodedText).toContain('Transmission: automatic')
   })
