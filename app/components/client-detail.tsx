@@ -234,9 +234,14 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
                     <CardContent className="p-3 sm:p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold truncate">{title}</h3>
                             {statusBadge(r.status)}
+                            {r.aiParsing?.matchCount && r.aiParsing.matchCount > 0 ? (
+                               <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200">
+                                  {r.aiParsing.matchCount} Matches
+                               </Badge>
+                            ) : null}
                           </div>
                           {r.freeText && <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{r.freeText}</p>}
                           <p className="text-xs text-muted-foreground mt-1">Updated {updated}</p>

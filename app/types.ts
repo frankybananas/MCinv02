@@ -76,7 +76,8 @@ export type NotificationType =
   | "delivery_update"
   | "delivery_due_soon"
   | "delivery_completed"
-  | "todo_reminder";
+  | "todo_reminder"
+  | "client_match";
 
 export interface NotificationItem {
   _id: string; // unique per item (can be a composite)
@@ -137,6 +138,7 @@ export interface Car {
   kilometers: number
   color: string
   transmission: "manual" | "automatic" | "cvt"
+  fuelType?: "Petrol" | "Diesel" | "Electric" | "Hybrid"
   vin: string
   notes: string
   description?: string
@@ -203,6 +205,14 @@ export interface ClientRequest {
   };
   source?: 'notes' | 'manual' | 'imported';
   priority?: number;
+  aiParsing?: {
+    parsedAt?: string; // Date via JSON is string
+    confidence?: number;
+    needsReview?: boolean;
+    ambiguities?: string[];
+    matchCount?: number;
+    lastMatchedAt?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

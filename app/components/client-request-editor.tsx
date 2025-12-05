@@ -30,6 +30,41 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
   const [mustHave, setMustHave] = useState<string>((initial?.filters?.mustHave || []).join(", "))
   const [niceToHave, setNiceToHave] = useState<string>((initial?.filters?.niceToHave || []).join(", "))
   const [excludeTerms, setExcludeTerms] = useState<string>((initial?.filters?.excludeTerms || []).join(", "))
+  const [isParsing, setIsParsing] = useState(false)
+
+  const handleParseAI = async () => {
+    if (!freeText) return
+    setIsParsing(true)
+    try {
+      const res = await fetch('/api/ai/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: freeText })
+      })
+      const data = await res.json()
+      if (data.success && data.data) {
+        const { filters } = data.data
+        if (filters.makes) setMakes(filters.makes.join(", "))
+        if (filters.models) setModels(filters.models.join(", "))
+        if (filters.minYear) setMinYear(String(filters.minYear))
+        if (filters.maxYear) setMaxYear(String(filters.maxYear))
+        if (filters.maxBudgetZar) setMaxBudgetZar(String(filters.maxBudgetZar))
+        if (filters.maxMileageKm) setMaxMileageKm(String(filters.maxMileageKm))
+        if (filters.seats) setSeats(String(filters.seats))
+        if (filters.colors) setColors(filters.colors.join(", "))
+        if (filters.fuelTypes) setFuelTypes(filters.fuelTypes.join(", "))
+        if (filters.transmissions) setTransmissions(filters.transmissions.join(", "))
+        if (filters.bodyTypes) setBodyTypes(filters.bodyTypes.join(", "))
+        if (filters.mustHave) setMustHave(filters.mustHave.join(", "))
+        if (filters.niceToHave) setNiceToHave(filters.niceToHave.join(", "))
+        if (filters.excludeTerms) setExcludeTerms(filters.excludeTerms.join(", "))
+      }
+    } catch (error) {
+      console.error("AI Parse failed", error)
+    } finally {
+      setIsParsing(false)
+    }
+  }
 
   const filters = useMemo<ClientRequest["filters"]>(() => {
     const parseCsv = (v: string) => v.split(",").map(s => s.trim()).filter(Boolean)
@@ -67,7 +102,33 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
         <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Family SUV under R350k" />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="freeText">Notes / Preferences</Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="freeText">Notes / Preferences</Label>
+          <Button 
+            type="button" 
+            variant="outline" 
+            size="sm" 
+            onClick={handleParseAI}
+            disabled={isParsing || !freeText}
+          >
+            {isParsing ? "Parsing..." : "Parse with AI"}
+          </Button>
+        </div>
+        {initial?.aiParsing && (
+          <div className="text-xs text-muted-foreground flex gap-4 mb-2">
+             {initial.aiParsing.confidence !== undefined && (
+                <span className={initial.aiParsing.confidence < 0.6 ? "text-yellow-600 font-medium" : ""}>
+                  AI Confidence: {Math.round(initial.aiParsing.confidence * 100)}%
+                </span>
+             )}
+             {initial.aiParsing.matchCount !== undefined && (
+                <span>Matches: {initial.aiParsing.matchCount}</span>
+             )}
+             {initial.aiParsing.parsedAt && (
+                <span>Parsed: {new Date(initial.aiParsing.parsedAt).toLocaleDateString()}</span>
+             )}
+          </div>
+        )}
         <Textarea id="freeText" value={freeText} onChange={(e) => setFreeText(e.target.value)} placeholder="Any free-text notes from the customer..." rows={4} />
       </div>
 

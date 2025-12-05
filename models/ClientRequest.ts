@@ -25,6 +25,14 @@ export interface IClientRequest extends Document {
   };
   source?: 'notes' | 'manual' | 'imported';
   priority?: number;
+  aiParsing?: {
+    parsedAt?: Date;
+    confidence?: number;
+    needsReview?: boolean;
+    ambiguities?: string[];
+    matchCount?: number;
+    lastMatchedAt?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +59,14 @@ const ClientRequestSchema = new Schema<IClientRequest>({
     mustHave: [{ type: String }],
     niceToHave: [{ type: String }],
     excludeTerms: [{ type: String }],
+  },
+  aiParsing: {
+    parsedAt: { type: Date },
+    confidence: { type: Number, min: 0, max: 1 },
+    needsReview: { type: Boolean, default: false },
+    ambiguities: [{ type: String }],
+    matchCount: { type: Number, default: 0 },
+    lastMatchedAt: { type: Date },
   },
   source: { type: String, enum: ['notes', 'manual', 'imported'], default: 'manual' },
   priority: { type: Number, default: 0 },

@@ -70,6 +70,7 @@ export function Dashboard({
   const [fabOpen, setFabOpen] = useState(false)
   const [sortKey, setSortKey] = useState<'recent' | 'price' | 'year' | 'mileage' | 'model'>('recent')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [matchCounts, setMatchCounts] = useState<Record<string, number>>({})
 
   const showClients = activeStatus === "clients"
   const showDelivery = activeStatus === "delivery"
@@ -92,6 +93,17 @@ export function Dashboard({
     }
   }, [showTodo, fabOpen])
   const isStockStatus = ['all','in-stock','coming','reserved','sold','demo'].includes(activeStatus)
+
+  useEffect(() => {
+    if (isStockStatus) {
+        fetch('/api/matches/counts')
+          .then(res => res.json())
+          .then(j => {
+            if (j.success) setMatchCounts(j.data)
+          })
+          .catch(console.error)
+    }
+  }, [isStockStatus])
 
   const formatPrice = (price?: number | null) => {
     const validPrice = typeof price === 'number' ? price : 0;
@@ -460,7 +472,14 @@ export function Dashboard({
                               <span className="capitalize">{car.transmission}</span>
                             </div>
                             <div className="flex items-center justify-between gap-2 min-w-0">
-                              <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
+                                {matchCounts[car._id] && matchCounts[car._id] > 0 ? (
+                                   <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200 text-[10px] h-5 px-1.5 flex-shrink-0">
+                                     {matchCounts[car._id]} Matches
+                                   </Badge>
+                                ) : null}
+                              </div>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <button

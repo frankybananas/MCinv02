@@ -4,6 +4,7 @@ import User, { type IUser } from '@/models/User'
 import Car from '@/models/Car'
 import Delivery from '@/models/Delivery'
 import Todo from '@/models/Todo'
+import VehicleMatch from '@/models/VehicleMatch'
 import { requireSession } from '@/lib/auth-session'
 import type { NotificationItem } from '@/app/types'
 import type { HydratedDocument, Types } from 'mongoose'
@@ -289,6 +290,42 @@ export async function GET(request: Request) {
         const message = error instanceof Error ? error.message : String(error)
         console.warn('Notifications: todo reminders failed', message)
       }
+    }
+
+    // AI Vehicle Matches
+    try {
+      const matches = await VehicleMatch.find({
+        createdByPhone: session.phone,
+        status: 'new',
+        createdAt: { $gt: since }
+      })
+      .populate('car')
+      .populate({ path: 'request', populate: { path: 'client' } })
+      .sort({ createdAt: -1 })
+      .limit(20) as any[];
+
+      for (const match of matches) {
+        const car = match.car;
+        const client = match.request?.client;
+        const clientName = client ? `${client.firstName} ${client.lastName || ''}`.trim() : 'Client';
+        const carTitle = car ? safeTitle([car.year, car.make, car.model]) : 'Vehicle';
+        
+        notifications.push({
+          _id: `match:${String(match._id)}`,
+          type: 'client_match',
+          title: `Match found: ${clientName}`,
+          description: `${carTitle} (Score: ${match.score})`,
+          createdAt: toIso(match.createdAt),
+          data: {
+            carId: String(car?._id),
+            clientId: String(client?._id),
+            imageUrl: match.carSnapshot?.imageUrl
+          }
+        });
+      }
+    } catch (error) {
+       const message = error instanceof Error ? error.message : String(error)
+       console.warn('Notifications: matches aggregation failed', message)
     }
 
     // Exclude items the user marked as Done
