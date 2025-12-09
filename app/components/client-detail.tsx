@@ -68,8 +68,12 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
         setEditing(null)
         await fetchRequests()
         await fetchMatches()
+      } else {
+        console.error('Update request failed', await res.text())
       }
-    } catch {}
+    } catch (e) {
+      console.error('Update request error', e)
+    }
   }
 
   const handleDelete = async (reqId: string) => {
@@ -78,8 +82,12 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
       if (res.ok) {
         await fetchRequests()
         await fetchMatches()
+      } else {
+        console.error('Delete request failed', await res.text())
       }
-    } catch {}
+    } catch (e) {
+      console.error('Delete request error', e)
+    }
   }
 
   const statusBadge = (s: ClientRequest['status']) => (
@@ -232,8 +240,8 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
                 return (
                   <Card key={r._id}>
                     <CardContent className="p-3 sm:p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="w-full min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold truncate">{title}</h3>
                             {statusBadge(r.status)}
@@ -246,8 +254,8 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
                           {r.freeText && <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{r.freeText}</p>}
                           <p className="text-xs text-muted-foreground mt-1">Updated {updated}</p>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                        <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap w-full sm:w-auto mt-2 sm:mt-0">
+                          <Button variant="ghost" size="sm" onClick={() => setEditing(r)} className="flex-1 sm:flex-none justify-center">
                             <Edit className="h-4 w-4 mr-1" /> Edit
                           </Button>
                           {r.status !== 'completed' && (
@@ -255,16 +263,17 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
                               variant="ghost"
                               size="sm"
                               onClick={() => handleUpdate(r._id, { status: r.status === 'active' ? 'paused' : 'active' })}
+                              className="flex-1 sm:flex-none justify-center"
                             >
                               {r.status === 'active' ? (<><Pause className="h-4 w-4 mr-1" /> Pause</>) : (<><Play className="h-4 w-4 mr-1" /> Resume</>)}
                             </Button>
                           )}
                           {r.status !== 'completed' && (
-                            <Button variant="ghost" size="sm" onClick={() => handleUpdate(r._id, { status: 'completed' })}>
+                            <Button variant="ghost" size="sm" onClick={() => handleUpdate(r._id, { status: 'completed' })} className="flex-1 sm:flex-none justify-center">
                               <CheckCircle className="h-4 w-4 mr-1" /> Complete
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(r._id)} className="text-muted-foreground hover:text-red-600">
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(r._id)} className="text-muted-foreground hover:text-red-600 sm:flex-none shrink-0">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
