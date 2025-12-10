@@ -31,6 +31,8 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
   const [niceToHave, setNiceToHave] = useState<string>((initial?.filters?.niceToHave || []).join(", "))
   const [excludeTerms, setExcludeTerms] = useState<string>((initial?.filters?.excludeTerms || []).join(", "))
   const [isParsing, setIsParsing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleParseAI = async () => {
     if (!freeText) return
@@ -67,10 +69,15 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
   }
 
   const filters = useMemo<ClientRequest["filters"]>(() => {
-    const parseCsv = (v: string) => v.split(",").map(s => s.trim()).filter(Boolean)
+    const parseCsv = (v: string) => {
+      const arr = v.split(",").map(s => s.trim()).filter(Boolean)
+      return arr.length > 0 ? arr : undefined // Return undefined for empty arrays
+    }
     const toNum = (v: string) => {
-      const n = Number(v)
-      return Number.isFinite(n) ? n : undefined
+      const trimmed = v.trim()
+      if (trimmed === '') return undefined // Empty string = no value
+      const n = Number(trimmed)
+      return Number.isFinite(n) ? n : undefined // Return the number if valid
     }
     return {
       makes: parseCsv(makes),
@@ -92,7 +99,18 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await onSave({ title: title.trim() || undefined, freeText: freeText.trim() || undefined, filters })
+    setSaveError(null)
+    setIsSaving(true)
+    try {
+      console.log('[ClientRequestEditor] Saving:', { title: title.trim() || undefined, freeText: freeText.trim() || undefined, filters })
+      await onSave({ title: title.trim() || undefined, freeText: freeText.trim() || undefined, filters })
+      console.log('[ClientRequestEditor] Save completed')
+    } catch (err) {
+      console.error('[ClientRequestEditor] Save error:', err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -191,9 +209,14 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
         </div>
       </div>
 
+      {saveError && (
+        <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{saveError}</div>
+      )}
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button type="submit">Save</Button>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isSaving}>Cancel</Button>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
     </form>
   )

@@ -58,22 +58,29 @@ export function ClientDetail({ client, onBack, onEdit, onSelectCar }: ClientDeta
   }
 
   const handleUpdate = async (reqId: string, data: Partial<Pick<ClientRequest, 'title' | 'freeText' | 'filters' | 'status'>>) => {
-    try {
-      const res = await fetch(`/api/clients/${client._id}/requests/${reqId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-      if (res.ok) {
-        setEditing(null)
-        await fetchRequests()
-        await fetchMatches()
-      } else {
-        console.error('Update request failed', await res.text())
+    console.log('[ClientDetail] handleUpdate called:', { reqId, data })
+    const res = await fetch(`/api/clients/${client._id}/requests/${reqId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const responseText = await res.text()
+    console.log('[ClientDetail] API response:', res.status, responseText)
+    
+    if (!res.ok) {
+      let errorMessage = 'Failed to update request'
+      try {
+        const errorJson = JSON.parse(responseText)
+        errorMessage = errorJson.error?.message || errorJson.message || errorMessage
+      } catch {
+        errorMessage = responseText || errorMessage
       }
-    } catch (e) {
-      console.error('Update request error', e)
+      throw new Error(errorMessage)
     }
+    
+    setEditing(null)
+    await fetchRequests()
+    await fetchMatches()
   }
 
   const handleDelete = async (reqId: string) => {
