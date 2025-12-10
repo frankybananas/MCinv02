@@ -35,3 +35,26 @@ Based on documentation in `docs/ai-vehicle-matching-system/`.
 ## Issues / Notes
 - User needs to provide `GOOGLE_GEMINI_API_KEY`.
 - `Car` model was assumed to be global inventory. Matches are isolated by `createdByPhone` from ClientRequest.
+
+## Bug Fixes (Dec 10, 2025)
+
+### ClientRequestEditor Save Not Working
+**Symptoms**: Click Edit on a ClientRequest, make changes, click Save - nothing happens.
+
+**Root Causes Found**:
+1. **Empty string → 0 conversion**: The `toNum()` function converted empty strings to `0`, which then failed API validation (e.g., minYear must be >= 1950, not 0).
+2. **No error feedback**: Errors were swallowed silently - the user saw no indication of what went wrong.
+3. **No loading state**: No visual feedback during save operation.
+
+**Fixes Applied**:
+- `app/components/client-request-editor.tsx`:
+  - Fixed `toNum()` to return `undefined` for empty strings instead of `0`
+  - Fixed `parseCsv()` to return `undefined` for empty arrays
+  - Added `isSaving` loading state with "Saving..." button text
+  - Added `saveError` state to display API errors to user
+  - Added console logging for debugging
+- `app/components/client-detail.tsx`:
+  - Updated `handleUpdate()` to throw errors (so they propagate to the editor)
+  - Added detailed console logging for API requests/responses
+
+**Testing**: Manual testing required - verify Save button shows "Saving...", errors display in red box.
