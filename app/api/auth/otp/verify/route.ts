@@ -183,7 +183,7 @@ export async function POST(request: Request) {
         secure: process.env.NODE_ENV === 'production',
         maxAge: 60 * 60 * 24 * 7, // 7 days
         path: '/',
-        sameSite: 'strict' // Strict for better CSRF protection
+        sameSite: 'lax' // Lax allows cookie on top-level navigation (PWA reopening)
       });
 
       return response;

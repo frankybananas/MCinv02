@@ -33,6 +33,15 @@ export async function middleware(request: NextRequest) {
   const jwtSecret = process.env.JWT_SECRET;
 
   if (!token || !jwtSecret) {
+    // Log only for non-API paths to reduce noise (API calls without token are expected)
+    if (!pathname.startsWith('/api/')) {
+      console.log(JSON.stringify({
+        type: 'AUTH_REDIRECT',
+        reason: !token ? 'no_token' : 'no_jwt_secret',
+        path: pathname,
+        timestamp: new Date().toISOString(),
+      }));
+    }
     return redirectToLogin(request);
   }
 
@@ -44,6 +53,13 @@ export async function middleware(request: NextRequest) {
     const tokenLastOtpAt = (payload as any).lastOtpAt as number | undefined;
     if (!tokenLastOtpAt) {
       // Token missing lastOtpAt (old format), force re-auth
+      console.log(JSON.stringify({
+        type: 'AUTH_REDIRECT',
+        reason: 'missing_lastOtpAt',
+        phone: (payload as any).phone || 'unknown',
+        path: pathname,
+        timestamp: new Date().toISOString(),
+      }));
       const res = redirectToLogin(request);
       res.cookies.delete('session_token');
       return res;
@@ -55,6 +71,15 @@ export async function middleware(request: NextRequest) {
     
     if (timeSinceLastOtp >= sevenDaysInMs) {
       // More than 7 days have passed, clear cookie and redirect to login for fresh OTP
+      const daysSinceOtp = Math.round(timeSinceLastOtp / (24 * 60 * 60 * 1000) * 10) / 10;
+      console.log(JSON.stringify({
+        type: 'AUTH_REDIRECT',
+        reason: 'otp_expired',
+        daysSinceOtp,
+        phone: (payload as any).phone || 'unknown',
+        path: pathname,
+        timestamp: new Date().toISOString(),
+      }));
       const res = redirectToLogin(request);
       res.cookies.delete('session_token');
       return res;
@@ -107,8 +132,15 @@ export async function middleware(request: NextRequest) {
       }
     });
 
-  } catch (_err) {
+  } catch (err) {
     // Invalid / expired JWT
+    console.log(JSON.stringify({
+      type: 'AUTH_REDIRECT',
+      reason: 'jwt_invalid',
+      error: err instanceof Error ? err.message : 'unknown',
+      path: pathname,
+      timestamp: new Date().toISOString(),
+    }));
     return redirectToLogin(request);
   }
 

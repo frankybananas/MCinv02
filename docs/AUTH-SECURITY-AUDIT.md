@@ -80,12 +80,12 @@ response.cookies.set('session_token', token, {
   secure: process.env.NODE_ENV === 'production',
   maxAge: 60 * 60 * 24 * 7, // 7 days
   path: '/',
-  sameSite: 'strict' // Strict for better CSRF protection
+  sameSite: 'lax' // Lax allows cookie on PWA top-level navigation
 });
 ```
 - **✅ HttpOnly:** Yes - prevents XSS token theft
 - **✅ Secure:** Yes in production - prevents MITM
-- **✅ SameSite:** Strict - good CSRF protection
+- **✅ SameSite:** Lax - allows PWA reopening while still protecting against CSRF on mutations
 - **⚠️ Issue:** 7-day expiry without rotation is excessive
 
 #### 2.2 OTP Implementation 🟡 PARTIAL
@@ -378,7 +378,7 @@ if (Date.now() - lastAccess > IDLE_TIMEOUT_MS) {
 ```
 
 #### 3.2 Add CSRF Token for Mutations
-Even with SameSite=Strict, add CSRF token for sensitive operations:
+Even with SameSite=Lax, consider adding CSRF token for extra protection on sensitive operations:
 
 ```typescript
 // Generate: crypto.randomUUID()
