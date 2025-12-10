@@ -445,14 +445,18 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
   }, []);
 
   const handleLoginSuccess = () => {
+    console.log('[MainPage] handleLoginSuccess called');
     setIsAuthenticated(true);
     setAuthChecked(true);
     // Re-fetch user data after successful login
     const fetchUserData = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        console.log('[MainPage] Fetching user data from /api/auth/me');
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        console.log('[MainPage] /api/auth/me response status:', res.status);
         if (res.ok) {
           const j = await res.json();
+          console.log('[MainPage] User data:', j?.data);
           const data = j?.data as { phone?: string; firstName?: string; lastName?: string; notificationsLastSeenAt?: string | null; todoEnabled?: boolean; marketingEnabled?: boolean; role?: string | null } | undefined;
           const phone = data?.phone as string | undefined;
           const name = `${data?.firstName ?? ''} ${data?.lastName ?? ''}`.trim();
@@ -462,9 +466,11 @@ export default function MainPage({ initialIsAuthenticated, userRole }: MainPageP
           setTodoEnabled(data?.todoEnabled === true);
           setMarketingEnabled(data?.marketingEnabled === true);
           setRole(typeof data?.role === 'string' ? data.role : null);
+        } else {
+          console.error('[MainPage] /api/auth/me failed:', res.status);
         }
       } catch (error) {
-        console.error('Error fetching user data after login:', error);
+        console.error('[MainPage] Error fetching user data after login:', error);
       }
     };
     fetchUserData();

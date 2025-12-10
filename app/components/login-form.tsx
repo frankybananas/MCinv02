@@ -91,22 +91,28 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setError(null);
 
     try {
+      console.log('[Login] Verifying OTP...');
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code }),
+        credentials: 'include', // Ensure cookies are included
       });
 
+      console.log('[Login] Response status:', res.status);
       const data = await res.json();
+      console.log('[Login] Response data:', data);
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Invalid OTP');
       }
 
+      console.log('[Login] OTP verified successfully, calling onLoginSuccess');
       // On successful verification, call the parent component's handler
       onLoginSuccess();
 
     } catch (err) {
+      console.error('[Login] Error:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {
       setIsLoading(false);
