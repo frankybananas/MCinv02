@@ -29,7 +29,10 @@ export async function matchClientToInventory(clientRequestId: string): Promise<I
       color: car.color,
       transmission: car.transmission,
       fuelType: car.fuelType,
-      kilometers: car.kilometers || car.mileage
+      kilometers: car.kilometers || car.mileage,
+      description: car.description,
+      notes: car.notes,
+      features: (car as any).features
     };
     
     const scoreResult = calculateMatchScore(carInterface, request.filters);
@@ -108,7 +111,10 @@ export async function matchInventoryToClients(carId: string): Promise<IVehicleMa
     color: car.color,
     transmission: car.transmission,
     fuelType: car.fuelType,
-    kilometers: car.kilometers || car.mileage
+    kilometers: car.kilometers || car.mileage,
+    description: car.description,
+    notes: car.notes,
+    features: (car as any).features
   };
   
   for (const request of requests) {

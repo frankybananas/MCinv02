@@ -55,4 +55,22 @@ describe('Scoring Algorithm', () => {
     const result = calculateMatchScore(mockCar, criteria);
     expect(result.totalScore).toBe(100); // Matches everything if nothing specified
   });
+
+  it('should score mustHave terms against car text', () => {
+    const criteria = { mustHave: ['Double Cab'] };
+
+    const matchingCar: Partial<Car> = {
+      ...mockCar,
+      notes: 'Double Cab'
+    };
+    const matchResult = calculateMatchScore(matchingCar, criteria);
+    expect(matchResult.totalScore).toBe(100);
+
+    const nonMatchingCar: Partial<Car> = {
+      ...mockCar,
+      notes: ''
+    };
+    const nonMatchResult = calculateMatchScore(nonMatchingCar, criteria);
+    expect(nonMatchResult.totalScore).toBe(90);
+  });
 });

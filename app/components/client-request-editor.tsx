@@ -4,7 +4,17 @@ import React, { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  ZA_CAB_TYPES,
+  getZaCabTypes,
+  getZaEngines,
+  getZaMake,
+  getZaModel,
+  getZaMakes,
+  getZaModelNames,
+} from "@/app/data/za-vehicle-taxonomy"
 import type { ClientRequest } from "../types"
 
 interface ClientRequestEditorProps {
@@ -13,11 +23,85 @@ interface ClientRequestEditorProps {
   onSave: (data: { title?: string; freeText?: string; filters: ClientRequest["filters"] }) => Promise<void> | void
 }
 
+type VehicleEntryMode = 'taxonomy' | 'custom'
+
 export default function ClientRequestEditor({ initial, onCancel, onSave }: ClientRequestEditorProps) {
   const [title, setTitle] = useState<string>(initial?.title ?? "")
   const [freeText, setFreeText] = useState<string>(initial?.freeText ?? "")
-  const [makes, setMakes] = useState<string>((initial?.filters?.makes || []).join(", "))
-  const [models, setModels] = useState<string>((initial?.filters?.models || []).join(", "))
+
+  const initialMakeFromFilters = initial?.filters?.makes?.[0] ?? ""
+  const initialModelFromFilters = initial?.filters?.models?.[0] ?? ""
+  const initialMustHaveTerms = initial?.filters?.mustHave || []
+  const initialTaxonomyMake = initialMakeFromFilters ? getZaMake(initialMakeFromFilters) : undefined
+  const initialMakeMode: VehicleEntryMode = initialMakeFromFilters && !initialTaxonomyMake ? 'custom' : 'taxonomy'
+  const initialTaxonomyModel =
+    initialMakeMode === 'taxonomy' && initialTaxonomyMake && initialModelFromFilters
+      ? getZaModel(initialTaxonomyMake.make, initialModelFromFilters)
+      : undefined
+  const initialModelMode: VehicleEntryMode =
+    initialMakeMode === 'custom'
+      ? 'custom'
+      : initialModelFromFilters && !initialTaxonomyModel
+        ? 'custom'
+        : 'taxonomy'
+  const initialEngine = (() => {
+    if (initialMakeMode !== 'taxonomy' || initialModelMode !== 'taxonomy') return ""
+    const mk = initialTaxonomyMake?.make
+    const mdl = initialTaxonomyModel?.model
+    if (!mk || !mdl) return ""
+    const engines = getZaEngines(mk, mdl)
+    const found = engines.find((engine) =>
+      initialMustHaveTerms.some((term) => term.trim().toLowerCase().includes(engine.trim().toLowerCase()))
+    )
+    return found ?? ""
+  })()
+  const initialCabType = (() => {
+    const lowered = initialMustHaveTerms.map((term) => term.trim().toLowerCase())
+    const found = ZA_CAB_TYPES.find((entry) => lowered.includes(entry.label.toLowerCase()))
+    return found?.value ?? ""
+  })()
+
+  const initialCabLabel = ZA_CAB_TYPES.find((entry) => entry.value === initialCabType)?.label ?? ""
+  const initialMustHaveForInput = (() => {
+    if (!initialMustHaveTerms || initialMustHaveTerms.length === 0) return ""
+    const engineKey = initialEngine.trim().toLowerCase()
+    const cabKey = initialCabLabel.trim().toLowerCase()
+    const filtered = initialMustHaveTerms.filter((term) => {
+      const key = term.trim().toLowerCase()
+      if (engineKey && key === engineKey) return false
+      if (cabKey && key === cabKey) return false
+      return true
+    })
+    return filtered.join(", ")
+  })()
+
+  const [makeMode, setMakeMode] = useState<VehicleEntryMode>(initialMakeMode)
+  const [selectedMake, setSelectedMake] = useState<string>(
+    initialMakeMode === 'taxonomy' ? (initialTaxonomyMake?.make ?? "") : ""
+  )
+  const [customMake, setCustomMake] = useState<string>(initialMakeMode === 'custom' ? initialMakeFromFilters : "")
+  const [modelMode, setModelMode] = useState<VehicleEntryMode>(initialMakeMode === 'custom' ? 'custom' : initialModelMode)
+  const [selectedModel, setSelectedModel] = useState<string>(
+    initialModelMode === 'taxonomy' ? (initialTaxonomyModel?.model ?? "") : ""
+  )
+  const [customModel, setCustomModel] = useState<string>(initialModelMode === 'custom' ? initialModelFromFilters : "")
+  const [engine, setEngine] = useState<string>(initialEngine)
+  const [cabType, setCabType] = useState<string>(initialCabType)
+
+  const makeOptions = useMemo(() => getZaMakes(), [])
+  const modelOptions = useMemo(() => {
+    if (makeMode !== 'taxonomy' || !selectedMake) return []
+    return getZaModelNames(selectedMake)
+  }, [makeMode, selectedMake])
+  const engineOptions = useMemo(() => {
+    if (makeMode !== 'taxonomy' || modelMode !== 'taxonomy' || !selectedMake || !selectedModel) return []
+    return getZaEngines(selectedMake, selectedModel)
+  }, [makeMode, modelMode, selectedMake, selectedModel])
+  const cabOptions = useMemo(() => {
+    if (makeMode !== 'taxonomy' || modelMode !== 'taxonomy' || !selectedMake || !selectedModel) return []
+    return getZaCabTypes(selectedMake, selectedModel)
+  }, [makeMode, modelMode, selectedMake, selectedModel])
+
   const [minYear, setMinYear] = useState<string>(initial?.filters?.minYear != null ? String(initial.filters.minYear) : "")
   const [maxYear, setMaxYear] = useState<string>(initial?.filters?.maxYear != null ? String(initial.filters.maxYear) : "")
   const [maxBudgetZar, setMaxBudgetZar] = useState<string>(initial?.filters?.maxBudgetZar != null ? String(initial.filters.maxBudgetZar) : "")
@@ -27,7 +111,7 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
   const [fuelTypes, setFuelTypes] = useState<string>((initial?.filters?.fuelTypes || []).join(", "))
   const [transmissions, setTransmissions] = useState<string>((initial?.filters?.transmissions || []).join(", "))
   const [bodyTypes, setBodyTypes] = useState<string>((initial?.filters?.bodyTypes || []).join(", "))
-  const [mustHave, setMustHave] = useState<string>((initial?.filters?.mustHave || []).join(", "))
+  const [mustHave, setMustHave] = useState<string>(initialMustHaveForInput)
   const [niceToHave, setNiceToHave] = useState<string>((initial?.filters?.niceToHave || []).join(", "))
   const [excludeTerms, setExcludeTerms] = useState<string>((initial?.filters?.excludeTerms || []).join(", "))
   const [isParsing, setIsParsing] = useState(false)
@@ -46,8 +130,73 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
       const data = await res.json()
       if (data.success && data.data) {
         const { filters } = data.data
-        if (filters.makes) setMakes(filters.makes.join(", "))
-        if (filters.models) setModels(filters.models.join(", "))
+
+        const nextMake = Array.isArray(filters.makes) ? String(filters.makes[0] ?? "") : ""
+        const nextModel = Array.isArray(filters.models) ? String(filters.models[0] ?? "") : ""
+        const nextMustHave: string[] = Array.isArray(filters.mustHave)
+          ? (filters.mustHave as unknown[]).filter((term): term is string => typeof term === 'string')
+          : []
+
+        const taxonomyMake = nextMake ? getZaMake(nextMake) : undefined
+        const nextMakeMode: VehicleEntryMode = nextMake && !taxonomyMake ? 'custom' : 'taxonomy'
+        setMakeMode(nextMakeMode)
+        if (nextMakeMode === 'taxonomy') {
+          setSelectedMake(taxonomyMake?.make ?? nextMake)
+          setCustomMake("")
+        } else {
+          setCustomMake(nextMake)
+          setSelectedMake("")
+        }
+
+        const taxonomyModel =
+          nextMakeMode === 'taxonomy' && taxonomyMake && nextModel
+            ? getZaModel(taxonomyMake.make, nextModel)
+            : undefined
+        const nextModelMode: VehicleEntryMode =
+          nextMakeMode === 'custom'
+            ? 'custom'
+            : nextModel && !taxonomyModel
+              ? 'custom'
+              : 'taxonomy'
+        setModelMode(nextModelMode)
+        if (nextModelMode === 'taxonomy') {
+          setSelectedModel(taxonomyModel?.model ?? nextModel)
+          setCustomModel("")
+        } else {
+          setCustomModel(nextModel)
+          setSelectedModel("")
+        }
+
+        const nextEngine = (() => {
+          if (nextMakeMode !== 'taxonomy' || nextModelMode !== 'taxonomy') return ""
+          const mk = taxonomyMake?.make
+          const mdl = taxonomyModel?.model
+          if (!mk || !mdl) return ""
+          const engines = getZaEngines(mk, mdl)
+          const lowered = nextMustHave.map((term) => term.trim().toLowerCase())
+          const found = engines.find((entry) => lowered.includes(entry.trim().toLowerCase()))
+          return found ?? ""
+        })()
+        setEngine(nextEngine)
+
+        const nextCabType = (() => {
+          const lowered = nextMustHave.map((term) => term.trim().toLowerCase())
+          const found = ZA_CAB_TYPES.find((entry) => lowered.includes(entry.label.toLowerCase()))
+          return found?.value ?? ""
+        })()
+        setCabType(nextCabType)
+
+        const nextCabLabel = ZA_CAB_TYPES.find((entry) => entry.value === nextCabType)?.label ?? ""
+        const strippedMustHave = nextMustHave
+          .filter((term) => {
+            const key = term.trim().toLowerCase()
+            if (nextEngine && key === nextEngine.trim().toLowerCase()) return false
+            if (nextCabLabel && key === nextCabLabel.trim().toLowerCase()) return false
+            return true
+          })
+          .join(", ")
+        setMustHave(strippedMustHave)
+
         if (filters.minYear) setMinYear(String(filters.minYear))
         if (filters.maxYear) setMaxYear(String(filters.maxYear))
         if (filters.maxBudgetZar) setMaxBudgetZar(String(filters.maxBudgetZar))
@@ -57,7 +206,6 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
         if (filters.fuelTypes) setFuelTypes(filters.fuelTypes.join(", "))
         if (filters.transmissions) setTransmissions(filters.transmissions.join(", "))
         if (filters.bodyTypes) setBodyTypes(filters.bodyTypes.join(", "))
-        if (filters.mustHave) setMustHave(filters.mustHave.join(", "))
         if (filters.niceToHave) setNiceToHave(filters.niceToHave.join(", "))
         if (filters.excludeTerms) setExcludeTerms(filters.excludeTerms.join(", "))
       }
@@ -79,9 +227,35 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
       const n = Number(trimmed)
       return Number.isFinite(n) ? n : undefined // Return the number if valid
     }
+
+    const makeValue = (makeMode === 'taxonomy' ? selectedMake : customMake).trim()
+    const modelValue = (modelMode === 'taxonomy' ? selectedModel : customModel).trim()
+    const engineValue = engine.trim()
+    const cabLabel = cabType ? ZA_CAB_TYPES.find((entry) => entry.value === cabType)?.label : undefined
+
+    const mustHaveFromInput = parseCsv(mustHave) || []
+    const combinedMustHave = [...mustHaveFromInput]
+    if (engineValue) combinedMustHave.push(engineValue)
+    if (cabLabel) combinedMustHave.push(cabLabel)
+
+    const normalizedMustHave = (() => {
+      if (combinedMustHave.length === 0) return undefined
+      const seen = new Set<string>()
+      const result: string[] = []
+      for (const value of combinedMustHave) {
+        const trimmed = value.trim()
+        if (!trimmed) continue
+        const key = trimmed.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        result.push(trimmed)
+      }
+      return result.length ? result : undefined
+    })()
+
     return {
-      makes: parseCsv(makes),
-      models: parseCsv(models),
+      makes: makeValue ? [makeValue] : undefined,
+      models: modelValue ? [modelValue] : undefined,
       minYear: toNum(minYear),
       maxYear: toNum(maxYear),
       maxBudgetZar: toNum(maxBudgetZar),
@@ -91,11 +265,11 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
       fuelTypes: parseCsv(fuelTypes),
       transmissions: parseCsv(transmissions),
       bodyTypes: parseCsv(bodyTypes),
-      mustHave: parseCsv(mustHave),
+      mustHave: normalizedMustHave,
       niceToHave: parseCsv(niceToHave),
       excludeTerms: parseCsv(excludeTerms),
     }
-  }, [makes, models, minYear, maxYear, maxBudgetZar, maxMileageKm, seats, colors, fuelTypes, transmissions, bodyTypes, mustHave, niceToHave, excludeTerms])
+  }, [makeMode, selectedMake, customMake, modelMode, selectedModel, customModel, engine, cabType, minYear, maxYear, maxBudgetZar, maxMileageKm, seats, colors, fuelTypes, transmissions, bodyTypes, mustHave, niceToHave, excludeTerms])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -152,13 +326,194 @@ export default function ClientRequestEditor({ initial, onCancel, onSave }: Clien
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <Label htmlFor="makes">Makes (comma-separated)</Label>
-          <Input id="makes" value={makes} onChange={(e) => setMakes(e.target.value)} placeholder="Toyota, VW" />
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="make">Make</Label>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={makeMode === 'taxonomy' ? 'secondary' : 'ghost'}
+                onClick={() => {
+                  setMakeMode('taxonomy')
+                  setCustomMake("")
+                  if (modelMode === 'custom') setModelMode('taxonomy')
+                }}
+              >
+                List
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={makeMode === 'custom' ? 'secondary' : 'ghost'}
+                onClick={() => {
+                  setMakeMode('custom')
+                  setSelectedMake("")
+                  setModelMode('custom')
+                  setSelectedModel("")
+                  setEngine("")
+                  setCabType("")
+                }}
+              >
+                Custom
+              </Button>
+            </div>
+          </div>
+          {makeMode === 'taxonomy' ? (
+            <Select
+              value={selectedMake || undefined}
+              onValueChange={(value) => {
+                setMakeMode('taxonomy')
+                setSelectedMake(value)
+                setCustomMake("")
+                setModelMode('taxonomy')
+                setSelectedModel("")
+                setCustomModel("")
+                setEngine("")
+                setCabType("")
+              }}
+            >
+              <SelectTrigger id="make">
+                <SelectValue placeholder="Select make" />
+              </SelectTrigger>
+              <SelectContent>
+                {makeOptions.map((make) => (
+                  <SelectItem key={make} value={make}>
+                    {make}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              id="make"
+              value={customMake}
+              onChange={(e) => {
+                setCustomMake(e.target.value)
+              }}
+              placeholder="e.g. Toyota"
+            />
+          )}
         </div>
         <div className="space-y-1">
-          <Label htmlFor="models">Models (comma-separated)</Label>
-          <Input id="models" value={models} onChange={(e) => setModels(e.target.value)} placeholder="Fortuner, Polo" />
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="model">Model</Label>
+            {makeMode === 'taxonomy' && (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={modelMode === 'taxonomy' ? 'secondary' : 'ghost'}
+                  onClick={() => {
+                    setModelMode('taxonomy')
+                    setCustomModel("")
+                  }}
+                  disabled={!selectedMake}
+                >
+                  List
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={modelMode === 'custom' ? 'secondary' : 'ghost'}
+                  onClick={() => {
+                    setModelMode('custom')
+                    setSelectedModel("")
+                    setEngine("")
+                    setCabType("")
+                  }}
+                >
+                  Custom
+                </Button>
+              </div>
+            )}
+          </div>
+          {makeMode === 'taxonomy' && modelMode === 'taxonomy' ? (
+            <Select
+              value={selectedModel || undefined}
+              onValueChange={(value) => {
+                setSelectedModel(value)
+                setCustomModel("")
+                setEngine("")
+                setCabType("")
+              }}
+              disabled={!selectedMake}
+            >
+              <SelectTrigger id="model">
+                <SelectValue placeholder={selectedMake ? "Select model" : "Select make first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {modelOptions.map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              id="model"
+              value={customModel}
+              onChange={(e) => setCustomModel(e.target.value)}
+              placeholder="e.g. Hilux"
+              disabled={makeMode === 'taxonomy' && !selectedMake}
+            />
+          )}
         </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="engine">Engine Size</Label>
+          {makeMode === 'taxonomy' && modelMode === 'taxonomy' && engineOptions.length > 0 ? (
+            <Select
+              value={engine || '__none__'}
+              onValueChange={(value) => setEngine(value === '__none__' ? "" : value)}
+              disabled={!selectedMake || !selectedModel}
+            >
+              <SelectTrigger id="engine">
+                <SelectValue placeholder="Any" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Any</SelectItem>
+                {engineOptions.map((entry) => (
+                  <SelectItem key={entry} value={entry}>
+                    {entry}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              id="engine"
+              value={engine}
+              onChange={(e) => setEngine(e.target.value)}
+              placeholder="e.g. 2.8"
+            />
+          )}
+        </div>
+
+        {(cabOptions.length > 0 || cabType) && (
+          <div className="space-y-1">
+            <Label htmlFor="cabType">Cab Type</Label>
+            <Select
+              value={cabType || '__none__'}
+              onValueChange={(value) => setCabType(value === '__none__' ? "" : value)}
+            >
+              <SelectTrigger id="cabType">
+                <SelectValue placeholder="Any" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Any</SelectItem>
+                {(cabOptions.length > 0 ? cabOptions : ZA_CAB_TYPES.map((entry) => entry.value)).map((value) => {
+                  const label = ZA_CAB_TYPES.find((entry) => entry.value === value)?.label ?? value
+                  return (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="space-y-1">
           <Label htmlFor="minYear">Min Year</Label>
           <Input id="minYear" type="number" inputMode="numeric" value={minYear} onChange={(e) => setMinYear(e.target.value)} placeholder="2018" />

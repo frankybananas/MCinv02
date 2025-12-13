@@ -31,6 +31,24 @@ export const calculateMatchScore = (car: Partial<Car>, criteria: ParsedCriteria[
   let colorScore = 0;
   let otherScore = 0;
 
+  const textParts: string[] = [];
+  if (car.make) textParts.push(car.make);
+  if (car.model) textParts.push(car.model);
+  if (car.description) textParts.push(car.description);
+  if (car.notes) textParts.push(car.notes);
+  if (Array.isArray(car.features)) textParts.push(...car.features);
+
+  const rawText = textParts.join(' ').toLowerCase();
+  const simplifiedText = rawText.replace(/[^a-z0-9]+/g, '');
+  const textIncludes = (term: string): boolean => {
+    const needle = term.trim().toLowerCase();
+    if (!needle) return false;
+    if (rawText.includes(needle)) return true;
+    const simplifiedNeedle = needle.replace(/[^a-z0-9]+/g, '');
+    if (!simplifiedNeedle) return false;
+    return simplifiedText.includes(simplifiedNeedle);
+  };
+
   // 1. Make (25 points)
   if (criteria.makes && criteria.makes.length > 0) {
     if (car.make && criteria.makes.some(m => car.make!.toLowerCase().includes(m.toLowerCase()))) {
@@ -95,6 +113,15 @@ export const calculateMatchScore = (car: Partial<Car>, criteria: ParsedCriteria[
     otherTotal++;
     if (car.kilometers && car.kilometers <= criteria.maxMileageKm) {
       otherMatches++;
+    }
+  }
+
+  if (criteria.mustHave && criteria.mustHave.length > 0) {
+    for (const term of criteria.mustHave) {
+      otherTotal++;
+      if (textIncludes(term)) {
+        otherMatches++;
+      }
     }
   }
 
