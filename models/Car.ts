@@ -1,65 +1,111 @@
 import mongoose from 'mongoose';
 
-const carSchema = new mongoose.Schema({
+const CarSchema = new mongoose.Schema({
   make: {
     type: String,
-    required: true,
+    required: [true, 'Please provide the car make'],
+    trim: true,
   },
   model: {
     type: String,
-    required: true,
+    required: [true, 'Please provide the car model'],
+    trim: true,
   },
   year: {
     type: Number,
-    required: true,
-  },
-  vin: {
-    type: String,
-    unique: true,
-    sparse: true,
+    required: [true, 'Please provide the car year'],
   },
   licensePlate: {
     type: String,
-    unique: true,
-    sparse: true,
+    trim: true,
   },
-  color: String,
-  mileage: Number,
+  vin: {
+    type: String,
+    trim: true,
+  },
+  color: {
+    type: String,
+    trim: true,
+  },
+  transmission: {
+    type: String,
+    enum: ['manual', 'automatic', 'cvt'],
+    default: 'automatic',
+  },
+  fuelType: {
+    type: String,
+    enum: ['petrol', 'diesel', 'hybrid', 'electric', 'plug-in hybrid'],
+    default: 'petrol',
+  },
+  seats: {
+    type: Number,
+  },
+  description: {
+    type: String,
+    trim: true,
+  },
+  notes: {
+    type: String,
+    trim: true,
+  },
+  price: {
+    type: Number,
+    required: [true, 'Please provide the car price'],
+  },
+  kilometers: {
+    type: Number,
+  },
+  status: {
+    type: String,
+    enum: ['in-stock', 'coming', 'reserved', 'sold'],
+    default: 'coming',
+    required: true,
+  },
+  soldAt: {
+    type: Date,
+    default: null,
+  },
+  demo: {
+    type: Boolean,
+    default: false,
+  },
+  doNotAdvertise: {
+    type: Boolean,
+    default: false,
+  },
+  serviceHistory: [{
+    date: Date,
+    description: String,
+    mileage: Number,
+    cost: Number,
+    documents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Document' }],
+  }],
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
-    required: true,
   },
   images: [{
-    type: String, // URLs to images stored in your storage solution
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Picture',
   }],
   // Image role indices (null if no image has that role)
   coverImageIndex: {
     type: Number,
     default: null,
-    min: 0,
   },
   vinImageIndex: {
     type: Number,
     default: null,
-    min: 0,
   },
-  documents: [{
-    name: String,
-    url: String,
-    type: String, // e.g., 'insurance', 'registration', 'inspection'
-    expiryDate: Date,
+  auditLog: [{
+    action: String,
+    details: String,
+    user: String,
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
   }],
-  serviceHistory: [{
-    date: Date,
-    description: String,
-    cost: Number,
-    mileage: Number,
-  }],
-  doNotAdvertise: {
-    type: Boolean,
-    default: false,
-  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -71,9 +117,14 @@ const carSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field on save
-carSchema.pre('save', function(next) {
+CarSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
 
-export default mongoose.models.Car || mongoose.model('Car', carSchema);
+CarSchema.index(
+  { licensePlate: 1 },
+  { unique: true, partialFilterExpression: { licensePlate: { $type: 'string', $ne: '' } } }
+);
+
+export default mongoose.models.Car || mongoose.model('Car', CarSchema);
