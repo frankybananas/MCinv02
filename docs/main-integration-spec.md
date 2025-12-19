@@ -17,8 +17,8 @@ MCinv02 is a sophisticated car inventory management system built with Next.js 15
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────┐ │
-│  │  MongoDB    │  │   Qdrant    │  │   OpenAI    │  │   R2    │ │
-│  │  Database   │  │ Vector DB   │  │   API       │  │ Storage │ │
+│  │  MongoDB    │  │  Gemini     │  │  Twilio     │  │   R2    │ │
+│  │  Database   │  │   AI        │  │   SMS       │  │ Storage │ │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -37,13 +37,13 @@ MCinv02 is a sophisticated car inventory management system built with Next.js 15
 - **Runtime**: Node.js with Next.js API routes
 - **Database**: MongoDB 6.17.0 with Mongoose 8.16.0 ODM
 - **Authentication**: JWT tokens with HTTP-only cookies
-- **External APIs**: OpenAI API, Qdrant vector database, Twilio SMS
+- **External APIs**: Twilio SMS, Google Gemini API
 
 ### Data Storage and Processing
 - **Primary Database**: MongoDB for application data
-- **Vector Database**: Qdrant for AI similarity search
 - **File Storage**: Cloudflare R2/S3 for images and documents
-- **AI Processing**: OpenAI embeddings and GPT models
+- **AI Processing**: Google Gemini parsing for structured request filters
+- **Matching Engine**: Deterministic scoring for car/request matching
 
 ## Feature Integration Architecture
 
@@ -51,28 +51,28 @@ MCinv02 is a sophisticated car inventory management system built with Next.js 15
 
 #### Data Flow
 ```
-Car Creation → Image Processing → Vector Embedding → Cross-Request Matching
-     ↓              ↓                ↓                    ↓
-Image Upload → Sharp Resize → OpenAI Embedding → Qdrant Search → Match Creation
+Car Creation → Image Processing → Cloud Storage → Scheduled Matching
+     ↓              ↓               ↓                  ↓
+Image Upload → Sharp Resize → R2 Upload → Score Against Requests → Match Creation
 ```
 
 #### Integration Points
 - **Delivery Auto-Creation**: Status change to "reserved" triggers delivery record
-- **Vector Search Integration**: New cars automatically matched against all active requests
+- **Matching Engine**: New cars are considered by scheduled matching against active requests
 - **Image Pipeline**: Automatic optimization and cloud storage upload
 
 ### 2. Clients & Requests Integration
 
 #### Data Flow
 ```
-Client Creation → Notes Parsing → Request Generation → Vector Search → Matching
-     ↓                ↓              ↓                ↓           ↓
-User Input → OpenAI GPT → Structured Filters → Qdrant Query → Match Creation
+Client Creation → Notes Parsing → Structured Filters → Matching → Match Creation
+     ↓                ↓                ↓               ↓           ↓
+User Input → Gemini AI → Saved Filters → Scoring Engine → Match Creation
 ```
 
 #### Integration Points
 - **AI-Powered Parsing**: Natural language notes automatically converted to structured requests
-- **Vector Matching**: Requests embedded and matched against car inventory
+- **Scoring-Based Matching**: Requests matched against car inventory via deterministic scoring
 - **Notification Generation**: New matches trigger user notifications
 
 ### 3. Deliveries & Recon Integration
@@ -95,11 +95,11 @@ Status Update → User Assignment → Task Tracking → File Storage → Status 
 ```
 Match Created → Score Calculated → Explanation Generated → Notification Sent
      ↓              ↓                   ↓                    ↓
-Vector Search → Similarity Score → OpenAI GPT → User Alert → Status Tracking
+Scoring Engine → Match Score → Score Breakdown → User Alert → Status Tracking
 ```
 
 #### Integration Points
-- **AI Match Explanations**: GPT-generated explanations for match relevance
+- **Explainable Scoring**: Matches store a score breakdown for transparency
 - **Status Lifecycle**: New → Notified → Viewed → Dismissed → Converted tracking
 - **User Isolation**: Users only see matches for their own requests
 
@@ -117,19 +117,19 @@ User Input → Twilio → Jose Sign → HTTP-Only → Header Injection
 - **Cross-User AI**: Matching operates across all users while maintaining privacy
 - **Role-Based Access**: Admin/Manager/User permission levels
 
-### 6. Vector Search & AI Integration
+### 6. AI Parsing & Matching Integration
 
-#### Embedding Pipeline
+#### Parsing + Scoring Pipeline
 ```
-Text Input → Normalization → OpenAI Embedding → Vector Storage → Similarity Search
-     ↓            ↓               ↓              ↓             ↓
-Raw Text → Standard Format → 1536D Vector → Qdrant Upsert → Cosine Similarity
+Text Input → Gemini Parsing → Structured Filters → Scoring Engine → Match Creation
+     ↓            ↓                ↓                ↓              ↓
+Raw Text → JSON Criteria → Saved Filters → Score (0-100) → VehicleMatch Records
 ```
 
 #### Integration Points
-- **Bidirectional Matching**: Cars and requests search each other
-- **Real-time Updates**: New inventory/requests trigger immediate matching
-- **Fallback Support**: Graceful degradation when AI services unavailable
+- **Bidirectional Matching**: Cars and requests are evaluated against each other via scoring
+- **Scheduled Updates**: Cron endpoints handle parsing/matching on a schedule
+- **Fallback Support**: Graceful degradation when AI services are unavailable
 
 ### 7. Performance Optimizations Integration
 
@@ -174,17 +174,15 @@ erDiagram
 
 #### Car Inventory Workflow
 1. **Creation**: Car added with images and specifications
-2. **Embedding**: Text representation generated and embedded
-3. **Vector Storage**: Car stored in Qdrant for similarity search
-4. **Matching**: Automatic search against all active client requests
-5. **Notification**: Relevant matches trigger user notifications
+2. **Storage**: Images stored in R2 and metadata stored in MongoDB
+3. **Matching**: Scheduled scoring against all active client requests
+4. **Notification**: Relevant matches trigger user notifications
 
 #### Client Request Workflow
 1. **Creation**: Client created with natural language requirements
 2. **Parsing**: AI extracts structured filters from notes
-3. **Embedding**: Request text embedded for similarity search
-4. **Matching**: Search against available car inventory
-5. **Results**: Matches presented to user with explanations
+3. **Matching**: Score against available car inventory
+4. **Results**: Matches presented to user with explanations
 
 #### Delivery Management Workflow
 1. **Initiation**: Car reservation triggers delivery creation
@@ -196,15 +194,13 @@ erDiagram
 
 ### AI Integration Architecture
 
-#### OpenAI Service Integration
-- **Embedding Model**: `text-embedding-3-small` (1536 dimensions)
-- **Chat Model**: `gpt-4o-mini` for explanations and parsing
-- **Cost Optimization**: Efficient model selection for different tasks
+#### Gemini Service Integration
+- **Model**: `gemini-1.5-flash` for structured request parsing
+- **Output**: JSON filters + confidence score
 
-#### Qdrant Vector Database Integration
-- **Collections**: Separate collections for cars and requests
-- **Search Strategy**: Cosine similarity with configurable thresholds
-- **Performance**: Optimized for sub-100ms query response times
+#### Deterministic Matching Engine
+- **Scoring**: Weighted 0-100 score based on filters and vehicle attributes
+- **Storage**: Matches stored in MongoDB (`VehicleMatch`)
 
 ### Database Integration Strategy
 
@@ -244,7 +240,7 @@ erDiagram
 
 ### Scalability Considerations
 - **Database Indexing**: Optimized for growth in car/client data
-- **Vector Search Performance**: Qdrant scaling for large inventories
+- **Matching Performance**: Scheduled batch processing and query optimization
 - **API Rate Limiting**: Protection against abuse and cost control
 
 ## Security Architecture
@@ -301,8 +297,7 @@ erDiagram
 - **User Scale**: Designed for small to medium dealership operations
 
 ### Technical Constraints
-- **AI Service Dependency**: Reliance on external OpenAI/Qdrant services
-- **Vector Search Scale**: Optimal for inventories up to 10,000+ vehicles
+- **AI Service Dependency**: Reliance on external Gemini parsing (optional)
 - **Real-time Requirements**: Some operations may have sub-second latency
 
 ### Business Constraints

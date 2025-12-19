@@ -15,7 +15,6 @@ The Cars Management feature provides comprehensive CRUD operations for vehicle i
 - **API Endpoints**:
   - `GET/PUT/DELETE /api/cars/[id]/route.js` - Individual car CRUD operations
   - `GET/POST /api/cars/route.js` - Car listing and creation
-  - `GET /api/cars-simple/` - Lightweight car data endpoint
 
 ### Data Models
 **Car Interface** (`app/types.ts`):
@@ -57,8 +56,8 @@ interface Car {
 3. Form includes: basic info (make, model, year, price), specifications, images upload
 4. Image processing: automatic resizing to medium (1600px) and thumbnail (320px) variants
 5. Cloud storage upload to R2/S3 with optimized compression
-6. Vector embedding generation for AI matching
-7. Automatic client request matching and notification creation
+6. Car becomes eligible for scheduled request matching
+7. Matches (if any) are surfaced via notifications and client detail views
 
 #### 2. Viewing Car Details
 1. Click on car card in dashboard → `car-detail.tsx` component
@@ -70,7 +69,7 @@ interface Car {
 - Status transitions trigger business logic:
   - `"reserved"` → Auto-creates delivery record
   - Status changes logged in audit trail
-  - Vector search updates for matching system
+  - Matching considers only available cars (in-stock/coming)
 
 ### State Management
 - **Local State**: Individual components manage form state, loading states, UI interactions
@@ -86,11 +85,10 @@ interface Car {
 - `reserve-modal.tsx` links car to client and initiates delivery workflow
 - Delivery detail page shows associated car information
 
-#### Vector Search Integration
-- New cars automatically generate embeddings using `buildCarSearchText()`
-- Embeddings stored in both MongoDB and Qdrant vector database
-- Triggers matching against active client requests
-- Creates `Match` records for relevant client-car combinations
+#### Matching Integration
+- Cars participate in matching when status is in-stock/coming
+- Scheduled cron processing evaluates active client requests against available inventory
+- Creates `VehicleMatch` records for relevant client-car combinations
 
 #### Image Management
 - Images stored as `Picture` documents linked to cars
@@ -130,9 +128,9 @@ const statusTransitions = {
 - Retry logic for cloud storage failures
 - User feedback on upload status
 
-### Vector Search Failures
-- Non-blocking error handling for embedding generation
-- Fallback to basic text search if AI features unavailable
+### Matching Failures
+- Non-blocking error handling for scheduled matching jobs
+- Core inventory CRUD remains functional even if matching is unavailable
 - Warning logs for debugging
 
 ### Duplicate VIN Handling
@@ -144,8 +142,8 @@ const statusTransitions = {
 
 ### Core Implementation Files
 - **API Routes**:
-  - `app/api/cars/route.js` - Main CRUD operations
-  - `app/api/cars/[id]/route.js` - Individual car management
+  - `app/api/cars/route.ts` - Main CRUD operations
+  - `app/api/cars/[id]/route.ts` - Individual car management
 
 - **Components**:
   - `app/components/add-edit-car.tsx` - Car creation/editing form
@@ -157,12 +155,11 @@ const statusTransitions = {
   - `models/Picture.js` - Image metadata schema
 
 - **Utilities**:
-  - `lib/embeddings.ts` - Car text generation and embedding
-  - `lib/vector-store.ts` - Vector database operations
-  - `lib/s3.js` - Cloud storage operations
+  - `lib/s3.ts` - Cloud storage operations
+  - `lib/matching/match-engine.ts` - Matching engine
+  - `lib/matching/scoring.ts` - Deterministic scoring
 
 ### Supporting Infrastructure
 - **Image Processing**: Sharp library for automatic resizing
 - **Cloud Storage**: R2/S3 integration with optimized caching
-- **Vector Search**: Qdrant integration for AI-powered matching
 - **Database**: MongoDB with Mongoose ODM

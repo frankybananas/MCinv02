@@ -25,17 +25,16 @@ const ENV_VARS: EnvVar[] = [
   { name: 'TWILIO_VERIFY_SERVICE_SID', required: true, description: 'Twilio Verify Service SID', sensitive: true },
   
   // Cloudflare R2
-  { name: 'R2_ACCESS_KEY_ID', required: true, description: 'R2 Access Key ID', sensitive: true },
-  { name: 'R2_SECRET_ACCESS_KEY', required: true, description: 'R2 Secret Access Key', sensitive: true },
+  { name: 'R2_ENDPOINT', required: true, description: 'R2 S3-compatible endpoint' },
+  { name: 'CLOUDFLARE_ACCESS_KEY_ID', required: true, description: 'Cloudflare R2 access key', sensitive: true },
+  { name: 'CLOUDFLARE_SECRET_ACCESS_KEY', required: true, description: 'Cloudflare R2 secret key', sensitive: true },
   { name: 'R2_BUCKET_NAME', required: true, description: 'R2 Bucket Name' },
-  { name: 'R2_ACCOUNT_ID', required: true, description: 'R2 Account ID' },
   { name: 'R2_PUBLIC_URL', required: true, description: 'R2 Public URL for assets' },
   
   // Optional
   { name: 'NEXT_PUBLIC_BASE_URL', required: false, description: 'Base URL for the application' },
   { name: 'ALLOWED_ORIGIN', required: false, description: 'Allowed CORS origin' },
   { name: 'CRON_SECRET', required: false, description: 'Secret for cron job authentication', sensitive: true },
-  { name: 'OPENAI_API_KEY', required: false, description: 'OpenAI API key for AI features', sensitive: true },
   { name: 'GOOGLE_GEMINI_API_KEY', required: false, description: 'Google Gemini API key', sensitive: true },
 ];
 

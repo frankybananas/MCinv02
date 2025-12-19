@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = new Uint8Array(arrayBuffer)
 
-    const bucket = process.env.R2_BUCKET as string | undefined
+    const bucket = (process.env.R2_BUCKET_NAME || process.env.R2_BUCKET) as string | undefined
     const publicBase = process.env.R2_PUBLIC_URL as string | undefined
 
     const ext = file.name.split('.').pop() || ''
