@@ -2,6 +2,7 @@ import { POST } from '@/app/api/cron/match-requests/route';
 import ClientRequest from '@/models/ClientRequest';
 import { parseClientRequest } from '@/lib/ai/gemini-parser';
 import { matchClientToInventory } from '@/lib/matching/match-engine';
+import { markCronError, markCronRunning, markCronSuccess } from '@/lib/cron-metadata';
 
 jest.mock('next/server', () => ({
   NextRequest: class {
@@ -39,6 +40,12 @@ jest.mock('@/lib/matching/match-engine', () => ({
   matchClientToInventory: jest.fn(),
 }));
 
+jest.mock('@/lib/cron-metadata', () => ({
+  markCronRunning: jest.fn(),
+  markCronSuccess: jest.fn(),
+  markCronError: jest.fn(),
+}));
+
 describe('Cron /api/cron/match-requests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -56,6 +63,9 @@ describe('Cron /api/cron/match-requests', () => {
 
     expect(res.status).toBe(401);
     expect(json.success).toBe(false);
+    expect(markCronRunning).not.toHaveBeenCalled();
+    expect(markCronSuccess).not.toHaveBeenCalled();
+    expect(markCronError).not.toHaveBeenCalled();
   });
 
   it('processes parse+match and match-only requests', async () => {
@@ -117,5 +127,15 @@ describe('Cron /api/cron/match-requests', () => {
         $and: expect.any(Array),
       })
     );
+
+    expect(markCronRunning).toHaveBeenCalledWith('match-requests');
+    expect(markCronSuccess).toHaveBeenCalledWith(
+      'match-requests',
+      expect.objectContaining({
+        message: expect.any(String),
+        durationMs: expect.any(Number),
+      })
+    );
+    expect(markCronError).not.toHaveBeenCalled();
   });
 });

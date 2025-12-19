@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connect } from '@/lib/mongodb';
+import { markCronError, markCronRunning, markCronSuccess } from '@/lib/cron-metadata';
 import SoldCar from '@/models/SoldCar';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 
@@ -7,6 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   try {
     // Verify authorization header (for cron jobs or internal calls)
     const authHeader = request.headers.get('authorization');
@@ -17,6 +19,11 @@ export async function POST(request: Request) {
     }
 
     await connect();
+    try {
+      await markCronRunning('cleanup-sold-cars');
+    } catch (error) {
+      console.error('Failed to record cron running state', error);
+    }
     const Car = (await import('@/models/Car')).default;
     const Picture = (await import('@/models/Picture')).default;
     const User = (await import('@/models/User')).default;
@@ -171,6 +178,15 @@ export async function POST(request: Request) {
       }
     }
 
+    try {
+      await markCronSuccess('cleanup-sold-cars', {
+        message: `Archived ${archivedCount.cars} sold cars`,
+        durationMs: Date.now() - startedAt,
+      });
+    } catch (error) {
+      console.error('Failed to record cron success state', error);
+    }
+
     return NextResponse.json({
       success: true,
       message: `Archived ${archivedCount.cars} sold cars`,
@@ -184,6 +200,11 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('Cleanup job error:', error);
+    try {
+      await markCronError('cleanup-sold-cars', error, { durationMs: Date.now() - startedAt });
+    } catch (markError) {
+      console.error('Failed to record cron error state', markError);
+    }
     return NextResponse.json(
       { error: error.message || 'Failed to run cleanup job' },
       { status: 500 }

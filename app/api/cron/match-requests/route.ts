@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
+import { markCronError, markCronRunning, markCronSuccess } from '@/lib/cron-metadata';
 import ClientRequest from '@/models/ClientRequest';
 import { parseClientRequest } from '@/lib/ai/gemini-parser';
 import { matchClientToInventory } from '@/lib/matching/match-engine';
@@ -33,8 +34,15 @@ async function handleCron(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
 
+  const startedAt = Date.now();
+
   try {
     await connectToDatabase();
+    try {
+      await markCronRunning('match-requests');
+    } catch (error) {
+      console.error('Failed to record cron running state', error);
+    }
 
     const results: Array<Record<string, unknown>> = [];
     const processedIds = new Set<string>();
@@ -132,6 +140,15 @@ async function handleCron(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    try {
+      await markCronSuccess('match-requests', {
+        message: `Processed ${results.length} request tasks`,
+        durationMs: Date.now() - startedAt,
+      });
+    } catch (error) {
+      console.error('Failed to record cron success state', error);
+    }
+
     return NextResponse.json({
       success: true,
       processed: results.length,
@@ -139,6 +156,11 @@ async function handleCron(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error('Cron Job Error:', error);
+    try {
+      await markCronError('match-requests', error, { durationMs: Date.now() - startedAt });
+    } catch (markError) {
+      console.error('Failed to record cron error state', markError);
+    }
     return NextResponse.json(
       { success: false, message: 'Internal Server Error' },
       { status: 500 }
