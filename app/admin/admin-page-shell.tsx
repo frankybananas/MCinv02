@@ -90,6 +90,9 @@ export default function AdminPageShell() {
             <Link href="/admin/system" passHref>
               <Button variant="outline">System Health</Button>
             </Link>
+            <Link href="/admin/audit-log" passHref>
+              <Button variant="outline">Audit Log</Button>
+            </Link>
           </div>
           <Link href="/" passHref>
             <Button variant="outline">

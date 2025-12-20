@@ -7,6 +7,7 @@ import { createTestUser, getTestOtp, getTestPhoneNumbers } from '@/lib/test-acco
 import { checkOtpRateLimit } from '@/lib/rate-limit';
 import { TooManyRequestsError } from '@/lib/errors';
 import { logAuthEvent, getClientIp, getDeviceType } from '@/lib/audit-logger';
+import { logAuditEvent } from '@/lib/audit-log';
 
 export async function POST(req: Request) {
   try {
@@ -25,6 +26,8 @@ export async function POST(req: Request) {
     }
 
     const phone = phoneNumber.format('E.164'); // Normalize to E.164
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    const ip = getClientIp(req);
 
     // Reject test phone numbers in production
     if (process.env.NODE_ENV === 'production' && getTestPhoneNumbers().includes(phone)) {
@@ -42,17 +45,39 @@ export async function POST(req: Request) {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[TEST OTP] Phone: ${phone}, Code: ${testOtp}`);
       }
+      logAuditEvent({
+        eventType: 'OTP_REQUEST',
+        phone,
+        ip,
+        userAgent,
+        metadata: { success: true, test: true },
+      });
       return NextResponse.json({ success: true, message: 'Test OTP sent' });
     }
 
     // For real users, check if they exist in the database
     const user = await User.findOne({ phone });
     if (!user) {
+      logAuditEvent({
+        eventType: 'OTP_REQUEST',
+        phone,
+        ip,
+        userAgent,
+        metadata: { success: false, reason: 'not_authorized' },
+      });
       return NextResponse.json({ error: 'This phone number is not authorized.' }, { status: 403 });
     }
     
     // Check if user is authorized
     if (!user.isAuthorized) {
+      logAuditEvent({
+        eventType: 'OTP_REQUEST',
+        phone,
+        userId: String(user._id),
+        ip,
+        userAgent,
+        metadata: { success: false, reason: 'account_not_authorized' },
+      });
       return NextResponse.json({ error: 'This account is not authorized to login.' }, { status: 403 });
     }
 
@@ -77,15 +102,23 @@ export async function POST(req: Request) {
       .create({ to: phone, channel: 'sms' });
 
     // Log successful OTP send
-    const userAgent = req.headers.get('user-agent') || 'unknown';
     logAuthEvent({
       event: 'otp_sent',
       phone,
       userId: String(user._id),
-      ip: getClientIp(req),
+      ip,
       userAgent,
       deviceType: getDeviceType(userAgent),
       success: true,
+    });
+
+    logAuditEvent({
+      eventType: 'OTP_REQUEST',
+      phone,
+      userId: String(user._id),
+      ip,
+      userAgent,
+      metadata: { success: true, channel: 'sms' },
     });
 
     return NextResponse.json({ success: true, message: 'OTP sent successfully.' });
@@ -101,6 +134,14 @@ export async function POST(req: Request) {
         userAgent: req.headers.get('user-agent') || 'unknown',
         success: false,
         reason: error.message,
+      });
+
+      logAuditEvent({
+        eventType: 'OTP_REQUEST',
+        phone: 'unknown',
+        ip: getClientIp(req),
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        metadata: { success: false, reason: error.message, rateLimited: true },
       });
       return NextResponse.json({ success: false, error: error.message }, { status: 429 });
     }

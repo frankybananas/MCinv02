@@ -10,6 +10,7 @@ import { Twilio } from 'twilio';
 import { checkOtpBlock, recordOtpFailure, resetOtpBlock } from '@/lib/rate-limit';
 import { TooManyRequestsError } from '@/lib/errors';
 import { logAuthEvent, getClientIp, getDeviceType } from '@/lib/audit-logger';
+import { logAuditEvent } from '@/lib/audit-log';
 
 export async function POST(request: Request) {
   const jwtSecret = process.env.JWT_SECRET;
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
 
   try {
     const { phone: rawPhone, code } = await request.json();
+
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const ip = getClientIp(request);
 
     if (!rawPhone || !code) {
       return NextResponse.json({ error: 'Phone number and code are required' }, { status: 400 });
@@ -64,15 +68,22 @@ export async function POST(request: Request) {
       } else {
         // Record failed attempt for progressive blocking
         await recordOtpFailure(phone);
-        const ua = request.headers.get('user-agent') || 'unknown';
         logAuthEvent({
           event: 'login_failure',
           phone,
-          ip: getClientIp(request),
-          userAgent: ua,
-          deviceType: getDeviceType(ua),
+          ip,
+          userAgent,
+          deviceType: getDeviceType(userAgent),
           success: false,
           reason: 'Invalid test OTP',
+        });
+
+        logAuditEvent({
+          eventType: 'LOGIN_FAIL',
+          phone,
+          ip,
+          userAgent,
+          metadata: { reason: 'Invalid test OTP' },
         });
         return NextResponse.json({ success: false, error: 'Invalid test OTP.' }, { status: 400 });
       }
@@ -86,15 +97,22 @@ export async function POST(request: Request) {
       } else {
         // Record failed attempt for progressive blocking
         await recordOtpFailure(phone);
-        const ua = request.headers.get('user-agent') || 'unknown';
         logAuthEvent({
           event: 'login_failure',
           phone,
-          ip: getClientIp(request),
-          userAgent: ua,
-          deviceType: getDeviceType(ua),
+          ip,
+          userAgent,
+          deviceType: getDeviceType(userAgent),
           success: false,
           reason: 'Invalid OTP',
+        });
+
+        logAuditEvent({
+          eventType: 'LOGIN_FAIL',
+          phone,
+          ip,
+          userAgent,
+          metadata: { reason: 'Invalid OTP' },
         });
         return NextResponse.json({ success: false, error: 'Invalid OTP.' }, { status: 400 });
       }
@@ -110,12 +128,18 @@ export async function POST(request: Request) {
       // 3. Find user and enforce device limits
       const user = await User.findOne({ phone });
       if (!user) {
+        logAuditEvent({
+          eventType: 'LOGIN_FAIL',
+          phone,
+          ip,
+          userAgent,
+          metadata: { reason: 'User not found after OTP verification' },
+        });
         // This case should not be reached if the `send` route is working correctly
         return NextResponse.json({ error: 'User not found after OTP verification.' }, { status: 404 });
       }
 
-      const ua = request.headers.get('user-agent') || '';
-      const deviceType: 'mobile' | 'desktop' = /android|iphone|ipad|mobile/i.test(ua) ? 'mobile' : 'desktop';
+      const deviceType: 'mobile' | 'desktop' = /android|iphone|ipad|mobile/i.test(userAgent) ? 'mobile' : 'desktop';
 
       const activeSessions = await Session.find({ phoneNumber: phone, isActive: true }).sort({ createdAt: 1 });
       const sessionsByType = {
@@ -160,7 +184,7 @@ export async function POST(request: Request) {
         deviceType,
         lastOtpAt: now,
         expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        userAgent: ua,
+        userAgent,
         ipAddress: request.headers.get('x-forwarded-for') || 'Unknown',
       });
       await newSession.save();
@@ -170,10 +194,19 @@ export async function POST(request: Request) {
         event: 'login_success',
         phone,
         userId: String(user._id),
-        ip: getClientIp(request),
-        userAgent: ua,
+        ip,
+        userAgent,
         deviceType,
         success: true,
+      });
+
+      logAuditEvent({
+        eventType: 'LOGIN_SUCCESS',
+        phone,
+        userId: String(user._id),
+        ip,
+        userAgent,
+        metadata: { role: user.role, deviceType },
       });
 
       // 7. Create the response and set the cookie
@@ -201,6 +234,14 @@ export async function POST(request: Request) {
         userAgent: request.headers.get('user-agent') || 'unknown',
         success: false,
         reason: error.message,
+      });
+
+      logAuditEvent({
+        eventType: 'LOGIN_FAIL',
+        phone: 'unknown',
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        metadata: { reason: error.message },
       });
       return NextResponse.json({ success: false, error: error.message }, { status: 429 });
     }

@@ -11,6 +11,8 @@ import Client from '@/models/Client.js';
 import User from '@/models/User';
 import WhatsAppGeneration from '@/models/WhatsAppGeneration';
 import { requireSession, isPrivileged, verifyActiveSession, SessionData } from '@/lib/auth-session';
+import { getClientIp } from '@/lib/audit-logger';
+import { logAuditEvent } from '@/lib/audit-log';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -125,6 +127,23 @@ async function handleJsonUpdate(
       user: userName || userPhone || 'unknown',
     };
     carToUpdate.auditLog.push(auditEntry);
+
+    logAuditEvent({
+      eventType: 'CAR_STATUS_CHANGE',
+      phone: userPhone || undefined,
+      ip: getClientIp(request),
+      userAgent: request.headers.get('user-agent') || 'unknown',
+      metadata: {
+        carId: id,
+        make: carToUpdate.make,
+        model: carToUpdate.model,
+        year: carToUpdate.year,
+        oldStatus,
+        newStatus: status,
+        actor: userName || userPhone || 'unknown',
+        clientId: clientId || null,
+      },
+    });
 
     // Track when car was marked as sold
     if (status === 'sold' && oldStatus !== 'sold') {
