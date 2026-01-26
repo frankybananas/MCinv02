@@ -31,6 +31,35 @@ interface CarUpdateData {
   vinImageIndex?: number | null;
 }
 
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+  'image/tiff',
+  'image/gif',
+]);
+
+const validateImageFile = (file: File): { message: string; status: number } | null => {
+  if (!file || typeof file.size !== 'number') {
+    return { message: 'Invalid image upload.', status: 400 };
+  }
+  if (file.size <= 0) {
+    return { message: 'Empty image upload.', status: 400 };
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { message: `Image too large. Max ${Math.round(MAX_IMAGE_BYTES / (1024 * 1024))}MB.`, status: 413 };
+  }
+  if (!file.type || !ALLOWED_IMAGE_TYPES.has(file.type)) {
+    return { message: `Unsupported image type: ${file.type || 'unknown'}.`, status: 415 };
+  }
+  return null;
+};
+
 /**
  * GET /api/cars/[id]
  * Fetch a single car by ID
@@ -262,8 +291,16 @@ async function handleFormDataUpdate(
   const newImageIds: string[] = [];
 
   // Handle new image uploads
-  const imageFiles = data.getAll('images') as File[];
+  const imageFilesRaw = data.getAll('images') as File[];
+  const imageFiles = imageFilesRaw.filter((file) => file && file.size > 0);
   const imageTitles = data.getAll('imageTitles');
+
+  for (const file of imageFiles) {
+    const error = validateImageFile(file);
+    if (error) {
+      return NextResponse.json({ success: false, message: error.message }, { status: error.status });
+    }
+  }
   
   for (const [index, file] of imageFiles.entries()) {
     if (typeof file === 'object' && file.name) {
@@ -311,6 +348,7 @@ async function handleFormDataUpdate(
         imageUrl,
         thumbnailUrl,
         title: imageTitles[index] || file.name,
+        car: id,
       });
       await newPicture.save();
       newImageIds.push(newPicture._id.toString());

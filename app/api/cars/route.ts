@@ -18,6 +18,35 @@ interface CarFormData {
   model?: string;
 }
 
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+  'image/tiff',
+  'image/gif',
+]);
+
+const validateImageFile = (file: File): { message: string; status: number } | null => {
+  if (!file || typeof file.size !== 'number') {
+    return { message: 'Invalid image upload.', status: 400 };
+  }
+  if (file.size <= 0) {
+    return { message: 'Empty image upload.', status: 400 };
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { message: `Image too large. Max ${Math.round(MAX_IMAGE_BYTES / (1024 * 1024))}MB.`, status: 413 };
+  }
+  if (!file.type || !ALLOWED_IMAGE_TYPES.has(file.type)) {
+    return { message: `Unsupported image type: ${file.type || 'unknown'}.`, status: 415 };
+  }
+  return null;
+};
+
 /**
  * GET /api/cars
  * Fetch all cars (requires authentication)
@@ -107,6 +136,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const data = await request.formData();
     const carData: CarFormData = {};
     const files = data.getAll('images') as File[];
+    const imageFiles = files.filter((file) => file && file.size > 0);
+
+    for (const file of imageFiles) {
+      const error = validateImageFile(file);
+      if (error) {
+        return NextResponse.json({ success: false, message: error.message }, { status: error.status });
+      }
+    }
 
     for (const [key, value] of data.entries()) {
       if (key === 'images') continue;
@@ -157,10 +194,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     // Process image uploads
-    if (files && files.length > 0) {
+    if (imageFiles.length > 0) {
       const newPictureIds = await Promise.all(
-        files
-          .filter((f: File) => f.size > 0)
+        imageFiles
           .map(async (file: File) => {
             const arrayBuf = await file.arrayBuffer();
             const input = Buffer.from(arrayBuf);
