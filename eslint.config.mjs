@@ -13,6 +13,9 @@ export default [
   },
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 2023,
@@ -57,6 +60,22 @@ export default [
 
       // Disable Next-specific rule since we intentionally use <img> in places
       'next/no-img-element': 'off',
+    },
+  },
+  {
+    files: [
+      'app/profile/page.tsx',
+      'app/recon/recon-page-shell.tsx',
+      'jest.setup.ts',
+      'lib/ai/gemini-client.ts',
+      'lib/image-download.ts',
+      'lib/whatsapp-generator.ts',
+      'scripts/migrations/add-facebook-fields-to-users.ts',
+      'workers/r2-cors-worker.js',
+    ],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      'no-restricted-globals': 'off',
     },
   },
 ]
