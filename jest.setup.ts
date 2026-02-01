@@ -31,6 +31,23 @@ jest.mock('bson', () => {
   };
 });
 
+// Mock @google/generative-ai to avoid requiring the real SDK in tests
+jest.mock('@google/generative-ai', () => {
+  class GenerativeModelMock {
+    generateContent = jest.fn(async () => ({
+      response: { text: () => '{}' },
+    }))
+  }
+
+  class GoogleGenerativeAIMock {
+    getGenerativeModel() {
+      return new GenerativeModelMock()
+    }
+  }
+
+  return { GoogleGenerativeAI: GoogleGenerativeAIMock, GenerativeModel: GenerativeModelMock }
+}, { virtual: true })
+
 // Basic fetch mock for components
 const fetchMock = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
   const raw = input instanceof URL ? input.toString() : input;

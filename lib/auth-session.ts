@@ -76,6 +76,10 @@ export async function getSession(request: Request): Promise<SessionData | null> 
 
 export async function requireSession(request: Request): Promise<SessionData> {
   const session = await getSession(request)
+  return assertSessionActive(session)
+}
+
+export function assertSessionActive(session: SessionData | null): SessionData {
   if (!session) {
     throw new UnauthorizedError()
   }

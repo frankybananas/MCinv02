@@ -4,19 +4,34 @@
  * Note: Uses the global jose mock from jest.setup.ts which returns a fixed payload
  */
 
-import { getSession, requireSession, isPrivileged, getRateLimitIdentity, verifyActiveSession } from '@/lib/auth-session';
 import { UnauthorizedError } from '@/lib/errors';
-import { jwtVerify } from 'jose';
+
+let getSession: typeof import('@/lib/auth-session').getSession;
+let requireSession: typeof import('@/lib/auth-session').requireSession;
+let assertSessionActive: typeof import('@/lib/auth-session').assertSessionActive;
+let isPrivileged: typeof import('@/lib/auth-session').isPrivileged;
+let getRateLimitIdentity: typeof import('@/lib/auth-session').getRateLimitIdentity;
+let verifyActiveSession: typeof import('@/lib/auth-session').verifyActiveSession;
 
 describe('Auth Session Library', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
+    const authSession = await import('@/lib/auth-session');
+    getSession = authSession.getSession;
+    requireSession = authSession.requireSession;
+    assertSessionActive = authSession.assertSessionActive;
+    isPrivileged = authSession.isPrivileged;
+    getRateLimitIdentity = authSession.getRateLimitIdentity;
+    verifyActiveSession = authSession.verifyActiveSession;
   });
 
   function createRequest(token?: string): Request {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['cookie'] = `session_token=${token}`;
-    return new Request('http://localhost:3000/api/test', { headers });
+    const cookieHeader = token ? `session_token=${token}` : null;
+    return {
+      headers: {
+        get: (name: string) => (name.toLowerCase() === 'cookie' ? cookieHeader : null),
+      },
+    } as unknown as Request;
   }
 
   describe('getSession', () => {
@@ -50,52 +65,55 @@ describe('Auth Session Library', () => {
       await expect(requireSession(request)).rejects.toThrow(UnauthorizedError);
     });
 
-    it('should throw OTP_EXPIRED when lastOtpAt is missing', async () => {
-      const jwtVerifyMock = jwtVerify as jest.Mock;
-      jwtVerifyMock.mockResolvedValueOnce({
-        payload: { phone: '+27821234567', role: 'user', userId: 'u1' },
-      });
+  });
 
-      await expect(requireSession(createRequest('token'))).rejects.toMatchObject({
-        code: 'OTP_EXPIRED',
-      });
+  describe('assertSessionActive', () => {
+    it('should throw UnauthorizedError when session is missing', () => {
+      expect(() => assertSessionActive(null)).toThrow(UnauthorizedError);
     });
 
-    it('should allow session when lastOtpAt is within 7 days', async () => {
-      const now = Date.now();
-      const jwtVerifyMock = jwtVerify as jest.Mock;
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
-      jwtVerifyMock.mockResolvedValueOnce({
-        payload: {
+    it('should throw OTP_EXPIRED when lastOtpAt is missing', () => {
+      expect(() =>
+        assertSessionActive({
+          token: 't',
           phone: '+27821234567',
           role: 'user',
           userId: 'u1',
-          lastOtpAt: now - 6 * 24 * 60 * 60 * 1000,
-        },
-      });
+          lastOtpAt: null,
+          payload: {},
+        })
+      ).toThrow(expect.objectContaining({ code: 'OTP_EXPIRED' }));
+    });
 
-      await expect(requireSession(createRequest('token'))).resolves.toMatchObject({
+    it('should allow session when lastOtpAt is within 7 days', () => {
+      const now = Date.now();
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const session = {
+        token: 't',
         phone: '+27821234567',
-      });
+        role: 'user',
+        userId: 'u1',
+        lastOtpAt: now - 6 * 24 * 60 * 60 * 1000,
+        payload: {},
+      };
+
+      expect(assertSessionActive(session)).toBe(session);
       nowSpy.mockRestore();
     });
 
-    it('should throw OTP_EXPIRED when lastOtpAt is older than 7 days', async () => {
+    it('should throw OTP_EXPIRED when lastOtpAt is older than 7 days', () => {
       const now = Date.now();
-      const jwtVerifyMock = jwtVerify as jest.Mock;
       const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
-      jwtVerifyMock.mockResolvedValueOnce({
-        payload: {
+      expect(() =>
+        assertSessionActive({
+          token: 't',
           phone: '+27821234567',
           role: 'user',
           userId: 'u1',
           lastOtpAt: now - 8 * 24 * 60 * 60 * 1000,
-        },
-      });
-
-      await expect(requireSession(createRequest('token'))).rejects.toMatchObject({
-        code: 'OTP_EXPIRED',
-      });
+          payload: {},
+        })
+      ).toThrow(expect.objectContaining({ code: 'OTP_EXPIRED' }));
       nowSpy.mockRestore();
     });
   });
