@@ -6,6 +6,7 @@
 
 import { getSession, requireSession, isPrivileged, getRateLimitIdentity, verifyActiveSession } from '@/lib/auth-session';
 import { UnauthorizedError } from '@/lib/errors';
+import { jwtVerify } from 'jose';
 
 describe('Auth Session Library', () => {
   beforeAll(() => {
@@ -47,6 +48,55 @@ describe('Auth Session Library', () => {
         headers: { 'cookie': '' },
       });
       await expect(requireSession(request)).rejects.toThrow(UnauthorizedError);
+    });
+
+    it('should throw OTP_EXPIRED when lastOtpAt is missing', async () => {
+      const jwtVerifyMock = jwtVerify as jest.Mock;
+      jwtVerifyMock.mockResolvedValueOnce({
+        payload: { phone: '+27821234567', role: 'user', userId: 'u1' },
+      });
+
+      await expect(requireSession(createRequest('token'))).rejects.toMatchObject({
+        code: 'OTP_EXPIRED',
+      });
+    });
+
+    it('should allow session when lastOtpAt is within 7 days', async () => {
+      const now = Date.now();
+      const jwtVerifyMock = jwtVerify as jest.Mock;
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      jwtVerifyMock.mockResolvedValueOnce({
+        payload: {
+          phone: '+27821234567',
+          role: 'user',
+          userId: 'u1',
+          lastOtpAt: now - 6 * 24 * 60 * 60 * 1000,
+        },
+      });
+
+      await expect(requireSession(createRequest('token'))).resolves.toMatchObject({
+        phone: '+27821234567',
+      });
+      nowSpy.mockRestore();
+    });
+
+    it('should throw OTP_EXPIRED when lastOtpAt is older than 7 days', async () => {
+      const now = Date.now();
+      const jwtVerifyMock = jwtVerify as jest.Mock;
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      jwtVerifyMock.mockResolvedValueOnce({
+        payload: {
+          phone: '+27821234567',
+          role: 'user',
+          userId: 'u1',
+          lastOtpAt: now - 8 * 24 * 60 * 60 * 1000,
+        },
+      });
+
+      await expect(requireSession(createRequest('token'))).rejects.toMatchObject({
+        code: 'OTP_EXPIRED',
+      });
+      nowSpy.mockRestore();
     });
   });
 

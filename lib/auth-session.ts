@@ -1,6 +1,13 @@
 import { jwtVerify, type JWTPayload } from 'jose'
 import { UnauthorizedError } from './errors'
 
+const OTP_REAUTH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+function isOtpExpired(lastOtpAt?: number | null): boolean {
+  if (!lastOtpAt) return true
+  return Date.now() - lastOtpAt >= OTP_REAUTH_WINDOW_MS
+}
+
 export interface SessionData {
   token: string
   phone: string
@@ -71,6 +78,9 @@ export async function requireSession(request: Request): Promise<SessionData> {
   const session = await getSession(request)
   if (!session) {
     throw new UnauthorizedError()
+  }
+  if (isOtpExpired(session.lastOtpAt)) {
+    throw new UnauthorizedError('OTP expired', 'OTP_EXPIRED')
   }
   return session
 }
