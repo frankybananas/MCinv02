@@ -169,7 +169,7 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="font-medium text-muted-foreground">Make & Model</p>
-                  <p className="font-semibold">{car?.make} {car?.model}</p>
+                  <p className="font-semibold break-words">{car?.make} {car?.model}</p>
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">Year</p>
@@ -181,11 +181,22 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">Status</p>
-                  <p className="font-semibold capitalize">{car?.status?.replace('-', ' ')}</p>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                    car?.status === 'sold' ? 'bg-green-100 text-green-800' :
+                    car?.status === 'reserved' ? 'bg-amber-100 text-amber-800' :
+                    car?.status === 'in-stock' ? 'bg-blue-100 text-blue-800' :
+                    car?.status === 'coming' ? 'bg-purple-100 text-purple-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {car?.status?.replace('-', ' ')}
+                  </span>
                 </div>
-                <div>
+                {/* VIN on its own full-width row */}
+                <div className="col-span-2 md:col-span-4">
                   <p className="font-medium text-muted-foreground">VIN</p>
-                  <p className="font-semibold">{car?.vin}</p>
+                  <p className="font-mono text-xs sm:text-sm bg-muted/50 p-2 rounded-md break-all border mt-1">
+                    {car?.vin || 'N/A'}
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">Color</p>
@@ -314,6 +325,12 @@ export function DeliveryDetail({ delivery, onBack, onSave }: DeliveryDetailProps
             </CardContent>
           </Card>
           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Delivery Details
+              </CardTitle>
+            </CardHeader>
             <CardContent className="p-4 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="deliveryDate">Delivery date</Label>

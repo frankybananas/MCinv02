@@ -428,4 +428,162 @@ describe('DeliveryDetail', () => {
     // Component should render without errors
     expect(screen.getByText('Delivery Preparation')).toBeInTheDocument();
   });
+
+  describe('VIN Layout', () => {
+    it('displays VIN in full-width row with monospace styling', () => {
+      render(
+        <DeliveryDetail
+          delivery={mockDelivery}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      const vinElement = screen.getByText('VIN123456789');
+      expect(vinElement).toBeInTheDocument();
+      expect(vinElement).toHaveClass('font-mono');
+      expect(vinElement).toHaveClass('break-all');
+    });
+
+    it('displays N/A when VIN is missing', () => {
+      const deliveryWithoutVin: Delivery = {
+        ...mockDelivery,
+        car: {
+          ...mockDelivery.car as any,
+          vin: '',
+        },
+      };
+
+      render(
+        <DeliveryDetail
+          delivery={deliveryWithoutVin}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      expect(screen.getByText('N/A')).toBeInTheDocument();
+    });
+
+    it('handles long VIN numbers without overflow', () => {
+      const deliveryWithLongVin: Delivery = {
+        ...mockDelivery,
+        car: {
+          ...mockDelivery.car as any,
+          vin: 'JTMZ43FV00D0456512345',
+        },
+      };
+
+      render(
+        <DeliveryDetail
+          delivery={deliveryWithLongVin}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      const vinElement = screen.getByText('JTMZ43FV00D0456512345');
+      expect(vinElement).toBeInTheDocument();
+      expect(vinElement).toHaveClass('break-all');
+    });
+  });
+
+  describe('Status Badge', () => {
+    it('displays reserved status with amber styling', () => {
+      render(
+        <DeliveryDetail
+          delivery={mockDelivery}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      const statusBadge = screen.getByText('reserved');
+      expect(statusBadge).toBeInTheDocument();
+      expect(statusBadge).toHaveClass('bg-amber-100', 'text-amber-800');
+    });
+
+    it('displays sold status with green styling', () => {
+      const soldDelivery: Delivery = {
+        ...mockDelivery,
+        car: {
+          ...mockDelivery.car as any,
+          status: 'sold',
+        },
+      };
+
+      render(
+        <DeliveryDetail
+          delivery={soldDelivery}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      const statusBadge = screen.getByText('sold');
+      expect(statusBadge).toBeInTheDocument();
+      expect(statusBadge).toHaveClass('bg-green-100', 'text-green-800');
+    });
+
+    it('displays in-stock status with blue styling', () => {
+      const inStockDelivery: Delivery = {
+        ...mockDelivery,
+        car: {
+          ...mockDelivery.car as any,
+          status: 'in-stock',
+        },
+      };
+
+      render(
+        <DeliveryDetail
+          delivery={inStockDelivery}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      const statusBadge = screen.getByText('in stock');
+      expect(statusBadge).toBeInTheDocument();
+      expect(statusBadge).toHaveClass('bg-blue-100', 'text-blue-800');
+    });
+  });
+
+  describe('Delivery Details Card', () => {
+    it('displays Delivery Details card header', () => {
+      render(
+        <DeliveryDetail
+          delivery={mockDelivery}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      expect(screen.getByText('Delivery Details')).toBeInTheDocument();
+    });
+  });
+
+  describe('Long Model Names', () => {
+    it('handles long model names with break-words', () => {
+      const deliveryWithLongModel: Delivery = {
+        ...mockDelivery,
+        car: {
+          ...mockDelivery.car as any,
+          make: 'Mercedes-Benz',
+          model: 'GLC250d 4MATIC AMG Line Premium Plus',
+        },
+      };
+
+      render(
+        <DeliveryDetail
+          delivery={deliveryWithLongModel}
+          onBack={mockOnBack}
+          onSave={mockOnSave}
+        />
+      );
+
+      const modelText = screen.getByText(/Mercedes-Benz GLC250d 4MATIC AMG Line Premium Plus/i);
+      expect(modelText).toBeInTheDocument();
+      expect(modelText).toHaveClass('break-words');
+    });
+  });
 });
