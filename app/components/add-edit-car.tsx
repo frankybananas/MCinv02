@@ -121,7 +121,20 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const [displayedImages, setDisplayedImages] = useState<DisplayImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragSrcIndex = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Image viewer state
+  const [viewerImage, setViewerImage] = useState<DisplayImage | null>(null);
+
+  // Touch drag-to-reorder state
+  const [touchDragging, setTouchDragging] = useState(false);
+  const touchSrcIndex = useRef<number | null>(null);
+  const touchLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchMoved = useRef(false);
+  const displayedImagesRef = useRef<DisplayImage[]>(displayedImages);
+  useEffect(() => { displayedImagesRef.current = displayedImages; }, [displayedImages]);
 
   // Image role tracking for persistent ordering
   const [coverImageIndex, setCoverImageIndex] = useState<number | null>(car?.coverImageIndex ?? null);
@@ -203,25 +216,162 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     setDisplayedImages(prev => [...prev, ...newImages]);
   };
 
+  // ── File-drop zone handlers (CardContent level) ──────────────────────────
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    // Only activate the upload drop-zone when dragging external files (not image tiles)
+    if (dragSrcIndex.current !== null) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (dragSrcIndex.current !== null) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
   };
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    // If this is a tile-reorder drag, ignore at the container level
+    if (dragSrcIndex.current !== null) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
     await processFiles(files);
+  };
+
+  // ── Tile drag-to-reorder handlers ─────────────────────────────────────────
+  const handleTileDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    dragSrcIndex.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleTileDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragSrcIndex.current !== null && dragSrcIndex.current !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleTileDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverIndex(null);
+  };
+
+  const handleTileDrop = (e: React.DragEvent<HTMLDivElement>, dropIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverIndex(null);
+
+    const srcIndex = dragSrcIndex.current;
+    dragSrcIndex.current = null;
+
+    if (srcIndex === null) return;
+    reorderImages(srcIndex, dropIndex);
+  };
+
+  const handleTileDragEnd = () => {
+    dragSrcIndex.current = null;
+    setDragOverIndex(null);
+  };
+
+  // ── Shared reorder logic (used by both mouse and touch) ───────────────────
+  const reorderImages = (srcIndex: number, dropIndex: number) => {
+    if (srcIndex === dropIndex) return;
+
+    setDisplayedImages(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(srcIndex, 1);
+      next.splice(dropIndex, 0, moved);
+      return next;
+    });
+
+    setCoverImageIndex(prev => {
+      if (prev === null) return prev;
+      if (prev === srcIndex) return dropIndex;
+      const lo = Math.min(srcIndex, dropIndex);
+      const hi = Math.max(srcIndex, dropIndex);
+      if (prev < lo || prev > hi) return prev;
+      return srcIndex < dropIndex ? prev - 1 : prev + 1;
+    });
+
+    setVinImageIndex(prev => {
+      if (prev === null) return prev;
+      if (prev === srcIndex) return dropIndex;
+      const lo = Math.min(srcIndex, dropIndex);
+      const hi = Math.max(srcIndex, dropIndex);
+      if (prev < lo || prev > hi) return prev;
+      return srcIndex < dropIndex ? prev - 1 : prev + 1;
+    });
+  };
+
+  // ── Touch drag-to-reorder handlers ───────────────────────────────────────
+  const getTileIndexFromPoint = (x: number, y: number): number | null => {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const tile = (el as HTMLElement).closest('[data-testid="car-image-tile"]') as HTMLElement | null;
+    if (!tile) return null;
+    const id = tile.getAttribute('data-image-id');
+    const idx = displayedImagesRef.current.findIndex(img => img.id === id);
+    return idx >= 0 ? idx : null;
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>, index: number) => {
+    touchMoved.current = false;
+    touchLongPressTimer.current = setTimeout(() => {
+      touchSrcIndex.current = index;
+      setTouchDragging(true);
+      setDragOverIndex(index);
+    }, 400);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchMoved.current = true;
+    if (touchSrcIndex.current === null) {
+      // Not yet in drag mode — cancel long-press if finger moved significantly
+      if (touchLongPressTimer.current) {
+        clearTimeout(touchLongPressTimer.current);
+        touchLongPressTimer.current = null;
+      }
+      return;
+    }
+    // In drag mode — prevent page scroll and find target tile
+    e.preventDefault();
+    const touch = e.touches[0];
+    const overIdx = getTileIndexFromPoint(touch.clientX, touch.clientY);
+    if (overIdx !== null && overIdx !== touchSrcIndex.current) {
+      setDragOverIndex(overIdx);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>, index: number) => {
+    if (touchLongPressTimer.current) {
+      clearTimeout(touchLongPressTimer.current);
+      touchLongPressTimer.current = null;
+    }
+
+    if (touchSrcIndex.current !== null) {
+      // Commit reorder
+      const touch = e.changedTouches[0];
+      const dropIdx = getTileIndexFromPoint(touch.clientX, touch.clientY) ?? dragOverIndex;
+      if (dropIdx !== null) {
+        reorderImages(touchSrcIndex.current, dropIdx);
+      }
+      touchSrcIndex.current = null;
+      setTouchDragging(false);
+      setDragOverIndex(null);
+    } else if (!touchMoved.current) {
+      // Short tap — open image viewer
+      const img = displayedImagesRef.current[index];
+      if (img) setViewerImage(img);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -493,15 +643,29 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                       {displayedImages.map((img, idx) => (
                         <div
                           key={img.id}
-                          className="relative group aspect-square"
+                          className={`relative group aspect-square cursor-grab active:cursor-grabbing transition-all select-none ${
+                            dragOverIndex === idx ? 'ring-2 ring-primary ring-offset-1 opacity-75' : ''
+                          } ${
+                            touchDragging && touchSrcIndex.current === idx ? 'opacity-50 scale-95' : ''
+                          }`}
+                          draggable
                           data-testid="car-image-tile"
                           data-image-id={img.id}
+                          onDragStart={(e) => handleTileDragStart(e, idx)}
+                          onDragOver={(e) => handleTileDragOver(e, idx)}
+                          onDragLeave={handleTileDragLeave}
+                          onDrop={(e) => handleTileDrop(e, idx)}
+                          onDragEnd={handleTileDragEnd}
+                          onTouchStart={(e) => handleTouchStart(e, idx)}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={(e) => handleTouchEnd(e, idx)}
                         >
                           <img
                             src={img.url}
                             alt="Car image"
-                            className="w-full h-full object-cover rounded-md"
+                            className="w-full h-full object-cover rounded-md pointer-events-none"
                             data-testid="car-image-img"
+                            draggable={false}
                           />
                           {coverImageIndex === idx && (
                             <span className="absolute top-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded">Cover</span>
@@ -743,6 +907,23 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
           </div>
         </ScrollArea>
       </form>
+
+      {/* Image Viewer Modal (short tap on mobile) */}
+      <Dialog open={!!viewerImage} onOpenChange={(open) => { if (!open) setViewerImage(null); }}>
+        <DialogContent className="max-w-3xl p-2" data-testid="image-viewer-modal">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Image preview</DialogTitle>
+          </DialogHeader>
+          {viewerImage && (
+            <img
+              src={viewerImage.url}
+              alt="Car image preview"
+              className="w-full max-h-[80vh] object-contain rounded-md"
+              data-testid="image-viewer-img"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Image Role Selection Modal */}
       <Dialog open={showRoleModal} onOpenChange={setShowRoleModal}>

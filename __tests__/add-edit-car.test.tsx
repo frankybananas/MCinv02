@@ -17,6 +17,10 @@ describe('AddEditCar image interactions', () => {
       // @ts-ignore
       global.URL.createObjectURL = jest.fn(() => 'blob:mock');
     }
+    // jsdom does not implement elementFromPoint — return null so touch handlers degrade gracefully
+    if (!document.elementFromPoint) {
+      document.elementFromPoint = jest.fn(() => null);
+    }
   });
   const defaultCar: Car = {
     _id: 'car-1',
@@ -70,7 +74,139 @@ describe('AddEditCar image interactions', () => {
     jest.clearAllMocks();
   });
 
-  // Reordering removed on mobile and desktop; manual ordering is not supported.
+  describe('tile drag-to-reorder', () => {
+    it('tiles are draggable', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+      tiles.forEach(tile => expect(tile).toHaveAttribute('draggable', 'true'));
+    });
+
+    it('reorders images when dragging tile from index 0 to index 2', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.dragStart(tiles[0], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[2], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.drop(tiles[2], { dataTransfer: { getData: () => '0' } });
+      fireEvent.dragEnd(tiles[0]);
+
+      const after = screen.getAllByTestId('car-image-tile');
+      expect(after[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
+      expect(after[1]).toHaveAttribute('data-image-id', expect.stringContaining('img-3'));
+      expect(after[2]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+    });
+
+    it('reorders images when dragging tile from index 2 to index 0', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.dragStart(tiles[2], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[0], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.drop(tiles[0], { dataTransfer: { getData: () => '2' } });
+      fireEvent.dragEnd(tiles[2]);
+
+      const after = screen.getAllByTestId('car-image-tile');
+      expect(after[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-3'));
+      expect(after[1]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+      expect(after[2]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
+    });
+
+    it('does not reorder when dropping on the same tile', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.dragStart(tiles[1], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[1], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.drop(tiles[1], { dataTransfer: { getData: () => '1' } });
+      fireEvent.dragEnd(tiles[1]);
+
+      const after = screen.getAllByTestId('car-image-tile');
+      expect(after[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+      expect(after[1]).toHaveAttribute('data-image-id', expect.stringContaining('img-2'));
+      expect(after[2]).toHaveAttribute('data-image-id', expect.stringContaining('img-3'));
+    });
+
+    it('cover badge follows its image when reordered', () => {
+      const carWithCover: Car = { ...defaultCar, coverImageIndex: 0 };
+      render(<AddEditCar {...baseProps({ car: carWithCover })} />);
+
+      const tiles = screen.getAllByTestId('car-image-tile');
+      // Drag cover image (index 0) to index 2
+      fireEvent.dragStart(tiles[0], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[2], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.drop(tiles[2], { dataTransfer: { getData: () => '0' } });
+      fireEvent.dragEnd(tiles[0]);
+
+      const after = screen.getAllByTestId('car-image-tile');
+      // img-1 (cover) should now be at index 2
+      expect(after[2]).toHaveAttribute('data-image-id', expect.stringContaining('img-1'));
+      expect(screen.getByText('Cover')).toBeInTheDocument();
+    });
+
+    it('VIN badge follows its image when reordered', () => {
+      const carWithVin: Car = { ...defaultCar, vinImageIndex: 2 };
+      render(<AddEditCar {...baseProps({ car: carWithVin })} />);
+
+      const tiles = screen.getAllByTestId('car-image-tile');
+      // Drag VIN image (index 2) to index 0
+      fireEvent.dragStart(tiles[2], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[0], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.drop(tiles[0], { dataTransfer: { getData: () => '2' } });
+      fireEvent.dragEnd(tiles[2]);
+
+      const after = screen.getAllByTestId('car-image-tile');
+      expect(after[0]).toHaveAttribute('data-image-id', expect.stringContaining('img-3'));
+      expect(screen.getByText('VIN')).toBeInTheDocument();
+    });
+
+    it('shows ring highlight on dragOver target tile', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.dragStart(tiles[0], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[2], { dataTransfer: { dropEffect: 'move' } });
+
+      expect(tiles[2].className).toContain('ring-2');
+
+      fireEvent.dragEnd(tiles[0]);
+    });
+
+    it('clears ring highlight on dragLeave', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.dragStart(tiles[0], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[2], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.dragLeave(tiles[2]);
+
+      expect(tiles[2].className).not.toContain('ring-2');
+
+      fireEvent.dragEnd(tiles[0]);
+    });
+
+    it('reordered images are submitted in new order', () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+      render(<AddEditCar {...baseProps({ onSave })} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      // Move img-3 (index 2) to index 0
+      fireEvent.dragStart(tiles[2], { dataTransfer: { effectAllowed: 'move', setData: jest.fn() } });
+      fireEvent.dragOver(tiles[0], { dataTransfer: { dropEffect: 'move' } });
+      fireEvent.drop(tiles[0], { dataTransfer: { getData: () => '2' } });
+      fireEvent.dragEnd(tiles[2]);
+
+      fireEvent.click(screen.getByRole('button', { name: /save car/i }));
+
+      const fd = onSave.mock.calls[0][0] as FormData;
+      const imageOrder = Array.from(fd.entries())
+        .filter(([k]) => k === 'imageOrder')
+        .map(([, v]) => String(v));
+
+      expect(imageOrder[0]).toContain('img-3');
+      expect(imageOrder[1]).toContain('img-1');
+      expect(imageOrder[2]).toContain('img-2');
+    });
+  });
 
   it('removes an image without interfering with drag logic', async () => {
     render(<AddEditCar {...baseProps()} />);
@@ -501,6 +637,111 @@ describe('AddEditCar image interactions', () => {
     it('renders the add-image-tile + button', () => {
       render(<AddEditCar {...baseProps()} />);
       expect(screen.getByTestId('add-image-tile')).toBeInTheDocument();
+    });
+  });
+
+  describe('touch drag-to-reorder', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('tiles have touch event handlers', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+      tiles.forEach(tile => {
+        expect(tile.ontouchstart).toBeDefined();
+      });
+    });
+
+    it('short tap (no long-press) opens image viewer', async () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.touchStart(tiles[0], { touches: [{ clientX: 10, clientY: 10 }] });
+      // Release before 400ms — no timer advance
+      fireEvent.touchEnd(tiles[0], { changedTouches: [{ clientX: 10, clientY: 10 }] });
+
+      const viewer = await screen.findByTestId('image-viewer-modal');
+      expect(viewer).toBeInTheDocument();
+    });
+
+    it('long-press does NOT open image viewer', async () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.touchStart(tiles[0], { touches: [{ clientX: 10, clientY: 10 }] });
+      act(() => { jest.advanceTimersByTime(450); });
+      fireEvent.touchEnd(tiles[0], { changedTouches: [{ clientX: 10, clientY: 10 }] });
+
+      // Viewer should NOT open after a long-press
+      expect(screen.queryByTestId('image-viewer-modal')).not.toBeInTheDocument();
+    });
+
+    it('touch move before 400ms cancels long-press and does not open viewer', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.touchStart(tiles[0], { touches: [{ clientX: 10, clientY: 10 }] });
+      fireEvent.touchMove(tiles[0], { touches: [{ clientX: 50, clientY: 50 }] });
+      act(() => { jest.advanceTimersByTime(450); });
+      fireEvent.touchEnd(tiles[0], { changedTouches: [{ clientX: 50, clientY: 50 }] });
+
+      expect(screen.queryByTestId('image-viewer-modal')).not.toBeInTheDocument();
+    });
+
+    it('long-press activates drag mode (dragOverIndex set to src index)', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.touchStart(tiles[1], { touches: [{ clientX: 10, clientY: 10 }] });
+      act(() => { jest.advanceTimersByTime(450); });
+
+      // After long-press the source tile should show the ring highlight (dragOverIndex === 1)
+      expect(tiles[1].className).toContain('ring-2');
+
+      // Clean up
+      fireEvent.touchEnd(tiles[1], { changedTouches: [{ clientX: 10, clientY: 10 }] });
+    });
+
+    it('touch drag clears drag state on touchEnd', () => {
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.touchStart(tiles[0], { touches: [{ clientX: 10, clientY: 10 }] });
+      act(() => { jest.advanceTimersByTime(450); });
+      fireEvent.touchEnd(tiles[0], { changedTouches: [{ clientX: 10, clientY: 10 }] });
+
+      // Re-query after state update to get fresh className
+      const afterTiles = screen.getAllByTestId('car-image-tile');
+      expect(afterTiles[0].className).not.toContain('ring-2');
+    });
+  });
+
+  describe('image viewer modal', () => {
+    it('viewer modal is not shown by default', () => {
+      render(<AddEditCar {...baseProps()} />);
+      expect(screen.queryByTestId('image-viewer-modal')).not.toBeInTheDocument();
+    });
+
+    it('viewer modal closes when dialog is dismissed', async () => {
+      jest.useFakeTimers();
+      render(<AddEditCar {...baseProps()} />);
+      const tiles = screen.getAllByTestId('car-image-tile');
+
+      fireEvent.touchStart(tiles[0], { touches: [{ clientX: 10, clientY: 10 }] });
+      fireEvent.touchEnd(tiles[0], { changedTouches: [{ clientX: 10, clientY: 10 }] });
+
+      const viewer = await screen.findByTestId('image-viewer-modal');
+      expect(viewer).toBeInTheDocument();
+
+      // Close via the X button in the Dialog
+      const closeBtn = document.querySelector('[data-radix-dialog-close]') as HTMLElement | null;
+      if (closeBtn) fireEvent.click(closeBtn);
+
+      jest.useRealTimers();
     });
   });
 });
