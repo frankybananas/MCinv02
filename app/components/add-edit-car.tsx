@@ -5,7 +5,7 @@ import type { Car } from "../types"
 import { useState, useRef, useEffect } from "react"
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner"
-import { ArrowLeft, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, X, ChevronUp, ChevronDown, UploadCloud } from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -120,6 +120,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
 
   const [displayedImages, setDisplayedImages] = useState<DisplayImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Image role tracking for persistent ordering
@@ -171,11 +172,9 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
+  const processFiles = async (files: File[]) => {
+    if (files.length === 0) return;
 
-    // Progressive enhancement: try to compress in the browser; otherwise fall back to originals
     let processed: File[] = files;
     try {
       const mod = await import('./image-compression.client');
@@ -202,6 +201,33 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       isNew: true,
     }));
     setDisplayedImages(prev => [...prev, ...newImages]);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    await processFiles(files);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    await processFiles(files);
     try { e.target.value = ''; } catch {}
   };
 
@@ -440,7 +466,29 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-base sm:text-lg">Vehicle Images</CardTitle>
                   </CardHeader>
-                  <CardContent className="overflow-auto">
+                  <CardContent
+                    className="overflow-auto"
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    data-testid="image-drop-zone"
+                  >
+                    {/* Desktop-only drag-and-drop area */}
+                    <div
+                      className={`hidden md:flex mb-3 flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
+                        isDragOver
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-gray-300 text-gray-400 hover:border-primary hover:text-primary'
+                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="desktop-drop-zone"
+                    >
+                      <UploadCloud className="w-8 h-8" />
+                      <p className="text-sm font-medium">
+                        {isDragOver ? 'Drop images here' : 'Drag & drop images here, or click to select'}
+                      </p>
+                      <p className="text-xs">Supports JPG, PNG, WEBP</p>
+                    </div>
                     <div className="grid gap-2 sm:gap-3 grid-cols-3">
                       {displayedImages.map((img, idx) => (
                         <div
@@ -500,6 +548,7 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
                         className="aspect-square border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                         data-image-index={displayedImages.length}
+                        data-testid="add-image-tile"
                       >
                         <span className="text-gray-500 text-2xl">+</span>
                       </div>

@@ -388,4 +388,119 @@ describe('AddEditCar image interactions', () => {
   // Reordering cancellation test removed.
 
   // Reordering small-movement test removed.
+
+  describe('drag-and-drop upload', () => {
+    it('renders the desktop drop zone', () => {
+      render(<AddEditCar {...baseProps()} />);
+      expect(screen.getByTestId('desktop-drop-zone')).toBeInTheDocument();
+    });
+
+    it('renders the image-drop-zone container', () => {
+      render(<AddEditCar {...baseProps()} />);
+      expect(screen.getByTestId('image-drop-zone')).toBeInTheDocument();
+    });
+
+    it('adds images when files are dropped onto the drop zone', async () => {
+      render(<AddEditCar {...baseProps()} />);
+
+      const dropZone = screen.getByTestId('image-drop-zone');
+      const fileA = new File(['img-a'], 'a.jpg', { type: 'image/jpeg' });
+      const fileB = new File(['img-b'], 'b.png', { type: 'image/png' });
+
+      await act(async () => {
+        fireEvent.dragOver(dropZone, {
+          dataTransfer: { files: [fileA, fileB] },
+        });
+        fireEvent.drop(dropZone, {
+          dataTransfer: { files: [fileA, fileB] },
+        });
+      });
+
+      const tiles = await screen.findAllByTestId('car-image-tile');
+      expect(tiles.length).toBe(defaultCar.images.length + 2);
+    });
+
+    it('ignores non-image files dropped onto the drop zone', async () => {
+      render(<AddEditCar {...baseProps()} />);
+
+      const dropZone = screen.getByTestId('image-drop-zone');
+      const pdfFile = new File(['pdf'], 'doc.pdf', { type: 'application/pdf' });
+
+      await act(async () => {
+        fireEvent.drop(dropZone, {
+          dataTransfer: { files: [pdfFile] },
+        });
+      });
+
+      const tiles = screen.getAllByTestId('car-image-tile');
+      expect(tiles).toHaveLength(defaultCar.images.length);
+    });
+
+    it('sets isDragOver visual state on dragOver and clears on drop', async () => {
+      render(<AddEditCar {...baseProps()} />);
+
+      const dropZone = screen.getByTestId('image-drop-zone');
+      const desktopZone = screen.getByTestId('desktop-drop-zone');
+
+      fireEvent.dragOver(dropZone, { dataTransfer: { files: [] } });
+      expect(desktopZone.textContent).toContain('Drop images here');
+
+      await act(async () => {
+        fireEvent.drop(dropZone, { dataTransfer: { files: [] } });
+      });
+      expect(desktopZone.textContent).toContain('Drag & drop images here');
+    });
+
+    it('clears isDragOver state on dragLeave', () => {
+      render(<AddEditCar {...baseProps()} />);
+
+      const dropZone = screen.getByTestId('image-drop-zone');
+      const desktopZone = screen.getByTestId('desktop-drop-zone');
+
+      fireEvent.dragOver(dropZone, { dataTransfer: { files: [] } });
+      expect(desktopZone.textContent).toContain('Drop images here');
+
+      fireEvent.dragLeave(dropZone);
+      expect(desktopZone.textContent).toContain('Drag & drop images here');
+    });
+
+    it('clicking the desktop drop zone triggers file input', () => {
+      render(<AddEditCar {...baseProps()} />);
+
+      const fileInput = screen.getByTestId('car-image-file-input') as HTMLInputElement;
+      const clickSpy = jest.spyOn(fileInput, 'click');
+
+      const desktopZone = screen.getByTestId('desktop-drop-zone');
+      fireEvent.click(desktopZone);
+
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      clickSpy.mockRestore();
+    });
+
+    it('dropped images are included in form submission', async () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+      render(<AddEditCar {...baseProps({ onSave })} />);
+
+      const dropZone = screen.getByTestId('image-drop-zone');
+      const droppedFile = new File(['img'], 'dropped.jpg', { type: 'image/jpeg' });
+
+      await act(async () => {
+        fireEvent.drop(dropZone, {
+          dataTransfer: { files: [droppedFile] },
+        });
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /save car/i }));
+
+      expect(onSave).toHaveBeenCalledTimes(1);
+      const fd = onSave.mock.calls[0][0] as FormData;
+      const entries = Array.from(fd.entries());
+      expect(entries.some(([key]) => key === 'images')).toBe(true);
+    });
+
+    it('renders the add-image-tile + button', () => {
+      render(<AddEditCar {...baseProps()} />);
+      expect(screen.getByTestId('add-image-tile')).toBeInTheDocument();
+    });
+  });
 });
