@@ -154,6 +154,21 @@ export interface Car {
   vinImageIndex?: number | null
   // Timestamp when car was marked as sold
   soldAt?: string | null
+  // e-Toyota sync fields
+  etoyotaId?: number | null
+  stockNumber?: string | null
+  syncStatus?: 'synced' | 'new' | 'manual'
+  missingFromStock?: boolean
+  dateFlaggedMissing?: string | null
+  lastSyncedAt?: string | null
+  daysInStock?: number | null
+  dateIntoStock?: string | null
+  etoyotaImageCount?: number | null
+  placeholderImage?: string | null
+  isToyota?: boolean | null
+  etoyotaStatusId?: number | null
+  trim?: string | null
+  manuallyEditedFields?: string[]
 }
 
 export interface Interaction {

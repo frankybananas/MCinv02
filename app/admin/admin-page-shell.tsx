@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import CreateUserForm from '@/app/components/admin/create-user-form';
 import UserList from '@/app/components/admin/user-list';
 import StorageMonitor from '@/app/components/admin/storage-monitor';
+import SyncPanel from '@/app/components/admin/sync-panel';
 import { MainMenu } from '@/app/components/main-menu';
 import type { DashboardTab, NotificationItem } from '@/app/types';
 
@@ -103,6 +104,7 @@ export default function AdminPageShell() {
         </div>
         <p className="text-muted-foreground mb-6">Welcome to the admin panel. Here you can manage users and monitor storage.</p>
         <div className="space-y-8">
+          <SyncPanel />
           <StorageMonitor />
           <CreateUserForm />
           <UserList />

@@ -458,7 +458,7 @@ export function Dashboard({
                       >
                         <div className="p-3 sm:p-3 pr-2 sm:pr-3 flex items-start gap-3 w-full max-w-full">
                           <img
-                            src={car.images?.[0]?.imageUrl || "/placeholder.svg"}
+                            src={car.images?.[0]?.imageUrl || car.placeholderImage || "/placeholder.svg"}
                             alt={`${car.year} ${car.make} ${car.model}`}
                             className="w-16 h-12 object-cover rounded flex-shrink-0"
                           />
@@ -474,6 +474,16 @@ export function Dashboard({
                             <div className="flex items-center justify-between gap-2 min-w-0">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-orange-500 font-semibold text-base truncate">{formatPrice(car.price)}</span>
+                                {car.missingFromStock && (
+                                   <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] h-5 px-1.5 flex-shrink-0" title="No longer in e-Toyota stock">
+                                     ⚠️ Missing
+                                   </Badge>
+                                )}
+                                {!car.missingFromStock && car.syncStatus === 'new' && (
+                                   <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300 text-[10px] h-5 px-1.5 flex-shrink-0">
+                                     🆕 New
+                                   </Badge>
+                                )}
                                 {matchCounts[car._id] && matchCounts[car._id] > 0 ? (
                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200 text-[10px] h-5 px-1.5 flex-shrink-0">
                                      {matchCounts[car._id]} Matches

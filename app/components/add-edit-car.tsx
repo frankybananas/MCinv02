@@ -42,8 +42,16 @@ const parsePrice = (value: string): number => {
   return Number(String(value).replace(/\s/g, ''));
 };
 
+const SYNC_MUTABLE_FIELDS = ['kilometers', 'price', 'color'] as const;
+type SyncMutableField = typeof SYNC_MUTABLE_FIELDS[number];
+
 export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
   const isEditing = !!car;
+  const isSyncedCar = isEditing && !!(car?.etoyotaId);
+
+  const [manuallyEditedFields, setManuallyEditedFields] = useState<Set<string>>(
+    () => new Set(Array.isArray(car?.manuallyEditedFields) ? car?.manuallyEditedFields ?? [] : [])
+  );
 
   const [formData, setFormData] = useState({
     make: car?.make ?? "",
@@ -182,6 +190,10 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
       setFormData((prev) => ({ ...prev, [field]: formattedValue }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
+    }
+    // Track manually edited fields for synced cars
+    if (isSyncedCar && SYNC_MUTABLE_FIELDS.includes(field as SyncMutableField)) {
+      setManuallyEditedFields((prev) => new Set([...prev, field]));
     }
   };
 
@@ -577,6 +589,11 @@ export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {
     }
     if (vinImageIndex !== null) {
       data.append('vinImageIndex', String(vinImageIndex));
+    }
+
+    // For synced cars, pass the updated manuallyEditedFields list
+    if (isSyncedCar && manuallyEditedFields.size > 0) {
+      data.append('manuallyEditedFields', JSON.stringify([...manuallyEditedFields]));
     }
 
     try {

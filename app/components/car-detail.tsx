@@ -5,12 +5,50 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2, Download, Loader2 } from "lucide-react"
+import { ArrowLeft, Edit, MoreVertical, Clock, ChevronLeft, ChevronRight, Share2, Download, Loader2, RefreshCw } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import type { Car, CarStatus, CarState } from "../types"
 import { getStatusColor, STATUS_OPTIONS, formatStatusLabel } from "./status-utils"
 import { downloadCarImages, downloadSingleImage, type DownloadResult } from "@/lib/image-download"
+
+function MarkReviewedButton({ carId }: { carId: string }) {
+  const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const handleClick = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/cars/${carId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncStatus: 'synced' }),
+      })
+      if (res.ok) setDone(true)
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (done) return (
+    <p className="mt-2 text-xs text-green-700 font-medium">✓ Marked as reviewed</p>
+  )
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="mt-2 h-7 text-xs border-green-300 text-green-700 hover:bg-green-50"
+      onClick={handleClick}
+      disabled={loading}
+    >
+      {loading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+      Mark as Reviewed
+    </Button>
+  )
+}
 
 interface CarDetailProps {
   car: Car
@@ -617,6 +655,48 @@ export function CarDetail({ car, onBack, onEdit, onReserve, onStatusChange }: Ca
                     <div className="space-y-1">
                       <p className="text-muted-foreground">Notes</p>
                       <p className="whitespace-pre-wrap">{car.notes}</p>
+                    </div>
+                  )}
+
+                  {/* e-Toyota Sync Info */}
+                  {car.etoyotaId && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">e-Toyota Sync</p>
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        {car.stockNumber && (
+                          <div className="flex justify-between">
+                            <span>Stock No.</span>
+                            <span className="font-mono font-medium text-foreground">{car.stockNumber}</span>
+                          </div>
+                        )}
+                        {typeof car.daysInStock === 'number' && (
+                          <div className="flex justify-between">
+                            <span>Days in stock</span>
+                            <span className="font-medium text-foreground">{car.daysInStock}</span>
+                          </div>
+                        )}
+                        {car.dateIntoStock && (
+                          <div className="flex justify-between">
+                            <span>Date into stock</span>
+                            <span className="font-medium text-foreground">{new Date(car.dateIntoStock).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        {car.lastSyncedAt && (
+                          <div className="flex justify-between">
+                            <span>Last synced</span>
+                            <span className="font-medium text-foreground">{new Date(car.lastSyncedAt).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {car.missingFromStock && car.dateFlaggedMissing && (
+                          <div className="flex justify-between text-amber-700">
+                            <span>Flagged missing</span>
+                            <span className="font-medium">{new Date(car.dateFlaggedMissing).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      {car.syncStatus === 'new' && (
+                        <MarkReviewedButton carId={car._id} />
+                      )}
                     </div>
                   )}
                 </CardContent>

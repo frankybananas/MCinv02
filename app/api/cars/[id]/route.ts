@@ -135,7 +135,25 @@ async function handleJsonUpdate(
   userName: string | null,
   userRole: string | null
 ): Promise<NextResponse> {
-  const { status, clientId } = await request.json();
+  const body = await request.json();
+  const { status, clientId, syncStatus } = body;
+
+  // Allow syncStatus-only updates (e.g., Mark as Reviewed)
+  if (syncStatus && !status) {
+    const validSyncStatuses = ['synced', 'new', 'manual'];
+    if (!validSyncStatuses.includes(syncStatus)) {
+      return NextResponse.json({ success: false, message: 'Invalid syncStatus' }, { status: 400 });
+    }
+    const car = await Car.findByIdAndUpdate(
+      id,
+      { $set: { syncStatus } },
+      { new: true }
+    ).populate('images');
+    if (!car) {
+      return NextResponse.json({ success: false, message: 'Car not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: car.toObject({ virtuals: true }) });
+  }
 
   if (!status || !['in-stock', 'coming', 'reserved', 'sold'].includes(status)) {
     return NextResponse.json({ success: false, message: 'Invalid status provided' }, { status: 400 });
@@ -361,7 +379,7 @@ async function handleFormDataUpdate(
 
   // Handle other form fields
   for (const [key, value] of data.entries()) {
-    if (['images', 'existingImages', 'imageTitles', 'imageOrder', 'coverImageIndex', 'vinImageIndex'].includes(key)) {
+    if (['images', 'existingImages', 'imageTitles', 'imageOrder', 'coverImageIndex', 'vinImageIndex', 'manuallyEditedFields'].includes(key)) {
       continue;
     }
     
@@ -456,6 +474,21 @@ async function handleFormDataUpdate(
       details: `Updated fields: ${changes.join(', ')}`,
       user: userName || userPhone || 'unknown',
     });
+  }
+
+  // Handle manuallyEditedFields: merge with existing to avoid losing previous protections
+  const manuallyEditedRaw = data.get('manuallyEditedFields');
+  if (manuallyEditedRaw) {
+    try {
+      const incoming: string[] = JSON.parse(String(manuallyEditedRaw));
+      const existing: string[] = Array.isArray(carToUpdate.manuallyEditedFields)
+        ? carToUpdate.manuallyEditedFields
+        : [];
+      const merged = Array.from(new Set([...existing, ...incoming]));
+      updateData.manuallyEditedFields = merged;
+    } catch {
+      // ignore malformed JSON
+    }
   }
 
   Object.assign(carToUpdate, updateData);

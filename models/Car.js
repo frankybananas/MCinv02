@@ -66,6 +66,66 @@ const CarSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  // e-Toyota sync fields
+  etoyotaId: {
+    type: Number,
+    default: null,
+  },
+  stockNumber: {
+    type: String,
+    trim: true,
+    default: null,
+  },
+  syncStatus: {
+    type: String,
+    enum: ['synced', 'new', 'manual'],
+    default: 'manual',
+  },
+  missingFromStock: {
+    type: Boolean,
+    default: false,
+  },
+  dateFlaggedMissing: {
+    type: Date,
+    default: null,
+  },
+  lastSyncedAt: {
+    type: Date,
+    default: null,
+  },
+  daysInStock: {
+    type: Number,
+    default: null,
+  },
+  dateIntoStock: {
+    type: Date,
+    default: null,
+  },
+  etoyotaImageCount: {
+    type: Number,
+    default: null,
+  },
+  placeholderImage: {
+    type: String,
+    default: null,
+  },
+  isToyota: {
+    type: Boolean,
+    default: null,
+  },
+  etoyotaStatusId: {
+    type: Number,
+    default: null,
+  },
+  trim: {
+    type: String,
+    trim: true,
+    default: null,
+  },
+  manuallyEditedFields: {
+    type: [String],
+    default: [],
+  },
   demo: {
     type: Boolean,
     default: false,
@@ -127,6 +187,11 @@ CarSchema.pre('save', function(next) {
 CarSchema.index(
   { licensePlate: 1 },
   { unique: true, partialFilterExpression: { licensePlate: { $type: 'string', $ne: '' } } }
+);
+
+CarSchema.index(
+  { etoyotaId: 1 },
+  { unique: true, sparse: true, partialFilterExpression: { etoyotaId: { $type: 'number' } } }
 );
 
 export default mongoose.models.Car || mongoose.model('Car', CarSchema);
