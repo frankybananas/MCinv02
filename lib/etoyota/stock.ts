@@ -11,8 +11,7 @@ function buildStockUrl(baseUrl: string, page = 0): string {
     IsNew: '0',
     Deleted: '0',
     Active: '1',
-    IsInStock: '1',
-    IsValidated: '1',
+    InStock: '1',
     DealershipId: DEALERSHIP_ID,
     with: 'vehiclestockcolour,VehicleStockStatus,opportunityvehicles',
   });
