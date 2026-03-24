@@ -139,6 +139,7 @@ describe('runSync', () => {
         { _id: 'car-mongo-id' },
         expect.objectContaining({
           $set: expect.objectContaining({
+            vin: '39830', // last 5 of DMSStockNumber '65USP39830'
             kilometers: 50000,
             etoyotaId: 1001,
             missingFromStock: false,
@@ -172,6 +173,33 @@ describe('runSync', () => {
       expect(updateCall).not.toHaveProperty('price');
       // These should still be updated
       expect(updateCall).toHaveProperty('etoyotaStatusId');
+      expect(updateCall).toHaveProperty('vin'); // vin not in manuallyEditedFields → still updated
+    });
+
+    it('does not overwrite vin when it is in manuallyEditedFields', async () => {
+      fetchUsedStock.mockResolvedValue({
+        vehicles: [baseApiVehicle],
+        totalCount: 1,
+        pages: 0,
+      });
+      mockCarFind.mockResolvedValue([
+        {
+          _id: 'car-id',
+          etoyotaId: 1001,
+          vin: 'MANUALVIN',
+          syncStatus: 'synced',
+          missingFromStock: false,
+          manuallyEditedFields: ['vin'],
+        },
+      ]);
+
+      await runSync('cron');
+
+      const updateCall = mockCarUpdateOne.mock.calls[0][1].$set;
+      // vin is manually protected — sync must NOT overwrite it
+      expect(updateCall).not.toHaveProperty('vin');
+      // Other mutable fields should still be updated
+      expect(updateCall).toHaveProperty('kilometers');
     });
 
     it('promotes syncStatus from new to synced on update', async () => {
@@ -220,6 +248,90 @@ describe('runSync', () => {
       const updateCall = mockCarUpdateOne.mock.calls[0][1].$set;
       expect(updateCall.missingFromStock).toBe(false);
       expect(updateCall.dateFlaggedMissing).toBeNull();
+    });
+  });
+
+  describe('fallback match by license plate (RegistrationNumber)', () => {
+    it('matches manually-entered car by license plate to prevent E11000 duplicate key error', async () => {
+      fetchUsedStock.mockResolvedValue({
+        vehicles: [baseApiVehicle],
+        totalCount: 1,
+        pages: 0,
+      });
+      // Car has no etoyotaId and no matching VIN, but licensePlate matches RegistrationNumber
+      mockCarFind.mockResolvedValue([
+        {
+          _id: 'manual-lp-id',
+          etoyotaId: null,
+          vin: 'ZZZZZ', // deliberately does NOT match '39830'
+          licensePlate: 'HYL791K', // matches baseApiVehicle.RegistrationNumber
+          syncStatus: 'manual',
+          missingFromStock: false,
+          manuallyEditedFields: [],
+        },
+      ]);
+
+      const result = await runSync('cron');
+
+      // Should UPDATE the existing car, NOT create a new placeholder
+      expect(result.vehiclesAdded).toBe(0);
+      expect(result.vehiclesUpdated).toBe(1);
+      expect(result.syncErrors).toHaveLength(0);
+      expect(mockCarCreate).not.toHaveBeenCalled();
+
+      // Should link the etoyotaId to the manually-entered car
+      const updateCall = mockCarUpdateOne.mock.calls[0][1].$set;
+      expect(updateCall.etoyotaId).toBe(1001);
+    });
+
+    it('does not match cars with empty licensePlate against RegistrationNumber', async () => {
+      fetchUsedStock.mockResolvedValue({
+        vehicles: [baseApiVehicle],
+        totalCount: 1,
+        pages: 0,
+      });
+      mockCarFind.mockResolvedValue([
+        {
+          _id: 'manual-no-plate',
+          etoyotaId: null,
+          vin: null,
+          licensePlate: '', // empty — should not match
+          syncStatus: 'manual',
+          missingFromStock: false,
+          manuallyEditedFields: [],
+        },
+      ]);
+
+      const result = await runSync('cron');
+
+      // New placeholder SHOULD be created since no match was found
+      expect(result.vehiclesAdded).toBe(1);
+      expect(mockCarCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('license plate match is case-insensitive', async () => {
+      fetchUsedStock.mockResolvedValue({
+        vehicles: [{ ...baseApiVehicle, RegistrationNumber: 'hyl791k' }],
+        totalCount: 1,
+        pages: 0,
+      });
+      mockCarFind.mockResolvedValue([
+        {
+          _id: 'manual-lp-upper',
+          etoyotaId: null,
+          vin: 'ZZZZZ',
+          licensePlate: 'HYL791K', // uppercase in DB, lowercase from API
+          syncStatus: 'manual',
+          missingFromStock: false,
+          manuallyEditedFields: [],
+        },
+      ]);
+
+      const result = await runSync('cron');
+
+      expect(result.vehiclesAdded).toBe(0);
+      expect(result.vehiclesUpdated).toBe(1);
+      expect(mockCarCreate).not.toHaveBeenCalled();
     });
   });
 
@@ -326,6 +438,32 @@ describe('runSync', () => {
 
       expect(result.vehiclesFlagged).toBe(0);
       expect(mockCarUpdateOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('partial errors on create', () => {
+    it('exposes syncErrors in result when Car.create fails with duplicate key', async () => {
+      fetchUsedStock.mockResolvedValue({
+        vehicles: [
+          { ...baseApiVehicle, Id: 2001, RegistrationNumber: 'UNIQUE001' },
+          { ...baseApiVehicle, Id: 2002, DMSStockNumber: '65USP99001', RegistrationNumber: 'UNIQUE002' },
+        ],
+        totalCount: 2,
+        pages: 0,
+      });
+      mockCarFind.mockResolvedValue([]);
+
+      // Simulate first create succeeds, second fails with E11000
+      const dupError = Object.assign(new Error('E11000 duplicate key error ... licensePlate_1'), { code: 11000 });
+      mockCarCreate
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(dupError);
+
+      const result = await runSync('cron');
+
+      expect(result.vehiclesAdded).toBe(1);
+      expect(result.syncErrors).toHaveLength(1);
+      expect(result.syncErrors[0]).toContain('Create failed for etoyotaId 2002');
     });
   });
 

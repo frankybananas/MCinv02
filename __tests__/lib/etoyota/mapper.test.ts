@@ -153,12 +153,23 @@ describe('mapVehicleToMutableFields', () => {
   it('maps only mutable fields', () => {
     const result = mapVehicleToMutableFields(mockVehicle);
 
+    expect(result.vin).toBe('39830'); // last 5 of DMSStockNumber '65USP39830'
     expect(result.kilometers).toBe(45000);
     expect(result.daysInStock).toBe(30);
     expect(result.price).toBe(460000);
     expect(result.etoyotaStatusId).toBe(1);
     expect(result.etoyotaImageCount).toBe(8);
     expect(result.lastSyncedAt).toBeInstanceOf(Date);
+  });
+
+  it('vin is last 5 chars of DMSStockNumber uppercased', () => {
+    const result = mapVehicleToMutableFields({ ...mockVehicle, DMSStockNumber: 'ABCDE12345' });
+    expect(result.vin).toBe('12345');
+  });
+
+  it('vin is empty string when DMSStockNumber is missing', () => {
+    const result = mapVehicleToMutableFields({ ...mockVehicle, DMSStockNumber: '' });
+    expect(result.vin).toBe('');
   });
 
   it('lastSyncedAt is close to now', () => {

@@ -25,6 +25,7 @@ export interface MappedCar {
 }
 
 export interface MutableSyncFields {
+  vin: string;
   kilometers: number;
   daysInStock: number | null;
   price: number;
@@ -83,6 +84,7 @@ export function mapVehicleToNewCar(vehicle: EToyotaVehicle): MappedCar {
 
 export function mapVehicleToMutableFields(vehicle: EToyotaVehicle): MutableSyncFields {
   return {
+    vin: extractVinSuffix(vehicle.DMSStockNumber ?? ''),
     kilometers: vehicle.OdoMeterReading ?? 0,
     daysInStock: typeof vehicle.DaysInStock === 'number' ? vehicle.DaysInStock : null,
     price: computePriceInclVAT(vehicle.RetailPrice ?? 0),

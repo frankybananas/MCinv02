@@ -42,7 +42,7 @@ const parsePrice = (value: string): number => {
   return Number(String(value).replace(/\s/g, ''));
 };
 
-const SYNC_MUTABLE_FIELDS = ['kilometers', 'price', 'color'] as const;
+const SYNC_MUTABLE_FIELDS = ['kilometers', 'price', 'color', 'vin'] as const;
 type SyncMutableField = typeof SYNC_MUTABLE_FIELDS[number];
 
 export function AddEditCar({ car, onSave, onCancel }: AddEditCarProps) {

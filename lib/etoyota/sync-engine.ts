@@ -16,6 +16,7 @@ export interface SyncResult {
 }
 
 const MUTABLE_FIELDS = [
+  'vin',
   'kilometers',
   'daysInStock',
   'price',
@@ -61,11 +62,15 @@ export async function runSync(triggeredBy: 'cron' | 'manual'): Promise<SyncResul
     // Build lookup maps from API response
     const apiById = new Map<number, EToyotaVehicle>();
     const apiByVinSuffix = new Map<string, EToyotaVehicle>();
+    const apiByRegistrationNumber = new Map<string, EToyotaVehicle>();
 
     for (const v of vehicles) {
       if (v.Id) apiById.set(v.Id, v);
       const suffix = extractVinSuffix(v.DMSStockNumber ?? '');
       if (suffix) apiByVinSuffix.set(suffix, v);
+      if (v.RegistrationNumber) {
+        apiByRegistrationNumber.set(v.RegistrationNumber.toUpperCase(), v);
+      }
     }
 
     // Load all existing cars from DB
@@ -84,10 +89,20 @@ export async function runSync(triggeredBy: 'cron' | 'manual'): Promise<SyncResul
         if (apiVehicle) processedEtoyotaIds.add(c.etoyotaId);
       }
 
-      // Fallback match: last 5 of VIN against last 5 of DMSStockNumber
+      // Fallback match 1: last 5 of VIN against last 5 of DMSStockNumber
       if (!apiVehicle && c.vin && c.vin.length >= 5) {
         const vinSuffix = String(c.vin).slice(-5).toUpperCase();
         apiVehicle = apiByVinSuffix.get(vinSuffix);
+        if (apiVehicle) {
+          processedEtoyotaIds.add(apiVehicle.Id);
+        }
+      }
+
+      // Fallback match 2: license plate (RegistrationNumber) — prevents E11000 duplicate key
+      // errors silently swallowing new placeholders for manually-entered cars
+      if (!apiVehicle && c.licensePlate && String(c.licensePlate).trim().length > 0) {
+        const plate = String(c.licensePlate).toUpperCase().trim();
+        apiVehicle = apiByRegistrationNumber.get(plate);
         if (apiVehicle) {
           processedEtoyotaIds.add(apiVehicle.Id);
         }

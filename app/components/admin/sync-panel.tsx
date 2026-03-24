@@ -75,7 +75,7 @@ export default function SyncPanel() {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
-  const [triggerResult, setTriggerResult] = useState<{ success: boolean; message?: string; vehiclesAdded?: number; vehiclesUpdated?: number; vehiclesFlagged?: number } | null>(null);
+  const [triggerResult, setTriggerResult] = useState<{ success: boolean; message?: string; vehiclesAdded?: number; vehiclesUpdated?: number; vehiclesFlagged?: number; syncErrors?: string[] } | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -114,6 +114,7 @@ export default function SyncPanel() {
         vehiclesAdded: data.vehiclesAdded,
         vehiclesUpdated: data.vehiclesUpdated,
         vehiclesFlagged: data.vehiclesFlagged,
+        syncErrors: data.syncErrors,
       });
       await loadStatus();
     } catch {
@@ -150,11 +151,26 @@ export default function SyncPanel() {
         {triggerResult && (
           <div className={`p-3 rounded-md text-sm ${triggerResult.success ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
             {triggerResult.success ? (
-              <span>
-                ✓ Sync complete — <strong>+{triggerResult.vehiclesAdded ?? 0}</strong> added,{" "}
-                <strong>~{triggerResult.vehiclesUpdated ?? 0}</strong> updated,{" "}
-                <strong>⚠{triggerResult.vehiclesFlagged ?? 0}</strong> flagged missing
-              </span>
+              <div className="space-y-1">
+                <span>
+                  ✓ Sync complete — <strong>+{triggerResult.vehiclesAdded ?? 0}</strong> added,{" "}
+                  <strong>~{triggerResult.vehiclesUpdated ?? 0}</strong> updated,{" "}
+                  <strong>⚠{triggerResult.vehiclesFlagged ?? 0}</strong> flagged missing
+                </span>
+                {triggerResult.syncErrors && triggerResult.syncErrors.length > 0 && (
+                  <div className="mt-1 pt-1 border-t border-green-300">
+                    <p className="font-semibold text-amber-700">⚠ {triggerResult.syncErrors.length} partial error(s):</p>
+                    <ul className="mt-0.5 space-y-0.5 text-amber-800 text-xs">
+                      {triggerResult.syncErrors.slice(0, 3).map((e, i) => (
+                        <li key={i} className="truncate">{e}</li>
+                      ))}
+                      {triggerResult.syncErrors.length > 3 && (
+                        <li className="text-amber-600">…and {triggerResult.syncErrors.length - 3} more</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
             ) : (
               <span>✗ Sync failed: {triggerResult.message}</span>
             )}
