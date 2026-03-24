@@ -3,6 +3,7 @@ import { connect } from '@/lib/mongodb';
 import { markCronError, markCronRunning, markCronSuccess } from '@/lib/cron-metadata';
 import SoldCar from '@/models/SoldCar';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSession } from '@/lib/auth-session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,12 +11,16 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   const startedAt = Date.now();
   try {
-    // Verify authorization header (for cron jobs or internal calls)
+    // Verify authorization: accept CRON_SECRET bearer token (automated cron) or admin session (UI)
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET || process.env.NEXTAUTH_SECRET;
-    
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isCronCall = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+    if (!isCronCall) {
+      const session = await getSession(request);
+      if (!session || session.role !== 'admin') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     await connect();

@@ -112,9 +112,6 @@ export default function StorageMonitor() {
       setRefreshing(true);
       const response = await fetch('/api/admin/cleanup-sold-cars', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || ''}`,
-        },
       });
       
       if (!response.ok) {
