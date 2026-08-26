@@ -183,3 +183,17 @@ Then route `images.example.com/*` to the Worker in Cloudflare.
 - __Health__: homepage loads over HTTPS, no console errors.
 - __Auth__: OTP flow works end-to-end with Verify Service (SMS arrives, verify succeeds).
 - __Sharing__: On a real phone over HTTPS domain, images attach and text opens in WhatsApp.
+
+## M) GitHub Actions & Coolify CI/CD Integration
+
+The repository includes an automated CI/CD pipeline (`.github/workflows/ci.yml`) that runs typechecking, linting, 545 unit/integration tests, and production build checks on every push and pull request.
+
+### Setting up CI-Gated Deploy to Coolify:
+1. In your Coolify dashboard, navigate to your **MCinv02 Application** -> **Webhooks**.
+2. Copy the **Deploy Webhook** URL (e.g., `https://your-coolify-domain.com/api/v1/deploy?uuid=...`).
+3. In your GitHub repository, go to **Settings** -> **Secrets and variables** -> **Actions**.
+4. Click **New repository secret**:
+   - **Name**: `COOLIFY_WEBHOOK_URL`
+   - **Value**: paste the Coolify Deploy Webhook URL.
+5. Whenever you push to `main`, GitHub Actions will first run all quality checks and tests. Only when they all pass will it automatically trigger Coolify to pull and redeploy the latest code.
+

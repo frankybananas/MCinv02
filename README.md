@@ -3,6 +3,7 @@
 > A full-stack Progressive Web App for automotive dealerships to manage inventory, clients, deliveries, and marketing with AI-powered vehicle matching.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://htg.lotlynx.app)
+[![CI](https://github.com/frankybananas/MCinv02/actions/workflows/ci.yml/badge.svg)](https://github.com/frankybananas/MCinv02/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)

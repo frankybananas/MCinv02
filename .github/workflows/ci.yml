@@ -87,3 +87,31 @@ jobs:
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
           # Dummy encryption key for Facebook token encryption (64 hex chars)
           FACEBOOK_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+  deploy:
+    name: Deploy to Coolify
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Trigger Coolify Deploy Webhook
+        env:
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK_URL" ]; then
+            echo "::notice ::COOLIFY_WEBHOOK_URL secret is not set. Skipping Coolify deploy trigger."
+            exit 0
+          fi
+          echo "Triggering deployment in Coolify..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "$COOLIFY_WEBHOOK_URL")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          echo "Response body: $body"
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "Coolify deployment successfully triggered (HTTP $http_code)."
+          else
+            echo "::error ::Coolify deployment webhook returned HTTP $http_code"
+            exit 1
+          fi
+
