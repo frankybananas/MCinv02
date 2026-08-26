@@ -35,7 +35,7 @@
 | Category | Technologies |
 |----------|-------------|
 | **Frontend** | Next.js 15, React 19, TypeScript 5, Tailwind CSS, shadcn/ui, Radix UI |
-| **Backend** | Next.js API Routes (47+ endpoints), Edge Middleware |
+| **Backend** | Next.js API Routes (53 endpoints), Edge Middleware |
 | **Database** | MongoDB 6.17 with Mongoose 8.16 ODM |
 | **Authentication** | JWT (jose), Twilio Verify SMS OTP |
 | **Storage** | Cloudflare R2 (S3-compatible) via AWS SDK, Sharp image processing |
@@ -47,7 +47,7 @@
 
 ```
 ├── app/
-│   ├── api/              # 47+ API routes
+│   ├── api/              # 53 API routes
 │   │   ├── auth/         # OTP send/verify, session management
 │   │   ├── cars/         # CRUD, status changes, image upload
 │   │   ├── clients/      # Client management, requests
@@ -60,14 +60,20 @@
 │   │   └── ...
 │   └── types.ts          # TypeScript interfaces
 ├── lib/
+│   ├── ai/               # Gemini AI parser & client
+│   ├── matching/         # Vehicle match engine & scoring
+│   ├── etoyota/          # eToyota sync integration
 │   ├── auth-session.ts   # JWT session handling
 │   ├── rbac.ts           # Role-based access control
 │   ├── validation.ts     # Input sanitization
 │   ├── rate-limit.ts     # Progressive rate limiting
 │   └── ...
-├── models/               # 19 MongoDB schemas
+├── components/           # shadcn/ui primitives + theme provider
+├── models/               # 22 MongoDB schemas
 ├── middleware.ts         # Edge auth + role enforcement
 ├── __tests__/            # Jest test suites
+├── scripts/              # Admin scripts, migrations, MongoDB backup
+├── workers/              # Cloudflare R2 CORS worker
 └── docs/                 # Technical documentation
 ```
 

@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { connectToDatabase } from '@/lib/mongodb';
-import Car from '@/models/Car.js';
+import Car from '@/models/Car';
 import Picture from '@/models/Picture';
 import { requireSession, verifyActiveSession } from '@/lib/auth-session';
 

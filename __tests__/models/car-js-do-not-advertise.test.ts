@@ -20,7 +20,7 @@ jest.mock('mongoose', () => {
   return { __esModule: true, default: { Schema: FakeSchema, models, model } };
 });
 
-const importCarModel = async () => (await import('@/models/Car.js')).default as any;
+const importCarModel = async () => (await import('@/models/Car')).default as any;
 
 describe('models/Car.js schema: doNotAdvertise', () => {
   beforeEach(() => {
@@ -58,7 +58,7 @@ describe('models/Car.js schema: doNotAdvertise', () => {
     const next = jest.fn();
     // Execute the hook with fake context
     await saveHook.call(ctx, next);
-    expect(typeof ctx.updatedAt).toBe('number');
+    expect(ctx.updatedAt).toBeInstanceOf(Date);
     expect(next).toHaveBeenCalled();
   });
 

@@ -87,7 +87,7 @@ const mockCar: MockCar = {
   }),
 };
 
-jest.mock('@/models/Car.js', () => ({
+jest.mock('@/models/Car', () => ({
   __esModule: true,
   default: {
     find: jest.fn().mockReturnValue({
@@ -163,7 +163,7 @@ describe('Car Lifecycle Integration', () => {
 
   describe('Car Creation', () => {
     it('should create a new car with required fields', async () => {
-      const Car = (await import('@/models/Car.js')).default;
+      const Car = (await import('@/models/Car')).default;
       
       const carData = {
         make: 'Toyota',

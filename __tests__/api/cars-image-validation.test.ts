@@ -86,7 +86,7 @@ jest.mock('sharp', () => ({
 
 let mockCar: any;
 
-jest.mock('@/models/Car.js', () => ({
+jest.mock('@/models/Car', () => ({
   __esModule: true,
   default: {
     syncIndexes: jest.fn().mockResolvedValue(undefined),
@@ -114,7 +114,7 @@ jest.mock('@/models/Picture', () => {
   };
 });
 
-import Car from '@/models/Car.js';
+import Car from '@/models/Car';
 import Picture from '@/models/Picture';
 import { POST } from '@/app/api/cars/route';
 import { PUT } from '@/app/api/cars/[id]/route';

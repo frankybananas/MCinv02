@@ -11,7 +11,7 @@ Fixed major test suite issues to improve test reliability and coverage.
 ## Key Fixes Applied
 
 ### 1. Jest Configuration - BSON/MongoDB ESM Module Support
-**File:** `jest.config.new.js`
+**File:** `jest.config.js`
 
 **Problem:** Jest couldn't parse BSON and MongoDB ESM modules, causing syntax errors.
 
@@ -119,7 +119,7 @@ The following categories of tests still need attention:
 ## Files Modified
 
 ### Configuration:
-- `jest.config.new.js` - Added BSON/MongoDB transform support
+- `jest.config.js` - Added BSON/MongoDB transform support
 
 ### Test Files Fixed:
 - `__tests__/api/admin-users.test.ts` - Mock initialization and phone validation

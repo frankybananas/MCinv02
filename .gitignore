@@ -36,6 +36,12 @@ test-results.json
 failing-tests.txt
 build-trace.log
 
+# Lint output artifacts
+lint.json
+
+# Windsurf deploy config (auto-generated, contains project IDs)
+windsurf_deployment.yaml
+
 # IDE / Editor
 .windsurf/
 .cursor/

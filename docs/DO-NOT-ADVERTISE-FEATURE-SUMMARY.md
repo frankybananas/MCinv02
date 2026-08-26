@@ -127,7 +127,7 @@ Code Quality: 10.0/10
 8. `app/api/marketing/cars/route.ts` - DNA filtering query
 9. `jest.setup.ts` - Fixed window checks for node environment tests
 10. `jest.setup.node.ts` - Created (new file)
-11. `jest.config.new.js` - Added testEnvironmentOptions
+11. `jest.config.js` - Added testEnvironmentOptions
 
 ## Files Created
 

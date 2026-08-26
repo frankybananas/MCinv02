@@ -24,11 +24,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "jest --config=jest.config.new.js",
-    "test:all": "jest --config=jest.config.new.js",
-    "test:watch": "jest --watch --config=jest.config.new.js",
-    "test:coverage": "jest --coverage --config=jest.config.new.js",
-    "test:ci": "jest --ci --coverage --config=jest.config.new.js",
+    "test": "jest --config=jest.config.js",
+    "test:all": "jest --config=jest.config.js",
+    "test:watch": "jest --watch --config=jest.config.js",
+    "test:coverage": "jest --coverage --config=jest.config.js",
+    "test:ci": "jest --ci --coverage --config=jest.config.js",
     "typecheck": "pnpm tsc --noEmit"
   },
   "dependencies": {

@@ -4,7 +4,7 @@ import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { connectToDatabase } from '@/lib/mongodb';
-import Car from '@/models/Car.js';
+import Car from '@/models/Car';
 import Picture from '@/models/Picture';
 import Delivery from '@/models/Delivery';
 import Client from '@/models/Client.js';
